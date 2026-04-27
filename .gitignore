@@ -1,0 +1,35 @@
+# ===== 交易数据（不要上传！太大了）=====
+data/
+lday/
+five/
+fifteen/
+thirty/
+sixty/
+one/
+month/
+week/
+gbbq/
+
+# ===== 临时文件 =====
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.tmp
+
+# ===== 配置文件（含 API Key、路径）=====
+.env
+
+# ===== 诊断/测试脚本（临时产物）=====
+temp_*.py
+diag_*.py
+test_*.py
+
+# ===== 报告和数据同步 =====
+reports/daily/
+reports/judgement_log.csv
+sync_cache.json
+
+# ===== IDE 配置 =====
+.idea/
+
