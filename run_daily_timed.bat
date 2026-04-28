@@ -34,7 +34,7 @@ powershell -Command "$t0=Get-Date; python scan_opportunities.py --report; $t1=Ge
 
 echo.
 echo ==========================================
-echo 全部完成！
+echo 全部完成
 echo 报告位置: reports\daily\
 echo CSV日志:  reports\judgement_log.csv
 echo ==========================================

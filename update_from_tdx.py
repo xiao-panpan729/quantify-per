@@ -25,11 +25,16 @@ import config
 CACHE_FILE = os.path.join(os.path.dirname(__file__), 'sync_cache.json')
 
 def load_sync_cache():
-    """加载同步缓存 { 'sz000001': '20260424', ... }"""
+    """加载同步缓存 { 'sz_sz000001_lday': '20260427', 'sz_sz000001_lc5': '20260427', ... }"""
     if os.path.exists(CACHE_FILE):
         try:
             with open(CACHE_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                cache = json.load(f)
+            # 兼容旧格式：如果 key 不包含 _lday/_lc5，说明是旧缓存，清空重建
+            if cache and not any(k.endswith('_lday') or k.endswith('_lc5') for k in cache.keys()):
+                print("[缓存] 检测到旧格式缓存，清空重建（支持 lday/lc5 独立跟踪）")
+                return {}
+            return cache
         except:
             pass
     return {}
@@ -908,76 +913,108 @@ def process_market(market, stock_list, logger, rebuild=False, cache=None):
         else:
             stats['error'] += 1
     
-    # 筛选需要处理的股票（用缓存加速）
-    stocks_to_process = []
+    # 筛选需要处理的股票（独立检查 lday 和 lc5）
+    lday_stocks = []   # 日线有更新的股票
+    lc5_stocks = []    # 5分钟有更新的股票
     skipped_by_cache = 0
     
     for code in stock_list:
-        # 检查通达信源文件是否更新
-        source_file = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
-        file_date = get_file_date(source_file)
-        cache_key = f"{market}_{code}"
+        # 分别检查 lday 和 lc5 的源文件日期
+        lday_source = os.path.join(config.TDX_SOURCE[market]['lday'], f"{code}.day")
+        lc5_source = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
         
-        if not rebuild and cache.get(cache_key) == file_date:
+        lday_date = get_file_date(lday_source)
+        lc5_date = get_file_date(lc5_source)
+        
+        cache_key_lday = f"{market}_{code}_lday"
+        cache_key_lc5 = f"{market}_{code}_lc5"
+        
+        lday_changed = rebuild or cache.get(cache_key_lday) != lday_date
+        lc5_changed = rebuild or cache.get(cache_key_lc5) != lc5_date
+        
+        if not lday_changed and not lc5_changed:
             skipped_by_cache += 1
             continue
-        stocks_to_process.append(code)
-    
-    logger.log(f"  [{market_name}] 缓存跳过 {skipped_by_cache} 只, 需处理 {len(stocks_to_process)} 只")
-    
-    # 1. 同步日线
-    logger.log(f"  [{market_name}] 1/5 同步日线 (lday)")
-    for code in stocks_to_process:
-        count_result(sync_stock_data(code, 'lday', market, logger))
-    
-    # 2. 同步1分钟
-    logger.log(f"  [{market_name}] 2/5 同步1分钟 (lc1){' [FORCE]' if rebuild else ''}")
-    for code in stocks_to_process:
-        count_result(sync_stock_data(code, 'lc1', market, logger, force_rewrite=rebuild))
-    
-    # 3. 同步5分钟 + 同步合成15/30/60分钟（一次读取，多周期合成）
-    logger.log(f"  [{market_name}] 3/5 同步5分钟并合成15/30/60分钟")
-    for code in stocks_to_process:
-        # 同步5分钟
-        r = sync_stock_data(code, 'lc5', market, logger, force_rewrite=rebuild)
-        count_result(r)
         
-        # 如果5分钟同步成功，用同一份source_data同步合成多周期
-        if r['status'] == 'success' and not rebuild:
-            # 读取lc5源数据（复用）
-            source_file = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
-            source_data = read_min_file(source_file)
-            if source_data:
-                # 同步合成15/30/60分钟
+        if lday_changed:
+            lday_stocks.append(code)
+        if lc5_changed:
+            lc5_stocks.append(code)
+    
+    logger.log(f"  [{market_name}] 缓存跳过 {skipped_by_cache} 只")
+    logger.log(f"  [{market_name}] 日线需更新: {len(lday_stocks)} 只, 分钟线需更新: {len(lc5_stocks)} 只")
+    
+    # 1. 同步日线（lday 有变化的股票）
+    if lday_stocks:
+        logger.log(f"  [{market_name}] 1/6 同步日线 (lday) {len(lday_stocks)} 只")
+        for code in lday_stocks:
+            count_result(sync_stock_data(code, 'lday', market, logger))
+    else:
+        logger.log(f"  [{market_name}] 1/6 同步日线 (lday) 无需更新")
+    
+    # 2. 同步1分钟（lc5 有变化的股票）
+    if lc5_stocks:
+        logger.log(f"  [{market_name}] 2/6 同步1分钟 (lc1) {len(lc5_stocks)} 只{' [FORCE]' if rebuild else ''}")
+        for code in lc5_stocks:
+            count_result(sync_stock_data(code, 'lc1', market, logger, force_rewrite=rebuild))
+    else:
+        logger.log(f"  [{market_name}] 2/6 同步1分钟 (lc1) 无需更新")
+    
+    # 3. 同步5分钟 + 同步合成15/30/60分钟（lc5 有变化的股票）
+    if lc5_stocks:
+        logger.log(f"  [{market_name}] 3/6 同步5分钟并合成15/30/60分钟 {len(lc5_stocks)} 只")
+        for code in lc5_stocks:
+            # 同步5分钟
+            r = sync_stock_data(code, 'lc5', market, logger, force_rewrite=rebuild)
+            count_result(r)
+            
+            # 如果5分钟同步成功，用同一份source_data同步合成多周期
+            if r['status'] == 'success' and not rebuild:
+                source_file = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
+                source_data = read_min_file(source_file)
+                if source_data:
+                    for target_type in ['lc15', 'lc30', 'lc60']:
+                        count_result(merge_min_data_from_source(code, target_type, market, logger, source_data))
+            else:
                 for target_type in ['lc15', 'lc30', 'lc60']:
-                    count_result(merge_min_data_from_source(code, target_type, market, logger, source_data))
-        else:
-            # 失败或rebuild模式，走旧逻辑
-            for target_type in ['lc15', 'lc30', 'lc60']:
-                count_result(merge_min_data(code, target_type, market, logger, rebuild=rebuild))
+                    count_result(merge_min_data(code, target_type, market, logger, rebuild=rebuild))
+    else:
+        logger.log(f"  [{market_name}] 3/6 同步5分钟并合成15/30/60分钟 无需更新")
     
-    # 4. 合成周线
-    logger.log(f"  [{market_name}] 4/5 合成周线 (week)")
-    for code in stocks_to_process:
-        count_result(merge_daily_to_period(code, 'week', market, logger))
+    # 4. 合成周线（lday 有变化的股票）
+    if lday_stocks:
+        logger.log(f"  [{market_name}] 4/6 合成周线 (week) {len(lday_stocks)} 只")
+        for code in lday_stocks:
+            count_result(merge_daily_to_period(code, 'week', market, logger))
+    else:
+        logger.log(f"  [{market_name}] 4/6 合成周线 (week) 无需更新")
     
-    # 5. 合成月线
-    logger.log(f"  [{market_name}] 5/5 合成月线 (month)")
-    for code in stocks_to_process:
-        count_result(merge_daily_to_period(code, 'month', market, logger))
+    # 5. 合成月线（lday 有变化的股票）
+    if lday_stocks:
+        logger.log(f"  [{market_name}] 5/6 合成月线 (month) {len(lday_stocks)} 只")
+        for code in lday_stocks:
+            count_result(merge_daily_to_period(code, 'month', market, logger))
+    else:
+        logger.log(f"  [{market_name}] 5/6 合成月线 (month) 无需更新")
     
-    # 更新缓存
-    for code in stocks_to_process:
-        source_file = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
-        file_date = get_file_date(source_file)
-        if file_date:
-            cache[f"{market}_{code}"] = file_date
+    # 更新缓存（分别记录 lday 和 lc5 的日期）
+    for code in lday_stocks:
+        lday_source = os.path.join(config.TDX_SOURCE[market]['lday'], f"{code}.day")
+        lday_date = get_file_date(lday_source)
+        if lday_date:
+            cache[f"{market}_{code}_lday"] = lday_date
+    
+    for code in lc5_stocks:
+        lc5_source = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
+        lc5_date = get_file_date(lc5_source)
+        if lc5_date:
+            cache[f"{market}_{code}_lc5"] = lc5_date
     
     logger.log(f"  [{market_name}] 完成: 成功={stats['success']}, 跳过={stats['skip']}, 失败={stats['error']}")
     
-    # 6. 下载后随机抽查（用 pytdx 对比本地 lc5 数据）
-    if not rebuild and len(stocks_to_process) > 0:
-        _random_verify(market, stocks_to_process, logger)
+    # 6. 下载后随机抽查（只对分钟线更新的股票抽查）
+    if not rebuild and len(lc5_stocks) > 0:
+        _random_verify(market, lc5_stocks, logger)
     
     return stats, cache
 

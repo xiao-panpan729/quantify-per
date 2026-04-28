@@ -25,6 +25,18 @@ BASE = Path(__file__).parent.resolve()
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
 REPORT_DIR = BASE / 'reports' / 'daily'
 LOG_CSV = BASE / 'reports' / 'judgement_log.csv'
+SOLD_POSITIONS_FILE = BASE / 'tracking_notes' / 'sold_positions.json'
+
+# ==== 已卖出持仓跟踪（需手动维护） ====
+# 格式: { 'code': { 'sold_date': 'YYYYMMDD', 'sold_price': float, 'reason': str } }
+def load_sold_positions():
+    if SOLD_POSITIONS_FILE.exists():
+        try:
+            with open(SOLD_POSITIONS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
 
 CODES = [
     ('sz159740', '恒生科技ETF'),
@@ -107,12 +119,53 @@ def fmt_ts(ts):
 
 
 def get_daily_env(code):
-    """获取日线MACD环境"""
+    """获取日线MACD环境 + EXPMA趋势强度
+    
+    趋势强度分级（日线）：
+    A最强: 股价在EXPMA12(白线)上方 且 MACD黄白线都在0轴上方
+    B次强: 股价在EXPMA12-EXPMA50(白线-黄线)间 且 MACD黄白线都在0轴上方
+    C偏弱: 股价在EXPMA50(黄线)下方 且 MACD黄白线都在0轴上方
+    D弱势: 股价在黄线下方 且 MACD黄白线至少一个在0轴下方
+    """
     rows = read_snapshots(code, 'daily', 3)
     if not rows:
         return None
     last = rows[-1]
     dif = last.get('macd_dif', '')
+    dea = last.get('macd_dea', '')
+    close = last.get('close', '')
+    # CSV字段名是expma12/expma50，不是expma_white/expma_yellow
+    expma_white = last.get('expma12', last.get('expma_white', ''))
+    expma_yellow = last.get('expma50', last.get('expma_yellow', ''))
+    
+    # 趋势强度判断
+    trend_strength = 'D'
+    try:
+        c = float(close)
+        w = float(expma_white) if expma_white else 0
+        y = float(expma_yellow) if expma_yellow else 0
+        dif_f = float(dif) if dif else -1
+        dea_f = float(dea) if dea else -1
+        
+        # MACD黄白线都在0轴上方？
+        macd_bull = dif_f > 0 and dea_f > 0
+        
+        if macd_bull:
+            if w > 0 and c > w:
+                trend_strength = 'A'  # 白线上方 + MACD黄白线>0 = 最强
+            elif w > 0 and y > 0 and y < c <= w:
+                trend_strength = 'B'  # 白线-黄线间 + MACD黄白线>0 = 次强
+            else:
+                trend_strength = 'C'  # 黄线下方 + MACD黄白线>0 = 偏弱
+        else:
+            # MACD至少一个在0轴下方
+            if w > 0 and y > 0 and c > y:
+                trend_strength = 'C'  # 还在黄线上方但MACD走弱 = 仍算偏弱
+            else:
+                trend_strength = 'D'  # 黄线下方 + MACD走弱 = 弱势
+    except:
+        pass
+    
     try:
         dif_f = float(dif)
         if abs(dif_f) <= 0.02:
@@ -129,10 +182,14 @@ def get_daily_env(code):
         env_short = '未知'
     return {
         'date': last.get('date', last.get('timestamp', '')),
-        'close': last.get('close', ''),
+        'close': close,
         'env': env,
         'env_short': env_short,
         'dif': dif,
+        'dea': dea,
+        'trend_strength': trend_strength,
+        'expma_white': expma_white,
+        'expma_yellow': expma_yellow,
     }
 
 
@@ -407,15 +464,58 @@ def generate_report(date_str=None):
         lines.append(f"| {i} | {r['code']} {r['name']} | {machine} | {qv_view} | {rating} |")
     lines.append('')
 
-    # 六、验证追踪
-    lines.append('## 六、验证追踪（后续填写）')
+    # 六、已卖出标的跟踪（新增）
+    sold_positions = load_sold_positions()
+    if sold_positions:
+        lines.append('## 六、已卖出标的跟踪（需结合消息面判断）')
+        lines.append('')
+        lines.append('| 标的 | 卖出日 | 趋势等级 | 当前5分钟 | 当前15分钟 | 提示/确定信号 | 需确认 |')
+        lines.append('|------|--------|----------|-----------|------------|---------------|--------|')
+        for code, info in sold_positions.items():
+            r = next((x for x in results if x['code'] == code), None)
+            if not r:
+                continue
+            trend = r['daily'].get('trend_strength', 'D') if r['daily'] else 'D'
+            trend_label = {'A': 'A最强', 'B': 'B次强', 'C': 'C偏弱', 'D': 'D弱势'}.get(trend, 'D弱势')
+            p5 = r['periods'].get('min5', {})
+            p15 = r['periods'].get('min15', {})
+            p5_sig = p5.get('opportunity', '—') if p5 else '—'
+            p15_sig = p15.get('opportunity', '—') if p15 else '—'
+            
+            # 判断提示/确定信号
+            alert = ''
+            if trend in ('A', 'B'):
+                if '★买' in p5_sig and '金叉' in p5_sig:
+                    alert = '⚠️ 提示: 5分钟★买+金叉'
+                # 检查是否有2次金叉
+                p5_sigs = p5.get('signals', []) if p5 else []
+                gold_count = sum(1 for s in p5_sigs if '金叉' in s.get('ema', ''))
+                if '★买' in p5_sig and gold_count >= 2:
+                    alert = '🔥 确定: 5分钟★买+2次金叉'
+            elif trend == 'C':
+                if '★买' in p15_sig and '金叉' in p15_sig:
+                    alert = '⚠️ 提示: 15分钟★买+金叉'
+                p15_sigs = p15.get('signals', []) if p15 else []
+                gold_count = sum(1 for s in p15_sigs if '金叉' in s.get('ema', ''))
+                if '★买' in p15_sig and gold_count >= 2:
+                    alert = '🔥 确定: 15分钟★买+2次金叉'
+            
+            sold_date = info.get('sold_date', '')
+            lines.append(f"| {code} {r['name']} | {sold_date} | {trend_label} | {p5_sig[:20]}... | {p15_sig[:20]}... | {alert} | 消息面？ |")
+        lines.append('')
+        lines.append('> **趋势等级**: A=白线上方 / B=白线-黄线间 / C=黄线下方但MACD>0 / D=MACD<0')
+        lines.append('> **提示信号**: 可轻仓试探 | **确定信号**: 满足门槛，结合消息面可入场')
+        lines.append('')
+
+    # 七、验证追踪
+    lines.append('## 七、验证追踪（后续填写）')
     lines.append('')
     lines.append('| 日期 | 标的 | 判断 | 实际走势 | 验证结果 |')
     lines.append('|------|------|------|---------|---------|')
     lines.append('| | | | | |')
     lines.append('')
 
-    # 七、详细信号日志
+    # 附录、详细信号日志
     lines.append('## 附录：详细信号日志')
     lines.append('')
     for r in results:
@@ -442,11 +542,57 @@ def generate_report(date_str=None):
                 lines.append('')
 
     # 写入文件
+    report_content = '\n'.join(lines)
     with open(report_path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(lines))
+        f.write(report_content)
 
     print(f'[报告已生成] {report_path}')
+
+    # 同时输出精简摘要到控制台（方便直接查看）
+    _print_report_summary(lines, report_path)
+
     return report_path, results
+
+
+def _print_report_summary(lines, report_path):
+    """把报告关键内容输出到控制台，避免用户还要跑到文件夹查看"""
+    print('\n' + '='*70)
+    print('📋 智能分析报告摘要（完整版见上方文件路径）')
+    print('='*70)
+
+    # 提取关键板块输出
+    in_section = False
+    section_name = ''
+    section_lines = []
+    key_sections = {'一、市场状态', '二、机会排序', '三、风险警示',
+                    '四、已卖出标的跟踪', '五、持仓提醒'}
+
+    for line in lines:
+        if line.startswith('## '):
+            # 输出上一个板块
+            if section_name and section_lines:
+                print(f'\n{section_name}')
+                for sl in section_lines[:8]:  # 每板块最多8行
+                    print(f'  {sl}')
+                if len(section_lines) > 8:
+                    print(f'  ... ({len(section_lines)} 行，详见报告文件)')
+                section_lines = []
+            section_name = line.replace('## ', '').strip()
+            in_section = section_name in key_sections or '机会' in section_name or '风险' in section_name
+        elif in_section and line.strip():
+            section_lines.append(line)
+
+    # 输出最后一个板块
+    if section_name and section_lines:
+        print(f'\n{section_name}')
+        for sl in section_lines[:8]:
+            print(f'  {sl}')
+        if len(section_lines) > 8:
+            print(f'  ... ({len(section_lines)} 行，详见报告文件)')
+
+    print('\n' + '='*70)
+    print(f'📁 完整报告: {report_path}')
+    print('='*70)
 
 
 def append_csv_log(date_str, results):
