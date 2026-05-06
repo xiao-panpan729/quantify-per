@@ -578,12 +578,17 @@ def read_csv(filepath):
 
 # ========== 快照生成 ==========
 
-def build_snapshot(code, market, periods_data):
+def build_snapshot(code, market, periods_data, name=None):
     """
     构建最新状态快照
+    code: 股票代码
+    market: 市场
     periods_data: dict, key=period('daily'/'min30'/'min60'), value=list[dict]信号数据
+    name: 中文名称（可选），来自 config.NAME_MAP
     """
-    snapshot = {}
+    snapshot = {
+        'name': name or '',
+    }
 
     for period, rows in periods_data.items():
         if not rows:

@@ -27,9 +27,17 @@ test_*.py
 
 # ===== 报告和数据同步 =====
 reports/daily/
-reports/judgement_log.csv
-sync_cache.json
+reports/
+
+# ===== 跟踪数据（每日生成，不需要 git 版本）=====
+signals/tracking/*/daily_signals.csv
+signals/tracking/*/min5_signals.csv
+signals/tracking/*/min15_signals.csv
+signals/tracking/*/min30_signals.csv
+signals/tracking/*/min60_signals.csv
+signals/tracking/*/closes.json
+signals/tracking/latest.json
+tracking_db.sqlite
 
 # ===== IDE 配置 =====
 .idea/
-

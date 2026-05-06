@@ -45,10 +45,10 @@ def save_sync_cache(cache):
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
 def get_file_date(filepath):
-    """获取文件最后修改日期 (YYYYMMDD)"""
+    """获取文件最后修改时间戳 (float, 精确到秒)
+    用时间戳而非日期字符串，避免同一天内多次修改被误判为未变化"""
     try:
-        mtime = os.path.getmtime(filepath)
-        return datetime.fromtimestamp(mtime).strftime('%Y%m%d')
+        return os.path.getmtime(filepath)
     except:
         return None
 
@@ -1018,13 +1018,78 @@ def process_market(market, stock_list, logger, rebuild=False, cache=None):
     
     return stats, cache
 
+def precheck_tdx_data(logger):
+    """预检通达信源数据是否包含当日数据（日线 + 分钟线）"""
+    from pytdx.reader import TdxDailyBarReader, TdxMinBarReader
+    from datetime import date
+
+    today_date = date.today()
+    today_str = today_date.strftime('%Y%m%d')
+
+    # 抽查股票：每个市场2只（指数+个股）
+    check_stocks = [
+        ('sh', 'sh000001'),   # 上证指数
+        ('sh', 'sh600519'),   # 贵州茅台
+        ('sz', 'sz000001'),   # 平安银行
+        ('sz', 'sz300750'),   # 宁德时代
+    ]
+
+    daily_reader = TdxDailyBarReader()
+    min_reader = TdxMinBarReader()
+    issues = []
+
+    for market, code in check_stocks:
+        # 检查日线 .day
+        day_path = os.path.join(config.TDX_SOURCE[market]['lday'], f"{code}.day")
+        if os.path.exists(day_path):
+            try:
+                df = daily_reader.get_df(day_path)
+                if len(df) > 0:
+                    last_date = df.index[-1].date()
+                    if last_date != today_date:
+                        issues.append(f"日线缺失: {code} 最后日期={last_date}")
+            except Exception as e:
+                issues.append(f"日线读取失败: {code} ({e})")
+        else:
+            issues.append(f"日线文件不存在: {code}")
+
+        # 检查5分钟线 .lc5
+        lc5_path = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
+        if os.path.exists(lc5_path):
+            try:
+                df = min_reader.get_df(lc5_path)
+                if len(df) > 0:
+                    last_date = df.index[-1].date()
+                    if last_date != today_date:
+                        issues.append(f"分钟线缺失: {code} 最后日期={last_date}")
+            except Exception as e:
+                issues.append(f"分钟线读取失败: {code} ({e})")
+        else:
+            issues.append(f"分钟线文件不存在: {code}")
+
+    if issues:
+        logger.log("=" * 60, level='ERROR')
+        logger.log("通达信数据预检失败!", level='ERROR')
+        logger.log(f"期望日期: {today_str}", level='ERROR')
+        for issue in issues:
+            logger.log(f"  [X] {issue}", level='ERROR')
+        logger.log("=" * 60, level='ERROR')
+        logger.log("请重新执行通达信盘后下载后再运行本脚本。", level='ERROR')
+        return False
+
+    logger.log(f"通达信数据预检通过: 日线+分钟线均包含 {today_str} 数据 [OK]")
+    return True
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='量化数据更新工具 v4.2')
     parser.add_argument('--rebuild', action='store_true',
                         help='全量重合成 lc15/lc30/lc60（修复数据错位时使用）')
+    parser.add_argument('--skip-precheck', action='store_true',
+                        help='跳过通达信数据预检（仅用于调试）')
     args = parser.parse_args()
-    
+
     print("=" * 60)
     if args.rebuild:
         print("量化数据更新工具 v4.6 [REBUILD 模式 - 全量重合成]")
@@ -1033,19 +1098,27 @@ def main():
         print("量化数据更新工具 v4.6 (sz+sh 双市场, lc1/lc5 增量追加, round修复)")
     print("=" * 60)
     print()
-    
+
     # 创建日志
     mode_tag = "_rebuild" if args.rebuild else ""
     log_filename = f"update{mode_tag}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     log_path = os.path.join(config.LOG_DIR, log_filename)
     logger = Logger(log_path)
-    
+
     logger.log("开始数据更新...")
     if args.rebuild:
         logger.log("模式: REBUILD (全量重合成)")
     logger.log(f"市场: {config.MARKETS}")
     logger.log("-" * 60)
-    
+
+    # 预检通达信数据（除非显式跳过）
+    if not args.skip_precheck:
+        if not precheck_tdx_data(logger):
+            logger.save()
+            return 1  # 预检失败，退出码1
+    else:
+        logger.log("预检已跳过 (--skip-precheck)")
+
     # 加载同步缓存
     cache = load_sync_cache()
     logger.log(f"缓存加载: {len(cache)} 条记录")

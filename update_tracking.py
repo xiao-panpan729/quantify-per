@@ -18,26 +18,20 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tools'))
 import signal_engine as se
+from config import NAME_MAP
 
 
 # ========== 配置 ==========
 
-# 跟踪标的列表: (代码, 市场) - 共 11 只
-TRACKING_STOCKS = [
-    # ETF 类 (5只)
-    ('sz159740', 'sz'),   # 1. 恒生科技ETF大成
-    ('sh520600', 'sh'),   # 2. 港股通汽车ETF广发
-    ('sh513120', 'sh'),   # 3. 港股创新药ETF广发 (51开头=上海)
-    ('sz159326', 'sz'),   # 4. 电网设备ETF华夏
-    ('sh513310', 'sh'),   # 5. 513310
-    # 个股类 (6只)
-    ('sz002261', 'sz'),   # 6. 拓维信息（华为云）
-    ('sz300118', 'sz'),   # 7. 东方日升（太空光伏）
-    ('sz000100', 'sz'),   # 8. TCL科技
-    ('sz002129', 'sz'),   # 9. TCL中环
-    ('sh600438', 'sh'),   # 10. 通威股份
-    ('sh601012', 'sh'),   # 11. 隆基绿能
-]
+# 跟踪列表从 config.NAME_MAP 自动生成（加/删/改名只需维护 config.py）
+def _get_market(code):
+    """从代码自动推断市场（输入格式: sh520600 或 520600）"""
+    # 剥离市场前缀
+    if code.startswith(('sh', 'sz')):
+        code = code[2:]
+    return 'sh' if code[0] in ('6', '5') else 'sz'
+
+TRACKING_STOCKS = [(code, _get_market(code)) for code in NAME_MAP.keys()]
 
 # 需要计算的周期
 PERIODS = ['daily', 'min5', 'min15', 'min30', 'min60']
@@ -301,7 +295,8 @@ def main():
     for code, market in stocks:
         periods_data = update_stock(code, market)
         if periods_data:
-            all_snapshots[code] = se.build_snapshot(code, market, periods_data)
+            name = NAME_MAP.get(code, '')
+            all_snapshots[code] = se.build_snapshot(code, market, periods_data, name=name)
             _raw_periods[code] = periods_data  # 原始行数据，供快照用
 
         # pytdx 抽验（如果启用）
@@ -341,8 +336,14 @@ def main():
     print(f"{'='*50}")
 
     for code, snapshot in all_snapshots.items():
-        print(f"\n【{code}】")
+        code_name = snapshot.get('name', '')
+        display = f"【{code}】"
+        if code_name:
+            display += f" {code_name}"
+        print(f"\n{display}")
         for period, info in snapshot.items():
+            if period == 'name':
+                continue
             if info is None:
                 print(f"  {period}: 无数据")
                 continue
