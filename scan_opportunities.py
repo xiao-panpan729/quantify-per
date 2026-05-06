@@ -194,19 +194,32 @@ def get_daily_env(code):
 
 
 def find_cci_extremes(rows):
-    """从后往前找 CCI 极值和后续信号"""
-    extremes = []
+    """从后往前找 CCI 极值，同时返回买入侧和卖出侧各一个最近的"""
+    buy_ext = None   # -200/-250/-300
+    sell_ext = None  # +200/+250
     for i in range(len(rows) - 1, -1, -1):
         r = rows[i]
         ext = r.get('cci_extreme', '').strip()
-        if ext:
-            extremes.append({
-                'ts': r.get('timestamp', ''),
-                'cci': r.get('cci', '')[:8],
-                'extreme': ext,
-                'close': r.get('raw_close', r.get('close', '')),
-            })
+        if not ext:
+            continue
+        entry = {
+            'ts': r.get('timestamp', ''),
+            'cci': r.get('cci', '')[:8],
+            'extreme': ext,
+            'close': r.get('raw_close', r.get('close', '')),
+        }
+        if ('-200' in ext or '-250' in ext or '-300' in ext) and buy_ext is None:
+            buy_ext = entry
+        elif ('+200' in ext or '+250' in ext) and sell_ext is None:
+            sell_ext = entry
+        if buy_ext and sell_ext:
             break
+    extremes = []
+    # 按时间从早到晚排列（先买侧后卖侧是自然的时序）
+    if buy_ext:
+        extremes.append(buy_ext)
+    if sell_ext:
+        extremes.append(sell_ext)
     return extremes
 
 
@@ -233,7 +246,7 @@ def find_recent_signals(rows, max_n=5):
 
 def analyze_period(code, period):
     """分析某周期，返回结构化结果"""
-    rows = read_snapshots(code, period, 40)
+    rows = read_snapshots(code, period, 80)
     if not rows:
         return None
 
@@ -243,41 +256,98 @@ def analyze_period(code, period):
     # CCI极值
     cci_ext = find_cci_extremes(rows)
 
-    # 最近信号
+    # 重新设计信号收集：从最近的CCI极值位置开始往后扫
+    # 而不是只看最后5条
     sigs = find_recent_signals(rows, 5)
+    if cci_ext:
+        # 找到CCI极值在rows中的位置
+        ext_ts = cci_ext[0].get('ts', '')
+        ext_idx = None
+        for i, r in enumerate(rows):
+            if r.get('timestamp', '') == ext_ts:
+                ext_idx = i
+                break
+        if ext_idx is not None:
+            # 从极值位置之后开始收集信号，不限制数量
+            post_rows = rows[ext_idx:]
+            sigs_from_ext = []
+            for r in post_rows:
+                buy = r.get('buy_signal', '').strip()
+                sell = r.get('sell_signal', '').strip()
+                ema = r.get('expma_cross', '').strip()
+                div = r.get('cci_divergence', '').strip()
+                if buy or sell or ema or div:
+                    sigs_from_ext.append({
+                        'ts': r.get('timestamp', ''),
+                        'buy': buy,
+                        'sell': sell,
+                        'ema': ema,
+                        'div': div,
+                        'cci': r.get('cci', '')[:8],
+                        'close': r.get('raw_close', r.get('close', '')),
+                    })
+            if sigs_from_ext:
+                sigs = sigs_from_ext
 
-    # 判断机会类型
+    # 判断机会类型——遍历所有极值，分别判断买入闭环和卖出闭环
     opportunity = []
     opp_level = 0  # 0=无 1=观察 2=接近 3=完整闭环
 
-    if cci_ext:
-        ext = cci_ext[0]['extreme']
-        has_buy = any(s['buy'] for s in sigs)
-        has_sell = any(s['sell'] for s in sigs)
-        has_gold = any('金叉' in s['ema'] for s in sigs)
-        has_dead = any('死叉' in s['ema'] for s in sigs)
-        has_div = any(s['div'] for s in sigs)
+    for cci_entry in cci_ext:
+        ext = cci_entry['extreme']
+        # 从该极值位置往后收集信号
+        ext_ts = cci_entry.get('ts', '')
+        ext_idx = None
+        for i, r in enumerate(rows):
+            if r.get('timestamp', '') == ext_ts:
+                ext_idx = i
+                break
+        post_sigs = sigs
+        if ext_idx is not None:
+            post_rows = rows[ext_idx:]
+            post_sigs = []
+            for r in post_rows:
+                buy = r.get('buy_signal', '').strip()
+                sell = r.get('sell_signal', '').strip()
+                ema = r.get('expma_cross', '').strip()
+                div = r.get('cci_divergence', '').strip()
+                if buy or sell or ema or div:
+                    post_sigs.append({
+                        'ts': r.get('timestamp', ''),
+                        'buy': buy,
+                        'sell': sell,
+                        'ema': ema,
+                        'div': div,
+                        'cci': r.get('cci', '')[:8],
+                        'close': r.get('raw_close', r.get('close', '')),
+                    })
+
+        has_buy = any(s['buy'] for s in post_sigs)
+        has_sell = any(s['sell'] for s in post_sigs)
+        has_gold = any('金叉' in s['ema'] for s in post_sigs)
+        has_dead = any('死叉' in s['ema'] for s in post_sigs)
+        has_div = any(s['div'] for s in post_sigs)
 
         if '-200' in ext or '-250' in ext or '-300' in ext:
             if has_buy and has_gold:
                 opportunity.append('✅完整闭环(买)')
-                opp_level = 3
+                opp_level = max(opp_level, 3)
             elif has_buy:
                 opportunity.append('⚠️部分闭环: ★买(缺金叉)')
-                opp_level = 2
+                opp_level = max(opp_level, 2)
             else:
                 opportunity.append('👀观察: CCI负极限(等★买+金叉)')
-                opp_level = 1
+                opp_level = max(opp_level, 1)
         elif '+200' in ext or '+250' in ext:
             if has_sell and has_dead:
                 opportunity.append('❌完整闭环(卖)')
-                opp_level = 3
+                opp_level = max(opp_level, 3)
             elif has_sell:
                 opportunity.append('⚠️部分闭环: ★卖(缺死叉)')
-                opp_level = 2
+                opp_level = max(opp_level, 2)
             else:
                 opportunity.append('⏸️观察: CCI正极限(等★卖+死叉)')
-                opp_level = 1
+                opp_level = max(opp_level, 1)
 
     if '金叉' in ema_latest and '金叉' not in ' '.join(opportunity):
         opportunity.append(f'最新: 金叉')

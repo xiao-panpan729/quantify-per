@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-每日数据更新脚本 v4.6
+每日数据更新脚本 v4.7
 支持深圳(sz) + 上海(sh) 双市场
 从通达信同步最新数据到量化库
+
+v4.7: 移除 sync_cache 文件缓存机制，precheck 替代为唯一判断入口
+      逻辑简化: 通达信日期 > 本地日期 → 全量扫描 + 增量追加
 - 日线/周月线: 直接复制二进制文件
 - 分钟线(lc1/lc5): 增量追加模式，历史数据持续累积(不再被滚动窗口覆盖)
 - 多周期合成: lc15/30/60 从lc5源文件直接合成
@@ -15,42 +18,13 @@ import sys
 import shutil
 from datetime import datetime, timedelta
 import struct
-import json
-
 # 导入配置
 import config
 
 # ========== 同步缓存 ==========
 # 记录每只股票的"最后同步日期"，避免重复打开文件检查
-CACHE_FILE = os.path.join(os.path.dirname(__file__), 'sync_cache.json')
-
-def load_sync_cache():
-    """加载同步缓存 { 'sz_sz000001_lday': '20260427', 'sz_sz000001_lc5': '20260427', ... }"""
-    if os.path.exists(CACHE_FILE):
-        try:
-            with open(CACHE_FILE, 'r', encoding='utf-8') as f:
-                cache = json.load(f)
-            # 兼容旧格式：如果 key 不包含 _lday/_lc5，说明是旧缓存，清空重建
-            if cache and not any(k.endswith('_lday') or k.endswith('_lc5') for k in cache.keys()):
-                print("[缓存] 检测到旧格式缓存，清空重建（支持 lday/lc5 独立跟踪）")
-                return {}
-            return cache
-        except:
-            pass
-    return {}
-
-def save_sync_cache(cache):
-    """保存同步缓存"""
-    with open(CACHE_FILE, 'w', encoding='utf-8') as f:
-        json.dump(cache, f, ensure_ascii=False, indent=2)
-
-def get_file_date(filepath):
-    """获取文件最后修改时间戳 (float, 精确到秒)
-    用时间戳而非日期字符串，避免同一天内多次修改被误判为未变化"""
-    try:
-        return os.path.getmtime(filepath)
-    except:
-        return None
+# v4.7: 缓存机制已移除，precheck 是唯一判断入口
+# 保留常量占位（向后兼容，不影响主流程）
 
 # ========== 常量 ==========
 
@@ -759,36 +733,17 @@ def merge_daily_to_period(stock_code, target_type, market, logger):
     
     return result
 
-def scan_stocks(market, data_type, only_today=False):
-    """扫描通达信目录中指定市场的所有股票代码
-    
-    Args:
-        only_today: 如果为 True，只返回今天有修改的文件（用于增量更新加速）
-    """
+def scan_stocks(market, data_type):
+    """扫描通达信目录中指定市场的所有股票代码"""
     source_dir = config.TDX_SOURCE[market][data_type]
     ext = config.EXTENSIONS[data_type]
     
     stocks = []
-    today_str = datetime.now().strftime('%Y%m%d')
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    
     if os.path.exists(source_dir):
         for filename in os.listdir(source_dir):
             if filename.endswith(ext):
-                if only_today:
-                    # 只处理今天修改过的文件
-                    filepath = os.path.join(source_dir, filename)
-                    try:
-                        mtime = datetime.fromtimestamp(os.path.getmtime(filepath))
-                        if mtime >= today_start:
-                            stock_code = filename[:-len(ext)]
-                            stocks.append(stock_code)
-                    except OSError:
-                        pass
-                else:
-                    stock_code = filename[:-len(ext)]
-                    stocks.append(stock_code)
-    
+                stock_code = filename[:-len(ext)]
+                stocks.append(stock_code)
     return sorted(stocks)
 
 # ========== 下载后随机抽查 ==========
@@ -895,14 +850,12 @@ def _random_verify(market, stock_list, logger, sample_size=10, bar_count=10):
 
 # ========== 主程序 ==========
 
-def process_market(market, stock_list, logger, rebuild=False, cache=None):
-    """处理单个市场的全部数据同步和合成（带缓存+同步合成优化）"""
+def process_market(market, stock_list, logger, rebuild=False):
+    """处理单个市场的全部数据同步和合成（v4.7: 无缓存，precheck 保证有增量）"""
     stats = {'total': 0, 'success': 0, 'skip': 0, 'error': 0, 'new_bars': 0}
     
     market_name = '深圳' if market == 'sz' else '上海'
-    if cache is None:
-        cache = {}
-    
+
     def count_result(result):
         stats['total'] += 1
         if result['status'] == 'success':
@@ -913,171 +866,142 @@ def process_market(market, stock_list, logger, rebuild=False, cache=None):
         else:
             stats['error'] += 1
     
-    # 筛选需要处理的股票（独立检查 lday 和 lc5）
-    lday_stocks = []   # 日线有更新的股票
-    lc5_stocks = []    # 5分钟有更新的股票
-    skipped_by_cache = 0
+    # v4.7: precheck 已确认通达信有新数据，全部股票走增量
+    logger.log(f"  [{market_name}] 全量扫描 {len(stock_list)} 只（增量追加模式）")
     
+    # 1. 同步日线（全部股票走增量）
+    logger.log(f"  [{market_name}] 1/6 同步日线 (lday) {len(stock_list)} 只")
     for code in stock_list:
-        # 分别检查 lday 和 lc5 的源文件日期
-        lday_source = os.path.join(config.TDX_SOURCE[market]['lday'], f"{code}.day")
-        lc5_source = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
-        
-        lday_date = get_file_date(lday_source)
-        lc5_date = get_file_date(lc5_source)
-        
-        cache_key_lday = f"{market}_{code}_lday"
-        cache_key_lc5 = f"{market}_{code}_lc5"
-        
-        lday_changed = rebuild or cache.get(cache_key_lday) != lday_date
-        lc5_changed = rebuild or cache.get(cache_key_lc5) != lc5_date
-        
-        if not lday_changed and not lc5_changed:
-            skipped_by_cache += 1
-            continue
-        
-        if lday_changed:
-            lday_stocks.append(code)
-        if lc5_changed:
-            lc5_stocks.append(code)
+        count_result(sync_stock_data(code, 'lday', market, logger))
     
-    logger.log(f"  [{market_name}] 缓存跳过 {skipped_by_cache} 只")
-    logger.log(f"  [{market_name}] 日线需更新: {len(lday_stocks)} 只, 分钟线需更新: {len(lc5_stocks)} 只")
+    # 2. 同步1分钟（全部股票走增量）
+    logger.log(f"  [{market_name}] 2/6 同步1分钟 (lc1) {len(stock_list)} 只{' [FORCE]' if rebuild else ''}")
+    for code in stock_list:
+        count_result(sync_stock_data(code, 'lc1', market, logger, force_rewrite=rebuild))
     
-    # 1. 同步日线（lday 有变化的股票）
-    if lday_stocks:
-        logger.log(f"  [{market_name}] 1/6 同步日线 (lday) {len(lday_stocks)} 只")
-        for code in lday_stocks:
-            count_result(sync_stock_data(code, 'lday', market, logger))
-    else:
-        logger.log(f"  [{market_name}] 1/6 同步日线 (lday) 无需更新")
-    
-    # 2. 同步1分钟（lc5 有变化的股票）
-    if lc5_stocks:
-        logger.log(f"  [{market_name}] 2/6 同步1分钟 (lc1) {len(lc5_stocks)} 只{' [FORCE]' if rebuild else ''}")
-        for code in lc5_stocks:
-            count_result(sync_stock_data(code, 'lc1', market, logger, force_rewrite=rebuild))
-    else:
-        logger.log(f"  [{market_name}] 2/6 同步1分钟 (lc1) 无需更新")
-    
-    # 3. 同步5分钟 + 同步合成15/30/60分钟（lc5 有变化的股票）
-    if lc5_stocks:
-        logger.log(f"  [{market_name}] 3/6 同步5分钟并合成15/30/60分钟 {len(lc5_stocks)} 只")
-        for code in lc5_stocks:
-            # 同步5分钟
-            r = sync_stock_data(code, 'lc5', market, logger, force_rewrite=rebuild)
-            count_result(r)
-            
-            # 如果5分钟同步成功，用同一份source_data同步合成多周期
-            if r['status'] == 'success' and not rebuild:
-                source_file = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
-                source_data = read_min_file(source_file)
-                if source_data:
-                    for target_type in ['lc15', 'lc30', 'lc60']:
-                        count_result(merge_min_data_from_source(code, target_type, market, logger, source_data))
-            else:
+    # 3. 同步5分钟 + 同步合成15/30/60分钟
+    logger.log(f"  [{market_name}] 3/6 同步5分钟并合成15/30/60分钟 {len(stock_list)} 只")
+    for code in stock_list:
+        r = sync_stock_data(code, 'lc5', market, logger, force_rewrite=rebuild)
+        count_result(r)
+
+        if r['status'] == 'success' and not rebuild:
+            source_file = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
+            source_data = read_min_file(source_file)
+            if source_data:
                 for target_type in ['lc15', 'lc30', 'lc60']:
-                    count_result(merge_min_data(code, target_type, market, logger, rebuild=rebuild))
-    else:
-        logger.log(f"  [{market_name}] 3/6 同步5分钟并合成15/30/60分钟 无需更新")
+                    count_result(merge_min_data_from_source(code, target_type, market, logger, source_data))
+        else:
+            for target_type in ['lc15', 'lc30', 'lc60']:
+                count_result(merge_min_data(code, target_type, market, logger, rebuild=rebuild))
     
-    # 4. 合成周线（lday 有变化的股票）
-    if lday_stocks:
-        logger.log(f"  [{market_name}] 4/6 合成周线 (week) {len(lday_stocks)} 只")
-        for code in lday_stocks:
-            count_result(merge_daily_to_period(code, 'week', market, logger))
-    else:
-        logger.log(f"  [{market_name}] 4/6 合成周线 (week) 无需更新")
+    # 4. 合成周线
+    logger.log(f"  [{market_name}] 4/6 合成周线 (week) {len(stock_list)} 只")
+    for code in stock_list:
+        count_result(merge_daily_to_period(code, 'week', market, logger))
     
-    # 5. 合成月线（lday 有变化的股票）
-    if lday_stocks:
-        logger.log(f"  [{market_name}] 5/6 合成月线 (month) {len(lday_stocks)} 只")
-        for code in lday_stocks:
-            count_result(merge_daily_to_period(code, 'month', market, logger))
-    else:
-        logger.log(f"  [{market_name}] 5/6 合成月线 (month) 无需更新")
-    
-    # 更新缓存（分别记录 lday 和 lc5 的日期）
-    for code in lday_stocks:
-        lday_source = os.path.join(config.TDX_SOURCE[market]['lday'], f"{code}.day")
-        lday_date = get_file_date(lday_source)
-        if lday_date:
-            cache[f"{market}_{code}_lday"] = lday_date
-    
-    for code in lc5_stocks:
-        lc5_source = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
-        lc5_date = get_file_date(lc5_source)
-        if lc5_date:
-            cache[f"{market}_{code}_lc5"] = lc5_date
+    # 5. 合成月线
+    logger.log(f"  [{market_name}] 5/6 合成月线 (month) {len(stock_list)} 只")
+    for code in stock_list:
+        count_result(merge_daily_to_period(code, 'month', market, logger))
     
     logger.log(f"  [{market_name}] 完成: 成功={stats['success']}, 跳过={stats['skip']}, 失败={stats['error']}")
     
-    # 6. 下载后随机抽查（只对分钟线更新的股票抽查）
-    if not rebuild and len(lc5_stocks) > 0:
-        _random_verify(market, lc5_stocks, logger)
+    # 6. 下载后随机抽查
+    if not rebuild and len(stock_list) > 0:
+        _random_verify(market, stock_list, logger)
     
-    return stats, cache
+    return stats
 
 def precheck_tdx_data(logger):
-    """预检通达信源数据是否包含当日数据（日线 + 分钟线）"""
+    """预检通达信源数据是否比本地项目新（日线 + 分钟线）v4.7 从严
+    
+    比较逻辑：取本地项目跟踪标的的最后日期，
+    对比通达信抽查股票的日期。通达信日期 > 本地日期才通过。
+    必须严格大于——没新数据就别跑。
+    """
     from pytdx.reader import TdxDailyBarReader, TdxMinBarReader
     from datetime import date
+    import struct
 
-    today_date = date.today()
-    today_str = today_date.strftime('%Y%m%d')
+    # 取本地项目跟踪标的的最后日期
+    local_paths = {
+        'lday': os.path.join(config.TARGET_DIR['sz']['lday'], 'sz159740.day'),
+        'lc1': os.path.join(config.TARGET_DIR['sz']['lc1'], 'sz159740.lc1'),
+        'lc5': os.path.join(config.TARGET_DIR['sz']['lc5'], 'sz159740.lc5'),
+    }
+    local_last = {}
+    for dtype, path in local_paths.items():
+        if os.path.exists(path):
+            try:
+                with open(path, 'rb') as f:
+                    f.seek(-32, 2)
+                    data = f.read(32)
+                    local_last[dtype] = struct.unpack('IIIIIfII', data)[0]
+            except:
+                pass
 
-    # 抽查股票：每个市场2只（指数+个股）
+    # 抽查股票
     check_stocks = [
-        ('sh', 'sh000001'),   # 上证指数
-        ('sh', 'sh600519'),   # 贵州茅台
-        ('sz', 'sz000001'),   # 平安银行
-        ('sz', 'sz300750'),   # 宁德时代
+        ('sh', 'sh000001'),
+        ('sh', 'sh600519'),
+        ('sz', 'sz000001'),
+        ('sz', 'sz300750'),
     ]
 
     daily_reader = TdxDailyBarReader()
     min_reader = TdxMinBarReader()
-    issues = []
+    
+    # 跟踪通达信各类型的最大日期
+    tdx_max_date = {'lday': 0, 'lc5': 0}
 
     for market, code in check_stocks:
-        # 检查日线 .day
+        # 检查日线
         day_path = os.path.join(config.TDX_SOURCE[market]['lday'], f"{code}.day")
         if os.path.exists(day_path):
             try:
                 df = daily_reader.get_df(day_path)
                 if len(df) > 0:
-                    last_date = df.index[-1].date()
-                    if last_date != today_date:
-                        issues.append(f"日线缺失: {code} 最后日期={last_date}")
+                    last_int = int(df.index[-1].date().strftime('%Y%m%d'))
+                    if last_int > tdx_max_date['lday']:
+                        tdx_max_date['lday'] = last_int
             except Exception as e:
-                issues.append(f"日线读取失败: {code} ({e})")
-        else:
-            issues.append(f"日线文件不存在: {code}")
+                logger.log(f"日线读取失败: {code} ({e})", level='WARN')
 
-        # 检查5分钟线 .lc5
+        # 检查5分钟线
         lc5_path = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
         if os.path.exists(lc5_path):
             try:
                 df = min_reader.get_df(lc5_path)
                 if len(df) > 0:
-                    last_date = df.index[-1].date()
-                    if last_date != today_date:
-                        issues.append(f"分钟线缺失: {code} 最后日期={last_date}")
+                    last_int = int(df.index[-1].date().strftime('%Y%m%d'))
+                    if last_int > tdx_max_date['lc5']:
+                        tdx_max_date['lc5'] = last_int
             except Exception as e:
-                issues.append(f"分钟线读取失败: {code} ({e})")
-        else:
-            issues.append(f"分钟线文件不存在: {code}")
+                logger.log(f"分钟线读取失败: {code} ({e})", level='WARN')
 
-    if issues:
+    # 判断：日线或分钟线任一有更新则通过
+    lday_new = tdx_max_date['lday'] > local_last.get('lday', 0)
+    lc5_new = tdx_max_date['lc5'] > local_last.get('lc5', 0)
+    
+    logger.log(f"本地日期: lday={local_last.get('lday','?')}, lc5={local_last.get('lc5','?')}")
+    logger.log(f"通达信最大日期: lday={tdx_max_date['lday']}, lc5={tdx_max_date['lc5']}")
+
+    if not lday_new and not lc5_new:
         logger.log("=" * 60, level='ERROR')
-        logger.log("通达信数据预检失败!", level='ERROR')
-        logger.log(f"期望日期: {today_str}", level='ERROR')
-        for issue in issues:
-            logger.log(f"  [X] {issue}", level='ERROR')
+        logger.log("通达信数据预检失败: 日线和分钟线均无新数据", level='ERROR')
+        logger.log(f"  日线: 通达信{tdx_max_date['lday']} <= 本地{local_last.get('lday','?')}", level='ERROR')
+        logger.log(f"  分钟线: 通达信{tdx_max_date['lc5']} <= 本地{local_last.get('lc5','?')}", level='ERROR')
         logger.log("=" * 60, level='ERROR')
-        logger.log("请重新执行通达信盘后下载后再运行本脚本。", level='ERROR')
+        logger.log("请先运行通达信盘后下载。", level='ERROR')
         return False
 
-    logger.log(f"通达信数据预检通过: 日线+分钟线均包含 {today_str} 数据 [OK]")
+    parts = []
+    if lday_new:
+        parts.append(f"日线({tdx_max_date['lday']})")
+    if lc5_new:
+        parts.append(f"分钟线({tdx_max_date['lc5']})")
+    logger.log(f"通达信数据预检通过: {' + '.join(parts)} 有新数据 [OK]")
     return True
 
 
@@ -1119,20 +1043,16 @@ def main():
     else:
         logger.log("预检已跳过 (--skip-precheck)")
 
-    # 加载同步缓存
-    cache = load_sync_cache()
-    logger.log(f"缓存加载: {len(cache)} 条记录")
-    
     total_stats = {'total': 0, 'success': 0, 'skip': 0, 'error': 0, 'new_bars': 0}
     
     for market in config.MARKETS:
         market_name = '深圳' if market == 'sz' else '上海'
         logger.log(f">>> 开始处理 {market_name} 市场 ({market})")
         
-        # 确定股票列表（只处理今天有修改的文件，加速增量更新）
+        # 确定股票列表
         if config.AUTO_SCAN:
-            stock_list = scan_stocks(market, 'lday', only_today=True)
-            logger.log(f"  自动扫描发现 {len(stock_list)} 只股票（今天有更新）")
+            stock_list = scan_stocks(market, 'lday')
+            logger.log(f"  自动扫描发现 {len(stock_list)} 只股票")
         else:
             # 手动模式：筛选当前市场的股票
             stock_list = [s for s in config.STOCK_LIST if s.startswith(market)]
@@ -1142,7 +1062,7 @@ def main():
             logger.log(f"  [{market_name}] 无股票需要处理，跳过")
             continue
         
-        stats, cache = process_market(market, stock_list, logger, rebuild=args.rebuild, cache=cache)
+        stats = process_market(market, stock_list, logger, rebuild=args.rebuild)
         
         for k in total_stats:
             total_stats[k] += stats[k]
@@ -1158,10 +1078,6 @@ def main():
     
     # 输出统计
     logger.log("=" * 60)
-    # 保存缓存
-    save_sync_cache(cache)
-    logger.log(f"缓存保存: {len(cache)} 条记录")
-    
     logger.log("更新统计")
     logger.log(f"  总操作数: {total_stats['total']}")
     logger.log(f"  成功: {total_stats['success']}")

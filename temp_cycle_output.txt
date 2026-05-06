@@ -1,0 +1,10 @@
+﻿python : Traceback (most recent call last):
+所在位置 行:1 字符: 59
++ ... ing]::UTF8; python D:\quantify-per\cycle_engine.py sz159740 2>&1 | Ou ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\quantify-per\cycle_engine.py", line 628, in <module>
+    print(format_report([result]))
+UnicodeEncodeError: 'gbk' codec can't encode character '\U0001f4ca' in position 92: illegal multibyte sequence

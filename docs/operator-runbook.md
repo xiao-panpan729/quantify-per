@@ -35,7 +35,7 @@ python scan_opportunities.py --code sz159740
 | 通达信路径 | `C:\zd_cjzq\` |
 | 项目根 | `D:\quantify-per\` |
 | Python | 系统默认（3.10+） |
-| 跟踪标的 | 11 只（见 `config.py`） |
+| 跟踪标的 | 12 只（从 `config.NAME_MAP` 自动生成，见 `config.py`） |
 | 分钟线编码 | ×10000 浮点型 |
 | 日线编码 | ×1000 浮点型 |
 

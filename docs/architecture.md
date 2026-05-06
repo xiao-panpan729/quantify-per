@@ -37,7 +37,7 @@ signals/tracking/{code}/{period}_signals.csv
 |:---|:---|:---|:---|:---|
 | 数据同步 | `update_from_tdx.py` | 通达信→CSV缓存 | `.day`/`.lc5` | `data/*.csv` |
 | 信号引擎 | `signal_engine.py` | 计算指标+信号 | `data/*.csv` | `signals/tracking/*.csv` |
-| 跟踪管理 | `update_tracking.py` | 管理11只标的的快照 | `signals/tracking/*.csv` | 同上（增量更新） |
+| 跟踪管理 | `update_tracking.py` | 管理12只标的的快照 | `signals/tracking/*.csv` | 同上（增量更新） |
 | 机会扫描 | `scan_opportunities.py` | 报告+闭环+嵌套分析 | `signals/tracking/*.csv` | 报告/JSON |
 | 筹码选股 | `chips_selector.py` | 筹码集中度筛选 | data/ | 候选列表 |
 | AI分析 | `ai_analyzer.py` | API调用生成智能分析 | 报告.md | 分析.md |
