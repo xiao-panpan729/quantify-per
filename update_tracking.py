@@ -34,11 +34,12 @@ def _get_market(code):
 TRACKING_STOCKS = [(code, _get_market(code)) for code in NAME_MAP.keys()]
 
 # 需要计算的周期
-PERIODS = ['daily', 'min5', 'min15', 'min30', 'min60']
+PERIODS = ['daily', 'min1', 'min5', 'min15', 'min30', 'min60']
 
 # 周期 → pytdx 拉取周期映射（用于抽验）
 VERIFY_PERIOD_MAP = {
     'daily': ('day', 5),
+    'min1': ('1m', 50),
     'min5': ('5m', 50),
     'min15': ('15m', 50),
     'min30': ('30m', 25),
@@ -104,13 +105,17 @@ def update_stock(code, market, force_full=False):
                 rows = se.read_csv(csv_path)
         else:
             # 分钟线
+            if period == 'min1':
+                calcer = lambda fp, p=period: se.calc_min1_all(fp, period=p)
+            else:
+                calcer = lambda fp, p=period: se.calc_min_all(fp, period=p)
             if mode == '全量':
-                rows = se.calc_min_all(data_path)
+                rows = calcer(data_path)
                 if rows:
                     se.write_csv(csv_path, rows, se.MIN_HEADERS)
             else:
                 last_ts = get_last_id(csv_path, 'timestamp')
-                all_rows = se.calc_min_all(data_path)
+                all_rows = calcer(data_path)
 
                 # === 格式检测：防止 rebuild 后 timestamp 格式变化导致增量失效 ===
                 # 原因: rebuild 可能改变源文件的时间戳格式(如从编码数字改为YYYYMMDD),

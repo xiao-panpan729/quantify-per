@@ -21,7 +21,8 @@ MIN_PRICE_FACTOR = 10000 # 分钟线价格编码: price * 10000 (v4.4, 精度0.0
 
 # 分时出击参数
 TREND_PERIOD_DAILY = 55   # 日线 LLV/HHV 周期
-TREND_PERIOD_MIN = 55     # 分钟线 LLV/HHV 周期（同日线，通达信 N:=55）
+TREND_PERIOD_MIN = 55     # 30-60分钟线 LLV/HHV 周期
+TREND_PERIOD_MIN_SHORT = 40  # 5-15分钟线 LLV/HHV 周期
 
 # SMA 参数 (通达信 SMA(X, N, M))
 SMA1_N, SMA1_M = 5, 1
@@ -52,7 +53,7 @@ CCI_EXTREME_LEVELS = [200, 250, 300]  # 极限值等级(不同品种敏感度不
 
 def read_bars(filepath):
     """
-    读取通达信二进制文件（日线/分钟线通用）
+    读取通达信二进制文件（日线/lc5/lc15/lc30/lc60通用）
     每条 32 字节: 8 个 uint32
     日线: (date_YYYYMMDD, open, high, low, close, amount, volume, reserved) 价格*1000
     分钟线: (date_YYYYMMDD, open, high, low, close, amount, volume, time_HHMM)
@@ -68,6 +69,47 @@ def read_bars(filepath):
             if len(raw) < 32:
                 break
             bars.append(struct.unpack('<8I', raw))
+    return bars
+
+
+def read_bars_lc1(filepath):
+    """
+    读取通达信1分钟线(.lc1)二进制文件
+    
+    lc1格式: HHfffffII (不同于lc5的8I格式)
+    - HH: 日期(ushort) + 分钟数(ushort)
+    - fffff: open/high/low/close/amount (IEEE754 float)
+    - II: volume(int) + reserved(int)
+    
+    日期解码: year=num//2048+2004, month=(num%2048)//100, day=(num%2048)%100
+    时间解码: hour=num//60, minute=num%60
+    """
+    bars = []
+    if not os.path.exists(filepath):
+        return bars
+    with open(filepath, 'rb') as f:
+        while True:
+            raw = f.read(32)
+            if len(raw) < 32:
+                break
+            date_num, minutes, open_f, high_f, low_f, close_f, amount_f, volume, reserved = \
+                struct.unpack('<HHfffffII', raw)
+            # 解码日期和时间
+            year = date_num // 2048 + 2004
+            month = (date_num % 2048) // 100
+            day = (date_num % 2048) % 100
+            hour = minutes // 60
+            minute = minutes % 60
+            timestamp = year * 100000000 + month * 1000000 + day * 10000 + hour * 100 + minute
+            # 价格 × 10000 转为整数（与lc5信号格式对齐）
+            bars.append((timestamp,
+                         int(open_f * 10000),
+                         int(high_f * 10000),
+                         int(low_f * 10000),
+                         int(close_f * 10000),
+                         int(amount_f),
+                         volume,
+                         0))
     return bars
 
 
@@ -453,11 +495,15 @@ def calc_daily_all(filepath):
     return results
 
 
-def calc_min_all(filepath, trend_period=TREND_PERIOD_MIN):
+def calc_min_all(filepath, period='min30', trend_period=None):
     """
     分钟线全量信号计算（使用原始值）
     返回: list[dict]
+    period: 周期标识，用于选择趋势计算参数
+    trend_period: 可选，覆盖自动选择
     """
+    if trend_period is None:
+        trend_period = TREND_PERIOD_MIN_SHORT if period in ('min1', 'min5', 'min15') else TREND_PERIOD_MIN
     bars = read_bars(filepath)
     if not bars:
         return []
@@ -485,6 +531,82 @@ def calc_min_all(filepath, trend_period=TREND_PERIOD_MIN):
     results = []
     for i in range(n):
         # CCI 状态文字化
+        eh = cci_extreme[i]['extreme_high']
+        el = cci_extreme[i]['extreme_low']
+        fe_h = cci_extreme[i]['from_extreme_high']
+        
+        ext_label = ''
+        if eh > 0:
+            ext_label = '+%d' % eh
+        elif el < 0:
+            ext_label = '%d' % el
+        
+        retreat_label = ''
+        if fe_h:
+            max_retreat_lvl = max(fe_h.keys())
+            retreat_label = '回撤+%d' % max_retreat_lvl
+        
+        div_label = ''
+        if cci_div[i]['pos_div']:
+            div_label = '顶背驰'
+        elif cci_div[i]['neg_div']:
+            div_label = '底背驰'
+        
+        row = {
+            'timestamp': timestamps[i],
+            'raw_close': int(closes[i]),
+            'expma12': e12[i],
+            'expma50': e50[i],
+            'macd_dif': dif[i],
+            'macd_dea': dea[i],
+            'macd_hist': hist[i],
+            'trend_line': round(trend[i], 2),
+            'cci': round(cci_vals[i], 1),
+            'cci_extreme': ext_label,
+            'cci_retreat': retreat_label,
+            'cci_divergence': div_label,
+            'buy_signal': '★买' if i in buy_idx else '',
+            'sell_signal': '★卖' if i in sell_idx else '',
+            'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
+            'volume': vols[i],
+            'amount': amts[i],
+        }
+        results.append(row)
+    return results
+
+
+def calc_min1_all(filepath, period='min1'):
+    """
+    1分钟线全量信号计算（使用 lc1 格式专用读取器）
+    返回: list[dict]
+    """
+    bars = read_bars_lc1(filepath)  # 使用 lc1 专用解析器
+    trend_period = TREND_PERIOD_MIN_SHORT  # min1 永远用短周期
+    if not bars:
+        return []
+
+    n = len(bars)
+    # lc1 数据已预处理: bar[0]=timestamp(YYYYMMDDHHMM), bar[1..4]=价格(×10000)
+    timestamps = [bar[0] for bar in bars]
+    opens = [float(bar[1]) for bar in bars]
+    highs = [float(bar[2]) for bar in bars]
+    lows = [float(bar[3]) for bar in bars]
+    closes = [float(bar[4]) for bar in bars]
+    vols = [bar[6] for bar in bars]
+    amts = [bar[5] for bar in bars]
+    
+    e12 = calc_expma(closes, EXPMA_FAST)
+    e50 = calc_expma(closes, EXPMA_SLOW)
+    dif, dea, hist = calc_macd(closes)
+    trend = calc_trend_line(highs, lows, closes, trend_period)
+    cci_vals = calc_cci(highs, lows, closes)
+    cci_extreme = detect_cci_extreme(cci_vals)
+    cci_div = detect_cci_divergence(cci_vals, closes)
+    buy_idx, sell_idx = detect_star_signals(trend)
+    golden_idx, death_idx = detect_expma_cross(e12, e50)
+
+    results = []
+    for i in range(n):
         eh = cci_extreme[i]['extreme_high']
         el = cci_extreme[i]['extreme_low']
         fe_h = cci_extreme[i]['from_extreme_high']
@@ -657,6 +779,7 @@ def get_data_path(code, market, period):
     base = r'D:\quantify-per'
     ext_map = {
         'daily': '.day',
+        'min1': '.lc1',
         'min5': '.lc5',
         'min15': '.lc15',
         'min30': '.lc30',
@@ -664,6 +787,7 @@ def get_data_path(code, market, period):
     }
     dir_map = {
         'daily': 'lday',
+        'min1': 'one',
         'min5': 'five',
         'min15': 'fifteen',
         'min30': 'thirty',
@@ -679,6 +803,7 @@ def get_signal_path(code, period, fmt='csv'):
     base = r'D:\quantify-per\signals\tracking'
     period_file = {
         'daily': 'daily_signals',
+        'min1': 'min1_signals',
         'min5': 'min5_signals',
         'min15': 'min15_signals',
         'min30': 'min30_signals',

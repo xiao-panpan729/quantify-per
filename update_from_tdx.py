@@ -937,7 +937,20 @@ def precheck_tdx_data(logger):
                 with open(path, 'rb') as f:
                     f.seek(-32, 2)
                     data = f.read(32)
-                    local_last[dtype] = struct.unpack('IIIIIfII', data)[0]
+                    # 日线(.day)格式: IIIIIfII, 分钟线(lc1/lc5)格式: HHfffffII
+                    if dtype == 'lday':
+                        local_last[dtype] = struct.unpack('IIIIIfII', data)[0]
+                    else:
+                        # 分钟线(lc1/lc5) 格式: HHfffffII
+                        # h1 = (year-2004)*2048 + month*100 + day
+                        # h2 = hour*100 + minute
+                        date_hi, date_lo = struct.unpack('HH', data[:4])
+                        remainder = date_hi % 2048
+                        year  = (date_hi // 2048) + 2004
+                        month = remainder // 100
+                        day   = remainder % 100
+                        if 2024 <= year <= 2030 and 1 <= month <= 12 and 1 <= day <= 31:
+                            local_last[dtype] = int(f'{year}{month:02d}{day:02d}')
             except:
                 pass
 
@@ -981,8 +994,9 @@ def precheck_tdx_data(logger):
                 logger.log(f"分钟线读取失败: {code} ({e})", level='WARN')
 
     # 判断：日线或分钟线任一有更新则通过
-    lday_new = tdx_max_date['lday'] > local_last.get('lday', 0)
-    lc5_new = tdx_max_date['lc5'] > local_last.get('lc5', 0)
+    # v4.8: >= 而非 >，本地已有当天数据也放行(分钟线日线已下载但未合成的情况)
+    lday_new = tdx_max_date['lday'] >= local_last.get('lday', 0)
+    lc5_new = tdx_max_date['lc5'] >= local_last.get('lc5', 0)
     
     logger.log(f"本地日期: lday={local_last.get('lday','?')}, lc5={local_last.get('lc5','?')}")
     logger.log(f"通达信最大日期: lday={tdx_max_date['lday']}, lc5={tdx_max_date['lc5']}")

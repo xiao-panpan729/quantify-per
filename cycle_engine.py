@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-周期循环引擎 v2.0 — Cycle Engine (三层架构版)
+周期循环引擎 v3.5 — Cycle Engine (三层架构版 + 完整共振链)
 
 核心理念:
   不是先评分再做建议，而是先定位再评分。
@@ -10,6 +10,10 @@
     第二层: 趋势方向 — 上涨/震荡/下跌？
     第三层: 循环适配 — 在已知位置+方向下，信号质量如何？
   
+  共振链 (v3.5 新增):
+    min5/min15 → min30/min60 (一级) — 同评分看上层金叉/死叉
+    min30/min60 → daily (二级) — 同评分看日线金叉/死叉
+  
   三个问题按顺序回答，每个标的状态自然浮现。
 
 设计原则 (来自用户第一性原理):
@@ -18,8 +22,8 @@
   - 恒生科技: 低位区 + 下跌态 + 买信号密集 = 触底酝酿，等转折信号
   - 不是循环好就值得操作，而是"位置+方向+循环"三者共振
 
-作者: 小草 (EasyClaw) + v4 Pro
-日期: 2026-05-06 (重写版)
+作者: 小草 (EasyClaw) + WorkBuddy (v4 Pro)
+日期: 2026-05-07 (WorkBuddy 共振链改造)
 """
 
 import os
@@ -36,16 +40,16 @@ BASE = Path('D:/quantify-per')
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
 OUTPUT_PATH = BASE / 'signals' / 'tracking' / 'cycle_report.json'
 
-PERIODS = ['min5', 'min15', 'min30', 'min60', 'daily']
+PERIODS = ['min1', 'min5', 'min15', 'min30', 'min60', 'daily']
 PERIOD_LABELS = {
-    'min5': '5分钟', 'min15': '15分钟', 'min30': '30分钟',
+    'min1': '1分钟', 'min5': '5分钟', 'min15': '15分钟', 'min30': '30分钟',
     'min60': '60分钟', 'daily': '日线',
 }
 
 # 回溯 K 线数量
 KLINES_LOOKBACK = {
-    'min5': 500, 'min15': 500, 'min30': 400,
-    'min60': 300, 'daily': 250,  # 日线约 1 年
+    'min1': 500, 'min5': 500, 'min15': 500, 'min30': 500,
+    'min60': 500, 'daily': 0,
 }
 
 
@@ -672,6 +676,14 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20):
         'details': details,
         'buy_level': buy_level,
         'sell_level': sell_level,
+        'ema_cross_status': {
+            'has_recent_golden': bool(recent_golden),
+            'last_golden_idx': recent_golden[-1]['idx'] if recent_golden else -1,
+            'golden_count': len(recent_golden),
+            'has_recent_dead': bool(recent_dead),
+            'last_dead_idx': recent_dead[-1]['idx'] if recent_dead else -1,
+            'dead_count': len(recent_dead),
+        } if recent_golden or recent_dead else None,
     }
 
 
@@ -752,7 +764,7 @@ def analyze_period(code, period, position, trend):
     pe = price_effectiveness(anchors, rows)
 
     # 最近N根K线的信号质量（递进分析）
-    sq = signal_quality(anchors, rows, position, trend, lookback_klines=20)
+    sq = signal_quality(anchors, rows, position, trend, lookback_klines=KLINES_LOOKBACK.get(period, 20))
 
     return {
         'period': period,
@@ -801,7 +813,7 @@ def analyze(code, name=''):
             best = p
 
     # 综合操作建议
-    advice = _generate_advice(position, trend, best)
+    advice = _generate_advice(position, trend, best, period_results)
 
     return {
         'code': code,
@@ -814,65 +826,343 @@ def analyze(code, name=''):
     }
 
 
-def _generate_advice(position, trend, best):
-    """根据位置+方向+信号质量，生成操作建议"""
+def _grade_trend_signal(position, trend, best, all_periods):
+    """
+    按日线趋势+分钟信号强度分级，返回分级定性和建议
+    
+    分级逻辑:
+      日线上涨+分钟闭环 → 可操作（🔴）
+      日线中性+分钟强   → 中性偏强（🟡）
+      日线中性+分钟弱   → 中性（🟢）
+      日线下跌+分钟闭环 → 谨慎观望（⚪）
+      日线下跌+分钟弱   → 观望（⚪）
+    
+    新增 v3.4: 跨周期共振检测
+      5-15分钟评分相同时，检查30/60分钟有无活跃金叉
+      有共振者分数上调，分级升档
+    
+    返回:
+      dict: {grade, grade_label, action, reason, min_signal_summary,
+             wait_condition, resonance_score}
+    """
     direction = trend['direction']
     zone = position['zone']
     risk = position['risk_level']
+    
+    # 分钟级信号摘要: 5/15/30/60 最强级别
+    max_min_level = 0
+    best_min_label = ''
+    best_min_period = ''
+    min_signal_details = []
+    
+    for period, p in all_periods.items():
+        if not p or not p.get('signal_quality'):
+            continue
+        sq = p['signal_quality']
+        lv = sq['level']
+        if lv > max_min_level:
+            max_min_level = lv
+            best_min_label = sq['label']
+            best_min_period = PERIOD_LABELS.get(period, period)
+        if lv >= 2.0:
+            d = f"{PERIOD_LABELS.get(period,period)}: {sq['label']}({lv:.1f})"
+            min_signal_details.append(d)
 
-    if best is None:
-        return {'action': '观望', 'reason': '无有效信号', 'confidence': '低'}
-
-    sq = best.get('signal_quality', {})
-    level = sq.get('level', 0)
-    label = sq.get('label', '')
-
-    # 核心决策矩阵: 位置 + 方向 + 信号质量递进级别
-    if zone == 'high' and risk == 'critical':
-        if direction in ('bullish', 'bullish_bias'):
-            if level >= 3.0:
-                return {'action': '持有(可轻仓跟)', 'reason': f'高位但{best["period_label"]}有{label}，顺势轻仓', 'confidence': '中'}
-            else:
-                return {'action': '持有/减仓', 'reason': '高位加速区，不适合追高。持有者可分批止盈', 'confidence': '高'}
-        else:
-            return {'action': '回避', 'reason': '高位+弱势=风险极大', 'confidence': '高'}
-
-    if zone == 'low' and risk == 'critical':
-        if direction in ('bearish', 'bearish_bias'):
-            if level >= 3.0:
-                return {'action': '关注抄底', 'reason': f'超跌+{best["period_label"]}{label}，等转折确认后轻仓试错', 'confidence': '中'}
-            else:
-                return {'action': '等待', 'reason': '超跌但信号不充分，勿接飞刀', 'confidence': '高'}
-        else:
-            return {'action': '轻仓试多', 'reason': '低位+方向好转，可逐步建仓', 'confidence': '中'}
-
+    # ===== 跨周期共振检测 =====
+    # 层级结构: 5-15分钟(超短线) → 30-60分钟(短线) → 日线 → 周线
+    # 规则: 同级信号强度相同时，上有层级金叉共振者更强
+    """
+    层级分组判断金叉共振:
+      [5min, 15min] → 上层 [30min, 60min]
+      [30min, 60min] → 上层 [daily]
+      [daily] → 上层 [weekly] (暂无周线数据，预留)
+    
+    两个层级都有活跃金叉 = 共振
+    """
+    resonance_score = 0  # 共振加分，0=无，0.5=部分共振，1.0=强共振
+    resonance_desc = ''
+    
+    def _check_golden(period):
+        """检查某周期是否有活跃金叉"""
+        p = all_periods.get(period)
+        if not p or not p.get('signal_quality'):
+            return False
+        ecs = p['signal_quality'].get('ema_cross_status')
+        if not ecs:
+            return False
+        has_golden = ecs.get('has_recent_golden', False)
+        # 活跃金叉：last_golden_idx 在最近的数据中
+        if has_golden and ecs.get('last_golden_idx', -1) >= 0:
+            return True
+        return False
+    
+    def _check_dead(period):
+        """检查某周期是否有活跃死叉"""
+        p = all_periods.get(period)
+        if not p or not p.get('signal_quality'):
+            return False
+        ecs = p['signal_quality'].get('ema_cross_status')
+        if not ecs:
+            return False
+        return ecs.get('has_recent_dead', False) and ecs.get('last_dead_idx', -1) >= 0
+    
+    # 判断上层周期共振
+    short_golden = _check_golden('min5') or _check_golden('min15')
+    mid_golden = _check_golden('min30') or _check_golden('min60')
+    daily_golden = _check_golden('daily')
+    
+    # 方向匹配：上涨/偏多看金叉，下跌/偏空看死叉
     if direction in ('bullish', 'bullish_bias'):
-        if level >= 4.0:
-            return {'action': '出击加注', 'reason': f'{best["period_label"]}最强出击信号，顺势跟进', 'confidence': '高'}
-        elif level >= 3.0:
-            return {'action': '顺势做多', 'reason': f'{best["period_label"]}加强闭环，可跟', 'confidence': '高'}
-        elif level >= 2.0:
-            return {'action': '等待加强', 'reason': f'{best["period_label"]}有信号但级别不够，等加强再动手', 'confidence': '中'}
+        has_active = short_golden and mid_golden
+        if has_active:
+            resonance_score = 0.8
+            resonance_desc = '多周期金叉共振'
+        elif mid_golden:
+            resonance_score = 0.3
+            resonance_desc = '短线层金叉活跃'
+    elif direction in ('bearish', 'bearish_bias'):
+        has_active = _check_dead('min5') or _check_dead('min15')
+        has_mid_dead = _check_dead('min30') or _check_dead('min60')
+        if has_active and has_mid_dead:
+            resonance_score = 0.8
+            resonance_desc = '多周期死叉共振'
+    # 中性方向: 看哪边共振更强
+    has_bull_resonance = short_golden and mid_golden
+    has_bear_resonance = (_check_dead('min5') or _check_dead('min15')) and (_check_dead('min30') or _check_dead('min60'))
+    
+    # 中性方向下判断金叉vs死叉数量对比
+    def _golden_dead_ratio():
+        """计算30+60分钟金叉数 vs 死叉数的绝对值"""
+        gc = 0; dc = 0
+        for p in ['min30','min60']:
+            pp = all_periods.get(p)
+            if not pp or not pp.get('signal_quality'): continue
+            ecs = pp['signal_quality'].get('ema_cross_status')
+            if not ecs: continue
+            gc += ecs.get('golden_count', 0)
+            dc += ecs.get('dead_count', 0)
+        return gc, dc
+    
+    if has_bull_resonance and not has_bear_resonance:
+        resonance_score = 0.7
+        resonance_desc = '多周期金叉共振(中性背景)'
+    elif has_bear_resonance and not has_bull_resonance:
+        resonance_score = -0.5
+        resonance_desc = '多周期死叉共振(警示)'
+    elif has_bull_resonance and has_bear_resonance:
+        # 都有活跃时，看最近的金叉vs死叉哪个更新
+        def _last_status():
+            """返回30+60分钟最近的金叉和死叉的idx"""
+            last_g = -1; last_d = -1
+            for p in ['min30','min60']:
+                pp = all_periods.get(p)
+                if not pp or not pp.get('signal_quality'): continue
+                ecs = pp['signal_quality'].get('ema_cross_status')
+                if not ecs: continue
+                if ecs.get('last_golden_idx', -1) > last_g:
+                    last_g = ecs['last_golden_idx']
+                if ecs.get('last_dead_idx', -1) > last_d:
+                    last_d = ecs['last_dead_idx']
+            return last_g, last_d
+        last_g, last_d = _last_status()
+        if last_g > last_d and last_g >= 0:
+            resonance_score = 0.6
+            resonance_desc = '最后活动为金叉'
+        elif last_d >= last_g and last_d >= 0:
+            resonance_score = -0.2
+            resonance_desc = '最后活动为死叉(偏空)'
         else:
-            return {'action': '观望', 'reason': '多头但无出击信号，等待', 'confidence': '中'}
+            resonance_score = 0.2
+            resonance_desc = '金叉死叉均活跃'
 
-    if direction in ('bearish', 'bearish_bias'):
-        if level >= 4.0:
-            return {'action': '关注转折', 'reason': f'{best["period_label"]}底部信号密集，可能触底反弹', 'confidence': '中'}
-        elif level >= 3.0:
-            return {'action': '等待确认', 'reason': '底部信号积累中，等转折确认', 'confidence': '中'}
-        elif level >= 2.0:
-            return {'action': '等待', 'reason': '下跌趋势延续，等底部结构成形', 'confidence': '高'}
+    # 第二级共振: 当最佳周期是 min30/min60 时，检查日线金叉/死叉
+    if best and best.get('period') in ('min30', 'min60'):
+        if direction in ('bullish', 'bullish_bias') and daily_golden:
+            if resonance_score < 0.5:
+                resonance_score = max(resonance_score, 0.3)
+            if '日线' not in resonance_desc:
+                resonance_desc += ('; ' if resonance_desc else '') + '日线金叉共振'
+        elif direction in ('bearish', 'bearish_bias') and _check_dead('daily'):
+            if resonance_score < 0.5:
+                resonance_score = max(resonance_score, 0.3)
+            if '日线' not in resonance_desc:
+                resonance_desc += ('; ' if resonance_desc else '') + '日线死叉共振'
+        elif direction == 'neutral':
+            if daily_golden and not _check_dead('daily'):
+                if resonance_score < 0.5:
+                    resonance_score = max(resonance_score, 0.3)
+                if '日线' not in resonance_desc:
+                    resonance_desc += ('; ' if resonance_desc else '') + '日线金叉活跃'
+            elif _check_dead('daily') and not daily_golden:
+                if resonance_score > -0.5:
+                    resonance_score = min(resonance_score, -0.2)
+                if '日线' not in resonance_desc:
+                    resonance_desc += ('; ' if resonance_desc else '') + '日线死叉活跃'
+
+    # best 可能是日线或分钟线
+    best_label = ''
+    best_level = 0
+    if best and best.get('signal_quality'):
+        best_label = best['signal_quality']['label']
+        best_level = best['signal_quality']['level']
+    
+    # 日线等级
+    bullish_directions = ('bullish', 'bullish_bias')
+    bearish_directions = ('bearish', 'bearish_bias')
+    
+    # 极端位置优先处理
+    if zone == 'high' and risk == 'critical':
+        if direction in bullish_directions:
+            return _grade_output('observe_strong', '强势观望', '持有/减仓', 
+                '多头趋势+高位加速区，强势标的等回调入场',
+                min_signal_details, '等回调到EXPMA12附近再看分钟信号')
         else:
-            return {'action': '不参与', 'reason': '空头+无信号，勿抄底', 'confidence': '高'}
-
-    # 震荡
-    if level >= 3.0:
-        return {'action': '高抛低吸', 'reason': f'{best["period_label"]}信号适配好，适合做T', 'confidence': '中'}
-    elif level >= 2.0:
-        return {'action': '小仓做T', 'reason': f'{best["period_label"]}有信号，轻仓参与', 'confidence': '低'}
+            return _grade_output('avoid', '风险', '回避',
+                '高位+弱势=风险极大',
+                min_signal_details, '等下跌动能释放完毕')
+    
+    if zone == 'low' and risk == 'critical':
+        if direction in bearish_directions:
+            if best_level >= 3.0:
+                return _grade_output('observe_weak', '弱势观望', '关注抄底',
+                    '超跌+信号积累，但趋势未转多，等转折确认',
+                    min_signal_details, '等日线MACD金叉+★买出现')
+            else:
+                return _grade_output('avoid', '风险', '等待',
+                    '超跌但信号不充分，勿接飞刀',
+                    min_signal_details, '等60分钟/日线出现★买+金叉闭环')
+        else:
+            return _grade_output('observe', '观望', '轻仓试多',
+                '低位+方向好转，可逐步建仓',
+                min_signal_details, '等5-15分钟信号加强确认')
+    
+    # 日线定档
+    if direction in bullish_directions:
+        if best_level >= 3.0:
+            if resonance_score >= 0.7:
+                return _grade_output('actionable', '可操作', '顺势做多',
+                    f'{best_period_label(best)}有{best_label}+{resonance_desc}，共振确认',
+                    min_signal_details, '', resonance_score)
+            else:
+                return _grade_output('actionable', '可操作', '顺势做多',
+                    f'{best_period_label(best)}有{best_label}，顺势跟进',
+                    min_signal_details, '', resonance_score)
+        elif best_level >= 2.0:
+            if resonance_score >= 0.7:
+                return _grade_output('neutral_strong', '中性偏强', '关注做多',
+                    f'{best_period_label(best)}有{best_label}+{resonance_desc}，信号可信度提高',
+                    min_signal_details, '等信号加强后加仓', resonance_score)
+            else:
+                return _grade_output('observe', '关注', '等待加强',
+                    f'{best_period_label(best)}有信号但级别不够，等加强再动手',
+                    min_signal_details, '等★买密集+金叉出现', resonance_score)
+        else:
+            if resonance_score >= 0.7:
+                return _grade_output('observe', '关注', '观察共振',
+                    f'无强信号但{resonance_desc}，观察后续',
+                    min_signal_details, '等分钟级出现★买+金叉闭环', resonance_score)
+            else:
+                return _grade_output('observe', '关注', '观望',
+                    '多头但无出击信号，等待',
+                    min_signal_details, '等分钟级出现★买+金叉闭环', resonance_score)
+    
+    elif direction in bearish_directions:
+        if best_level >= 3.0:
+            if resonance_score >= 0.7:
+                return _grade_output('avoid', '风险', '回避',
+                    f'下跌+{resonance_desc}，调整确认，不可逆势',
+                    min_signal_details, '等日线MACD金叉+★买+金叉确认', resonance_score)
+            else:
+                return _grade_output('observe_weak', '弱势观望', '等待转折',
+                    '下跌趋势+信号积累中，等转折确认',
+                    min_signal_details, '等日线MACD金叉+★买+金叉确认', resonance_score)
+        elif best_level >= 2.0:
+            if resonance_score >= 0.7:
+                return _grade_output('avoid', '风险', '回避',
+                    f'下跌+{resonance_desc}，趋势延续',
+                    min_signal_details, '等60分钟/日线出现★买+金叉闭环', resonance_score)
+            else:
+                return _grade_output('avoid', '观望', '等待',
+                    '下跌趋势延续，等底部结构成形',
+                    min_signal_details, '等60分钟/日线出现★买+金叉闭环', resonance_score)
+        else:
+            return _grade_output('avoid', '观望', '不参与',
+                '空头+无信号，勿抄底',
+                min_signal_details, '等日线MACD转正+★买出现', resonance_score)
+    
+    # 震荡/中性
     else:
-        return {'action': '观望', 'reason': '震荡但信号不足', 'confidence': '低'}
+        if max_min_level >= 4.0:
+            # 有共振加分 → 升档或加强描述
+            if resonance_score >= 0.7:
+                return _grade_output('actionable', '可操作', '顺势做多',
+                    f'5-15分钟闭环密集({best_min_period}:{best_min_label})+{resonance_desc}，可择机做多',
+                    min_signal_details, '', resonance_score)
+            elif resonance_score >= 0.3:
+                return _grade_output('resonant_strong', '共振偏强', '高抛低吸/偏多',
+                    f'5-15分钟闭环密集({best_min_period}:{best_min_label})+{resonance_desc}，偏多操作',
+                    min_signal_details, '日线趋势转多后可加仓', resonance_score)
+            else:
+                return _grade_output('neutral_strong', '中性偏强', '高抛低吸',
+                    f'5-15分钟闭环密集({best_min_period}:{best_min_label})，等待日线向上选方向',
+                    min_signal_details, '日线趋势转多后可加仓', resonance_score)
+        elif max_min_level >= 3.0:
+            if resonance_score >= 0.7:
+                return _grade_output('neutral_strong', '共振偏强', '高抛低吸/偏多',
+                    f'{best_min_period}有{best_min_label}+{resonance_desc}，可偏多操作',
+                    min_signal_details, '等日线MACD金叉确认方向', resonance_score)
+            else:
+                return _grade_output('neutral_bias', '中性偏强', '高抛低吸',
+                    f'{best_min_period}有{best_min_label}，日线横盘中可做T',
+                    min_signal_details, '等日线MACD金叉确认方向', resonance_score)
+        elif max_min_level >= 2.0:
+            return _grade_output('neutral', '中性', '小仓做T',
+                f'{best_min_period}有{best_min_label}，轻仓参与',
+                min_signal_details, '等分钟级信号加强再加大仓位')
+        else:
+            return _grade_output('neutral_weak', '中性', '观望',
+                '震荡但信号不足',
+                min_signal_details, '等5-15分钟出现★买+金叉闭环')
+
+
+def _grade_output(grade, grade_label, action, reason, min_details, wait, resonance_score=0):
+    return {
+        'grade': grade,
+        'grade_label': grade_label,
+        'action': action,
+        'reason': reason,
+        'min_signal_summary': ' | '.join(min_details) if min_details else '无分钟闭环信号',
+        'wait_condition': wait,
+        'resonance_score': resonance_score,
+    }
+
+
+def best_period_label(best):
+    """取最佳周期的中文名"""
+    if best is None:
+        return '无'
+    return best.get('period_label', '未知')
+
+
+_actions = {
+    'bullish_strong': '出击加注' if False else '顺势做多',  # placeholder, will refine
+}
+
+
+def _generate_advice(position, trend, best, all_periods):
+    """旧版兼容，现在是_grade_trend_signal的薄封装，透传所有字段"""
+    g = _grade_trend_signal(position, trend, best, all_periods)
+    wait_part = f" 提示: {g['wait_condition']}" if g['wait_condition'] else ''
+    return {
+        'grade': g['grade'],
+        'grade_label': g['grade_label'],
+        'action': g['action'],
+        'reason': g['reason'] + wait_part,
+        'min_signal_summary': g['min_signal_summary'],
+        'wait_condition': g['wait_condition'],
+        'resonance_score': g.get('resonance_score', 0),
+        'confidence': '高' if g['grade'] in ('actionable','resonant_strong','observe_strong','neutral_strong') else '中',
+    }
 
 
 # ============================================================
@@ -883,13 +1173,13 @@ def analyze_all():
     codes = get_all_codes()
     name_map = get_name_map()
     results = [analyze(code, name_map.get(code, code)) for code in codes]
-    # 按方向+信号质量排序
+    # 按分级排序: 可操作→共振偏强→强势观望→中性偏强→中性→关注→弱势→观望
+    grade_order = {'actionable': 0, 'resonant_strong': 1, 'observe_strong': 2, 'neutral_strong': 3, 'neutral_bias': 4,
+                   'neutral': 5, 'neutral_weak': 6, 'observe': 7, 'observe_weak': 8, 'avoid': 9}
     def sort_key(r):
-        dir_order = 0 if r['trend']['direction'] in ('bullish','bullish_bias') else \
-                    1 if r['trend']['direction'] == 'neutral' else 2
-        best = r.get('best_period')
-        sq_level = best['signal_quality']['level'] if best and best.get('signal_quality') else 0
-        return (dir_order, -sq_level)
+        g = r.get('advice', {}).get('grade', 'neutral')
+        rs = r.get('advice', {}).get('resonance_score', 0)
+        return (grade_order.get(g, 99), -rs)  # -rs 让高分排在前面
     results.sort(key=sort_key)
     return results
 
@@ -905,74 +1195,93 @@ def _fmt_price_eff(pe):
     return ', '.join(parts)
 
 
+G = {
+    'actionable': ('🔴', '可操作', '日线上涨+分钟闭环确认'),
+    'resonant_strong': ('🟠', '共振偏强', '日线横盘+有共振'),
+    'observe_strong': ('🟠', '强势观望', '多头趋势但暂无买点'),
+    'neutral_strong': ('🟡', '中性偏强', '日线横盘+分钟信号密集'),
+    'neutral_bias': ('🟡', '中性偏强', '日线横盘+分钟有信号'),
+    'neutral': ('🟢', '中性', '日线横盘+分钟信号一般'),
+    'neutral_weak': ('🟢', '中性偏弱', '日线横盘+分钟无信号'),
+    'observe': ('⚪', '关注', '等待确认'),
+    'observe_weak': ('⚪', '弱势观望', '下跌趋势等待转折'),
+    'avoid': ('⚪', '观望', '弱势建议回避'),
+}
+
+
+def _fmt_signal_icon(level):
+    if level >= 4.0: return '🔥🔥🔥'
+    if level >= 3.0: return '🔥🔥'
+    if level >= 2.0: return '🔥'
+    if level >= 1.0: return '⚡'
+    return '--'
+
+
+def _fmt_periods_detail(period_results, best):
+    """生成各周期详情行"""
+    lines = []
+    lines.append('  [各周期信号]')
+    for period in PERIODS:
+        p = period_results.get(period) if period_results else None
+        if not p or not p.get('signal_quality'):
+            lines.append(f'    [{PERIOD_LABELS.get(period,period):>4}] --  无出击信号')
+            continue
+        sq = p['signal_quality']
+        pe = p.get('price_eff')
+        fire = _fmt_signal_icon(sq.get('level', 0))
+        mk = ' <<<' if best and best['period'] == period else ''
+        details = ', '.join(sq.get('details', []))
+        lines.append(f'    [{p.get("period_label",""):>4}] {fire} {sq["label"]:>8} | {details}{mk}')
+        price_str = _fmt_price_eff(pe)
+        if price_str and price_str != '无样本':
+            lines.append(f'          价格: {price_str}')
+    return lines
+
+
 def format_report(results):
     lines = []
     lines.append('=' * 92)
-    lines.append('[周期循环分析] Cycle Engine v2.0 — 三层架构版')
+    lines.append('[周期循环分析] Cycle Engine v3.5 — 多层共振链 + 分级细化')
     lines.append('=' * 92)
 
+    # 按分级分组
+    grade_order = ['actionable', 'resonant_strong', 'observe_strong', 'neutral_strong', 'neutral_bias', 'neutral', 'neutral_weak', 'observe', 'observe_weak', 'avoid']
+    by_grade = {}
     for r in results:
-        pos = r['position']
-        trd = r['trend']
-        code = r['code']
-        name = r['name']
+        g = r.get('advice', {}).get('grade', 'neutral')
+        by_grade.setdefault(g, []).append(r)
 
+    for gk in grade_order:
+        grp = by_grade.get(gk, [])
+        if not grp:
+            continue
+        icon, label, desc = G.get(gk, ('','',''))
         lines.append(f'\n{"─" * 92}')
-        lines.append(f'* {code} {name}')
-        lines.append(f'  收盘: {pos.get("close","?")}')
+        lines.append(f'{icon} [{label}] ({len(grp)} 只) — {desc}')
+        lines.append(f'{"─" * 92}')
 
-        # 第一层: 价格位置
-        zone_icon = {'high': '[高位]', 'mid': '[中位]', 'low': '[低位]', 'unknown': '[未知]'}
-        risk_icon = {'critical': '!!高危', 'high': '!偏高', 'medium': ' 中等', 'low': ' 低'}
-        lines.append(f'  [第一层 价格位置] {zone_icon.get(pos["zone"],"?")} '
-                     f'{pos["label"]} 风险:{risk_icon.get(pos["risk_level"],"?")}')
-        lines.append(f'    EXPMA12={pos.get("expma12","?")} '
-                     f'EXPMA50={pos.get("expma50","?")} '
-                     f'偏离白线{pos.get("deviation_white_pct","?"):+}% '
-                     f'偏离黄线{pos.get("deviation_yellow_pct","?"):+}%')
-        lines.append(f'    {pos.get("description","")}')
+        for r in grp:
+            pos = r['position']
+            trd = r['trend']
+            code = r['code']
+            name = r['name']
+            adv = r.get('advice', {})
 
-        # 第二层: 趋势方向
-        dir_icon = {'bullish': '[上涨]', 'bullish_bias': '[偏多]', 'neutral': '[震荡]',
-                    'bearish_bias': '[偏空]', 'bearish': '[下跌]'}
-        lines.append(f'  [第二层 趋势方向] {dir_icon.get(trd["direction"],"?")} '
-                     f'{trd["label"]} (置信度{trd["confidence"]}%)')
-        lines.append(f'    {" | ".join(trd["details"])}')
-        lines.append(f'    MACD: DIF={trd.get("macd_dif","?")} DEA={trd.get("macd_dea","?")}')
+            close = pos.get('close', '?')
+            trend_lbl = trd.get('label', '?')
+            action = adv.get('action', '?')
+            reason = adv.get('reason', '?')
+            summary = adv.get('min_signal_summary', '?')
+            wc = adv.get('wait_condition', '')
 
-        # 第三层: 各周期信号质量
-        lines.append(f'  [第三层 信号质量递进]')
-        best = r.get('best_period')
-        for period in PERIODS:
-            p = r['periods'].get(period)
-            if not p:
-                continue
-            sq = p.get('signal_quality')
-            pe = p.get('price_eff')
-            if not sq:
-                continue
-            marker = ' <<<' if (best and best['period'] == period) else ''
+            lines.append(f'\n  * {code} {name}')
+            lines.append(f'    收盘: {close} | 日线: {trend_lbl} | 分钟闭环: {summary}')
+            lines.append(f'    → {action}: {reason}')
+            if wc:
+                lines.append(f'    等: {wc}')
 
-            # 信号级别标识
-            level_mark = {4: '🔥🔥🔥', 3: '🔥🔥', 2: '🔥', 1: '⚡', 0: '--'}
-            fire = level_mark.get(int(sq.get('level', 0)), '--')
-
-            # 价格有效性
-            price_str = _fmt_price_eff(pe)
-
-            # 信号质量详情
-            sq_details = ', '.join(sq.get('details', []))
-
-            lines.append(f'    [{p["period_label"]:>4}] {fire} {sq["label"]:>8}'
-                         f' | {sq_details}')
-            if price_str:
-                lines.append(f'          价格: {price_str}')
-
-        # 第四行: 操作建议
-        advice = r.get('advice', {})
-        lines.append(f'  >>> 操作建议: {advice.get("action","?")} '
-                     f'(置信度:{advice.get("confidence","?")})')
-        lines.append(f'  >>> {advice.get("reason","")}')
+            # 各周期详细信号
+            lines.extend(_fmt_periods_detail(r.get('periods', {}), r.get('best_period')))
 
     lines.append(f'\n{"=" * 92}')
     lines.append(f'[分析完成] {len(results)} 只标的')

@@ -1,0 +1,12 @@
+[
+  {
+    "time": "2026-05-06 20:04",
+    "session": "20260506",
+    "changes": [
+      "cycle_engine.py: KLINES_LOOKBACK 扩展到500(分钟级)；新增_grade_trend_signal按日线+分钟分级",
+      "cycle_engine.py: format_report 按grade分组展示(🔴🟡🟢⚪)；analyze_all按grade排序",
+      "gen_report_md.py: 总览按grade分组；新增每日跟踪验证表；新增信号级回测段落",
+      "backtest_signals.py: 新建—对★买/★卖做后续N根K线涨幅/成功率回测"
+    ]
+  }
+]

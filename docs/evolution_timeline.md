@@ -680,3 +680,19 @@ v3.0  (4/24)
 **文档位置**:
 - 小草侧: `C:\Users\Administrator\.easyclaw\workspace\memory\evolution-timeline.md`
 - 项目侧: `D:\quantify-per\docs\evolution_timeline.md`
+
+### 2026年5月（下半）— 回测深化期
+
+| 日期 | 领域 | 事件 | 性质 |
+|------|------|------|------|
+| 05-06 | PYQ | **backtest_signals.py v3.3 重写**：三种合并方式（低点不破/50%回调/★信号独立区间）+ 趋势取向智能展示；东方日升30分钟★买信号回测75.5%~20.2%（三种视角对比） | 重构 |
+| 05-06 | PYQ | gen_report_md.py 回测段落适配 v3.2 JSON 格式 | 修正 |
+| 05-06 | IND | **合并规则算法确立**：不破低点=趋势延续，每个★信号独立向后延伸算完整区间；50%回调线作为备选参考 | 规则确立 |
+| 05-07 | SYS | **SQLite 数据持久化 + 每日快照归档 + 累积胜率曲线** | 新增 |
+| 05-07 | IND | **卖方向低点破判断逻辑修正**（per_signal_low_not_broken 跟踪高点最小化） | 修正 |
+| 05-07 | IND | **跨周期共振检测 v1**（中性方向 5-15min→30/60min 金叉活跃度） | 新增 |
+| 05-07 | SYS | **报告排序展示**（GRADE_ORDER 加 resonant_strong 层） | 新增 |
+| 05-07 | MEM | **AGENTS.md 折叠规则删除**（thinking 无法实现的展示限制） | 修正 |
+| 05-07 | SYS | **共享文档输出** → WorkBuddy 知识同步 | 新增 |
+| 05-07 | IND | **机构建仓 v2 源码审查与修正**：A2 用 VWAP(DYNAINFO(6)) 替代 CLOSE；A4/A5 改用 CLOSE 的 HHV/LLV（原错用 HIGH/LOW） | 修正 |
+| 05-07 | DATA | **筹码数据对齐验证**：daily/2026 文件覆盖 553 个日期，WINNER(22.30)=92.3% 与通达信截图 92.29% 一致；但 WINNER(C) 与通达信副图获利比例有 1.8~2.1x 偏差，需进一步排查 | 验证 |
