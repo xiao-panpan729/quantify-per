@@ -370,16 +370,42 @@ def sync_stock_data(stock_code, data_type, market, logger, force_rewrite=False):
             logger.log(f"[{market}] {stock_code} [{data_type}]: {result['message']}", level='ERROR')
 
     else:
-        # 日线等直接复制（field[0] 本身就是 YYYYMMDD 格式）
+        # 日线：增量追加（保留原始字节，不解码/重编码，避免精度损失）
+        # source_data 已经由 read_day_file 解析，只用其日期做比较；
+        # 实际写入使用原始字节，保证与通达信源文件完全一致
         try:
-            shutil.copy2(source_file, target_file)
-            result['new_bars'] = len(source_data)
-            result['message'] = f'复制成功 ({len(source_data)} 条)'
+            if target_last_date and os.path.exists(target_file):
+                # 增量模式：从源文件原始字节中筛选 date > target_last_date 的 bar
+                with open(source_file, 'rb') as sf:
+                    raw = sf.read()
+                new_bars_bytes = []
+                for offset in range(0, len(raw), 32):
+                    chunk = raw[offset:offset+32]
+                    if len(chunk) < 32:
+                        break
+                    bar_date = struct.unpack('<I', chunk[:4])[0]
+                    if bar_date > target_last_date:
+                        new_bars_bytes.append(chunk)
+                if not new_bars_bytes:
+                    result['status'] = 'skip'
+                    result['message'] = '已是最新'
+                else:
+                    with open(target_file, 'ab') as tf:
+                        for chunk in new_bars_bytes:
+                            tf.write(chunk)
+                    result['new_bars'] = len(new_bars_bytes)
+                    result['message'] = f'增量追加 ({len(new_bars_bytes)} 条新K线)'
+            else:
+                # 首次运行：全量复制
+                os.makedirs(os.path.dirname(target_file), exist_ok=True)
+                shutil.copy2(source_file, target_file)
+                result['new_bars'] = len(source_data)
+                result['message'] = f'全量复制 ({len(source_data)} 条)'
             if config.VERBOSE:
                 logger.log(f"[{market}] {stock_code} [{data_type}]: OK")
         except Exception as e:
             result['status'] = 'error'
-            result['message'] = f'复制失败：{str(e)}'
+            result['message'] = f'日线写入失败：{str(e)}'
             logger.log(f"[{market}] {stock_code} [{data_type}]: {result['message']}", level='ERROR')
     
     return result
@@ -762,7 +788,7 @@ def _random_verify(market, stock_list, logger, sample_size=10, bar_count=10):
     - 大面积异常(>30%)报警但不阻塞
     """
     try:
-        import tdx_fetch as tf
+        import tdx_fetch as tf  # type: ignore
     except ImportError:
         logger.log("  [抽查] 跳过: tdx_fetch 不可用", level='WARN')
         return
@@ -925,6 +951,8 @@ def precheck_tdx_data(logger):
     import struct
 
     # 取本地项目跟踪标的的最后日期
+    # 注意：本地 lc1/lc5 文件已经转换为 <8I> 格式（bar[0]=YYYYMMDD），
+    #       日线文件是直接从通达信复制的源码格式（<IIIIIfII>）
     local_paths = {
         'lday': os.path.join(config.TARGET_DIR['sz']['lday'], 'sz159740.day'),
         'lc1': os.path.join(config.TARGET_DIR['sz']['lc1'], 'sz159740.lc1'),
@@ -937,30 +965,24 @@ def precheck_tdx_data(logger):
                 with open(path, 'rb') as f:
                     f.seek(-32, 2)
                     data = f.read(32)
-                    # 日线(.day)格式: IIIIIfII, 分钟线(lc1/lc5)格式: HHfffffII
                     if dtype == 'lday':
-                        local_last[dtype] = struct.unpack('IIIIIfII', data)[0]
+                        # 日线源格式 <IIIIIfII>：bar[0] = YYYYMMDD 整数
+                        local_last[dtype] = struct.unpack('<I', data[:4])[0]
                     else:
-                        # 分钟线(lc1/lc5) 格式: HHfffffII
-                        # h1 = (year-2004)*2048 + month*100 + day
-                        # h2 = hour*100 + minute
-                        date_hi, date_lo = struct.unpack('HH', data[:4])
-                        remainder = date_hi % 2048
-                        year  = (date_hi // 2048) + 2004
-                        month = remainder // 100
-                        day   = remainder % 100
-                        if 2024 <= year <= 2030 and 1 <= month <= 12 and 1 <= day <= 31:
-                            local_last[dtype] = int(f'{year}{month:02d}{day:02d}')
+                        # 已转换的分钟线 <8I> 格式：bar[0] = YYYYMMDD 整数
+                        local_last[dtype] = struct.unpack('<I', data[:4])[0]
             except:
                 pass
 
-    # 抽查股票
-    check_stocks = [
-        ('sh', 'sh000001'),
-        ('sh', 'sh600519'),
-        ('sz', 'sz000001'),
-        ('sz', 'sz300750'),
-    ]
+    # 随机抽查股票（从全市场扫描，不用固定股票）
+    check_stocks = []
+    for market in ['sz', 'sh']:
+        stocks = scan_stocks(market, 'lday')
+        for s in stocks:
+            check_stocks.append((market, s))
+    if len(check_stocks) > 5:
+        check_stocks = random.sample(check_stocks, 5)
+    logger.log(f"  预检抽查: {len(check_stocks)} 只 (全市场随机)")
 
     daily_reader = TdxDailyBarReader()
     min_reader = TdxMinBarReader()

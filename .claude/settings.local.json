@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c 'from pytdx.reader import TdxDailyBarReader; r=TdxDailyBarReader\\(\\); *)",
+      "Bash(python -c 'from pytdx.reader import TdxMinBarReader; r=TdxMinBarReader\\(\\); *)",
+      "Read(//c/Users/Administrator/.claude/**)",
+      "Read(//c/Users/Administrator/.workbuddy/**)",
+      "Bash(python -c ' *)",
+      "Bash(python cycle_engine.py --save)",
+      "Bash(python backtest_signals.py --save)",
+      "Bash(python gen_report_md.py)",
+      "Bash(rm -f d:/quantify-per/_msg_*.txt d:/quantify-per/_user_msg_*.txt)",
+      "Read(//c/Users/Administrator/.easyclaw/workspace/memory/scripts/**)",
+      "Bash(python mem_merge.py --scan --freq-up)",
+      "Read(//c/Users/Administrator/.easyclaw/workspace/memory/**)",
+      "Bash(ls -lt \"D:/knowledge-hub/raw/sources/quant-sync/\" 2>/dev/null | head -10)",
+      "Read(//d/knowledge-hub/raw/sources/quant-sync/**)",
+      "Bash(cp \"C:/Users/Administrator/.claude/projects/d--quantify-per/memory/trading-rules-memory.md\" \"C:/Users/Administrator/.claude/projects/C--Users-Administrator/memory/trading-rules-memory.md\")",
+      "Bash(cp \"C:/Users/Administrator/.claude/projects/d--quantify-per/memory/user-analysis-corpus.md\" \"C:/Users/Administrator/.claude/projects/C--Users-Administrator/memory/user-analysis-corpus.md\")",
+      "Bash(cp \"C:/Users/Administrator/.claude/projects/d--quantify-per/memory/MEMORY.md\" \"C:/Users/Administrator/.claude/projects/C--Users-Administrator/memory/MEMORY.md\")",
+      "Bash(python \"C:/Users/Administrator/.claude/projects/C--Users-Administrator/memory/scripts/status_check.py\")",
+      "Bash(python \"C:/Users/Administrator/.easyclaw/workspace/memory/scripts/mem_merge.py\" --scan --freq-up)",
+      "Bash(python \"C:/Users/Administrator/.easyclaw/workspace/memory/scripts/mem_merge.py\" --scan)",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('d:/quantify-per/cycle_engine.py', doraise=True\\); print\\('OK'\\)\")",
+      "Read(//c/Users/Administrator/**)",
+      "Bash(python mem_merge.py --scan)",
+      "Read(//d/knowledge-hub/**)",
+      "Bash(cp \"D:/quantify-per/cycle_engine.py\" \"/c/Users/Administrator/.claude/projects/C--Users-Administrator/archives/2026-05-13_cycle_engine_before_dominant_cycle.txt\" && echo \"backup done\")",
+      "Bash(cp \"D:/quantify-per/cycle_engine.py\" \"/c/Users/Administrator/.claude/projects/C--Users-Administrator/archives/2026-05-13_cycle_engine_after_dominant_cycle.txt\" && echo \"archive done\")",
+      "Bash(python \"C:\\\\Users\\\\Administrator\\\\.easyclaw\\\\workspace\\\\memory\\\\scripts\\\\mem_merge.py\" --scan --freq-up)"
+    ],
+    "additionalDirectories": [
+      "d:\\quantify-per",
+      "C:\\Users\\Administrator\\.claude\\projects\\d--quantify-per\\archives",
+      "C:\\Users\\Administrator\\.claude\\projects\\C--Users-Administrator",
+      "C:\\Users\\Administrator\\.claude\\projects\\C--Users-Administrator\\archives"
+    ]
+  }
+}

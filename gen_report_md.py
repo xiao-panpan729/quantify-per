@@ -12,9 +12,39 @@ import os
 import re
 from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from config import NAME_MAP
 
 DATA = 'signals/tracking/cycle_report.json'
 data = json.load(open(DATA, 'r', encoding='utf-8'))
+
+# ════════════════ 分数历史 ════════════════
+SCORE_HISTORY = 'signals/tracking/score_history.json'
+
+def load_score_history():
+    if os.path.exists(SCORE_HISTORY):
+        try:
+            return json.load(open(SCORE_HISTORY, 'r', encoding='utf-8'))
+        except:
+            return {}
+    return {}
+
+def save_score_history():
+    """保存今日分数快照"""
+    hist = {'date': date_str, 'scores': {}}
+    for item in data:
+        code = item['code']
+        t = item['trend']
+        hist['scores'][code] = {
+            'score': t.get('score', 0),
+            'direction': t.get('direction', 'unknown'),
+            'name': item.get('name', ''),
+            'expma_score': t.get('expma_score', 0),
+            'macd_score': t.get('macd_score', 0),
+            'ma_score': t.get('ma_score', 0),
+            'cycle_score': t.get('cycle_score', 0),
+        }
+    # 保存最新快照
+    json.dump(hist, open(SCORE_HISTORY, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 
 # ════════════════ 翻译函数 ════════════════
 
@@ -74,8 +104,9 @@ def dd_bar(dd_val, max_dd=35):
     except:
         return ''
 
-GRADE_ORDER = ['actionable', 'resonant_strong', 'neutral_strong', 'neutral_bias', 'neutral', 'neutral_weak', 'observe', 'avoid']
+GRADE_ORDER = ['observe_strong', 'actionable', 'resonant_strong', 'neutral_strong', 'neutral_bias', 'neutral', 'neutral_weak', 'observe', 'avoid']
 GRADE_INFO = {
+    'observe_strong': ('🟠 强势追踪', '多头趋势+高位加速区,持减仓等回调'),
     'actionable':   ('🔴 可操作',   '日线上涨 + 分钟闭环确认'),
     'resonant_strong':('🟡🟡 共振偏强', '中性 + 分钟密集 + 跨周期金叉共振 → 偏多'),
     'neutral_strong': ('🟡 中性偏强', '日线横盘 + 分钟信号密集'),
@@ -99,13 +130,37 @@ def parse_yesterday_advice(yesterday_date_str):
         return result
 
     text = open(y_path, 'r', encoding='utf-8').read()
-    # 匹配 | code name | 建议 (理由) | | |
-    pattern = r'\|\s*(sz\w+|sh\w+)\s+\S+?\s*\|\s*([^|]+?)\s*\(\s*([^)]*)\s*\)\s*\|\s*\|'
+    # 匹配新格式: | code name price | trend | summary | action |
+    pattern = r'\|\s*(sz\w+|sh\w+)\s+\S+?\s*\|\s*[^|]+\s*\|\s*[^|]+\s*\|\s*([^|]+?)\s*\|'
     for m in re.finditer(pattern, text):
         code = m.group(1).strip()
         action = m.group(2).strip()
-        reason = m.group(3).strip()[:50]
+        reason = ''
+        if '(' in action and action.endswith(')'):
+            idx = action.index('(')
+            reason = action[idx+1:-1].strip()[:50]
+            action = action[:idx].strip()
         result[code] = {'action': action, 'reason': reason}
+    # 如果新格式没匹配到，尝试旧格式（管道符被小时段摘要破坏的老格式）
+    if not result:
+        for line in text.split('\n'):
+            line = line.strip()
+            if not line.startswith('| sz') and not line.startswith('| sh'):
+                continue
+            parts = [p.strip() for p in line.split('|') if p.strip()]
+            if len(parts) < 4:
+                continue
+            code_m = re.match(r'(sz\w+|sh\w+)', parts[0])
+            if not code_m:
+                continue
+            code = code_m.group(1)
+            action = parts[-1]  # 最后一个是操作建议
+            reason = ''
+            if '(' in action and action.endswith(')'):
+                idx = action.index('(')
+                reason = action[idx+1:-1].strip()[:50]
+                action = action[:idx].strip()
+            result[code] = {'action': action, 'reason': reason}
     return result
 
 
@@ -143,8 +198,25 @@ def table_rows(items):
         close_str = ('%.3f' % close) if isinstance(close, (int,float)) else str(close)
         if change is not None: close_str += ' ' + price_color_str(change)
         stock_cell = '%s %s %s' % (c, n[:6], close_str)
-        if wc: summary += ' | 等: ' + wc
-        rows.append('| %s | %s | %s | %s |' % (stock_cell, trend_dir, summary, advice_cn(action)))
+        # 替换 summary 中的 | 为 ·，避免破坏 markdown 表格
+        summary = summary.replace('|', '·')
+        if wc:
+            summary += ' · 等: ' + wc
+
+        # 主导量级
+        dc = adv.get('dominant_cycle', {})
+        if dc and dc.get('dominant_cycle'):
+            dc_label = dc['dominant_label']
+            stretched = dc.get('stretched_periods', [])
+            if stretched:
+                ignore = ','.join(p.replace('min','') for p in stretched)
+                dc_str = f'{dc_label} (忽略{ignore}反向)'
+            else:
+                dc_str = dc_label
+        else:
+            dc_str = '-'
+
+        rows.append('| %s | %s | %s | %s | %s |' % (stock_cell, trend_dir, summary, dc_str, advice_cn(action)))
     return rows
 
 # ════════════════ 正文开始 ════════════════
@@ -152,6 +224,11 @@ now = datetime.now()
 date_str = now.strftime('%Y%m%d')
 time_str = now.strftime('%Y-%m-%d %H:%M')
 yesterday_str = (now - timedelta(days=1)).strftime('%Y%m%d')
+# 如果当天不是交易日（周末/假日），往前找最近的有报告的交易日
+if not os.path.exists(os.path.join('reports/daily', '%s_v3.md' % yesterday_str)):
+    reports = sorted([f.replace('_v3.md','') for f in os.listdir('reports/daily') if f.endswith('_v3.md')], reverse=True)
+    if reports:
+        yesterday_str = reports[0]
 
 lines.append('# 周期循环分析报告 (Cycle Engine v3.0)')
 lines.append('')
@@ -175,8 +252,8 @@ for gk in GRADE_ORDER:
     title, desc = GRADE_INFO.get(gk, ('', ''))
     lines.append('### %s (%d 只) — %s' % (title, len(grp), desc))
     lines.append('')
-    lines.append('| 标的 收盘 | 日线趋势 | 分钟闭环 | 操作建议 |')
-    lines.append('|----------|----------|----------|----------|')
+    lines.append('| 标的 收盘 | 日线趋势 | 分钟闭环 | 主导量级 | 操作建议 |')
+    lines.append('|----------|----------|----------|----------|----------|')
     for r in table_rows(grp):
         lines.append(r)
     lines.append('')
@@ -184,7 +261,39 @@ for gk in GRADE_ORDER:
 lines.append('---')
 lines.append('')
 
-# ── 二、重点标的深度分析 ──
+# ── 分数起伏对比 ──
+lines.append('### 分数起伏（今日 vs 昨日）')
+lines.append('')
+history = load_score_history()
+prev_scores = history.get('scores', {})
+prev_date = history.get('date', '无')
+lines.append('> 对比 %s → 今日 %s，跟踪趋势评分变化' % (prev_date[:4] if prev_date != '无' else '--', date_str[:4]))
+lines.append('')
+lines.append('| 标的 | 昨日总分 | 今日总分 | 变动 | 方向变化 |')
+lines.append('|------|---------|---------|------|---------|')
+for item in data:
+    code = item['code']
+    name = item.get('name', '')[:6]
+    t = item['trend']
+    today_score = t.get('score', 0)
+    today_dir = t.get('direction', '')
+    prev = prev_scores.get(code, {})
+    prev_score = prev.get('score', '新')
+    prev_dir = prev.get('direction', '')
+    if prev_score != '新':
+        diff = today_score - prev_score
+        diff_s = ('%+d' % diff) if diff != 0 else '0'
+        if diff > 0: diff_s = '🔺' + diff_s
+        elif diff < 0: diff_s = '🔻' + diff_s
+        else: diff_s = '➖' + diff_s
+        dir_changed = '→' if prev_dir == today_dir else ('%s→%s' % (trend_cn(prev_dir)[:2], trend_cn(today_dir)[:2]))
+        lines.append('| `%s` %s | %s | %d | %s | %s |' % (code, name, str(prev_score) if isinstance(prev_score, int) else prev_score, today_score, diff_s, dir_changed))
+    else:
+        lines.append('| `%s` %s | (首日) | %d | - | %s |' % (code, name, today_score, trend_cn(today_dir)))
+lines.append('')
+
+lines.append('---')
+lines.append('')
 lines.append('## 二、重点标的深度分析')
 lines.append('')
 
@@ -382,8 +491,9 @@ for rank, d in enumerate(dd_all[:10], 1):
     sig_label = '★买→卖' if d['sig_type'] == 'buy' else '★卖→买'
     bar = dd_bar(d['dd'])
     tag = dd_risk_tag(d['dd'])
-    lines.append('| %d | `%s` | %s | %s | %+5.1f%% | **%6.1f%%** | %3.0f%% | %3d | %s | %s |' %
-                  (rank, d['code'], period_cn(d['period']), sig_label,
+    name = NAME_MAP.get(d['code'], '')[:6]
+    lines.append('| %d | `%s` %s | %s | %s | %+5.1f%% | **%6.1f%%** | %3.0f%% | %3d | %s | %s |' %
+                  (rank, d['code'], name, period_cn(d['period']), sig_label,
                    d['avg_pct'], d['dd'], d['wr'], d['cnt'], tag, bar))
 
 lines.append('')
@@ -448,6 +558,21 @@ for item in data:
         lines.append('')
     else:
         cs = ('%.3f' % close) if isinstance(close, (int,float)) else close
+
+        # 主导量级展示
+        dc = adv.get('dominant_cycle')
+        if dc and dc.get('dominant_cycle'):
+            dc_label = dc['dominant_label']
+            dc_detail = dc.get('detail', '')
+            stretched = dc.get('stretched_periods', [])
+            dc_parts = [f'**{dc_label}**']
+            if stretched:
+                ignore_str = ','.join(p.replace('min','') for p in stretched)
+                dc_parts.append(f'忽略{ignore_str}级反向信号')
+            if dc_detail:
+                dc_parts.append(f'({dc_detail})')
+            lines.append(f'\n> **主导量级**: {" | ".join(dc_parts)}')
+
         lines.append(f'\n> **当前状态**: EXPMA={expma_status} | MACD={macd_status} | 收盘={cs} | 最佳={period_cn(best_p) if best_p else "-"} | {reason or advice_cn(action)}')
         lines.append('')
 
@@ -457,4 +582,7 @@ out_path = 'reports/daily/%s_v3.md' % date_str
 os.makedirs(os.path.dirname(out_path), exist_ok=True)
 with open(out_path, 'w', encoding='utf-8') as f:
     f.write(report)
+save_score_history()
 print('已生成: ' + out_path)
+import webbrowser
+webbrowser.open(os.path.abspath(out_path))

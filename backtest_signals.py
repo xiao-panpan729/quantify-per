@@ -65,6 +65,8 @@ def extract_raw_closes(rows, entry_field, entry_target, exit_field, exit_target)
         try: entry_price = float(erow.get('raw_close', 0))
         except: entry_price = 0
         if entry_price <= 0: i = ei + 1; continue
+        # 过滤价格异常数据（×10000精度未还原/乱码）
+        if entry_price >= 100000: i = ei + 1; continue
 
         x = find_next(rows, ei + 1, exit_field, exit_target)
         xi = x[0] if x[0] else min(ei + 500, len(rows) - 1)
@@ -72,7 +74,10 @@ def extract_raw_closes(rows, entry_field, entry_target, exit_field, exit_target)
 
         closes = []
         for r in rows[ei:xi+1]:
-            try: closes.append(float(r.get('raw_close', 0)))
+            try:
+                v = float(r.get('raw_close', 0))
+                if v >= 100000: continue  # 跳过异常价格
+                closes.append(v)
             except: pass
         if len(closes) < 2: i = ei + 1; continue
 

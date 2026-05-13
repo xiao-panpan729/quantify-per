@@ -1,0 +1,14 @@
+        代码     票名 总分  E  M  MA C  方向               ABCD 最佳  等级
+-------------------------------------------------------------------------------------
+  sh513310 中韩半导体E  14  2 4 6 2       bullish  75%  A   min5 observe_strong
+  sh588200 科创芯片ET  16  2 4 6 4       bullish 100%  A   min5 observe_strong
+  sz159326 电网设备ET  12  2 4 6 0  bullish_bias  50%  A   min5 observe_strong
+  sz300118   东方日升  15  2 4 5 4       bullish  88%  A  min15 observe_strong
+  sz002261   拓维信息  12  2 1 5 4  bullish_bias  50%  C  daily actionable
+  sh520600 港股通汽车E   7  2 1 4 0       neutral  12%  C  min15 resonant_strong
+  sz000100  TCL科技   8  0 2 2 4       neutral   0%  C  min30 resonant_strong
+  sz002129  TCL中环   9  0 2 5 2       neutral  12%  C  min30 resonant_strong
+  sz159740 恒生科技ET   7  0 3 2 2       neutral  12%  B   min5 resonant_strong
+  sh600438   通威股份   7  0 1 2 4       neutral  12%  C  daily neutral_strong
+  sh513120 港股创新药E   4  0 1 1 2  bearish_bias  50%  C  min30 observe_weak
+  sh601012   隆基绿能   5  0 0 1 4  bearish_bias  38%  D  daily observe_weak

@@ -200,16 +200,36 @@ def judge_position(daily_rows):
 # 第二层: 趋势方向判断
 # ============================================================
 
-def judge_trend(code, daily_rows):
+def judge_trend(code, daily_rows, daily_buy_level=0):
     """
-    判断整体趋势方向: 上涨/震荡/下跌
-    
-    三要素:
-      - EXPMA: 白线 vs 黄线
-      - MACD: DIF vs DEA vs 0轴
-      - 近期价格走势: 最近20根K线的方向
-    
-    多数投票决定方向
+    0-16 评分体系判断趋势方向 — 带日线闭环 + EXPMA
+
+    EXPMA: 0~2分
+      - 2: expma12 > expma50 (白线在上)
+      - 1: 粘合（差距 < 股价×0.5%）
+      - 0: expma12 < expma50 (黄线在上)
+
+    MACD: 0~4分
+      - dif_ratio = |DIF| / close
+      - clearly_off = dif_ratio > 0.01
+      - 4: clearly_off + dif>0 + dif>dea (0轴上,强势多头)
+      - 3: dif>0 + dif>dea (0轴上金叉,未完全远离)
+      - 2: dif<0 + dif>dea (0轴下金叉,弱势) 或 默认
+      - 1: dif<dea (死叉,不论上下)
+      - 0: clearly_off + dif<0 + dif<dea (0轴下,强势空头)
+
+    MA排列: 0~6分
+      - 链式递进: 从5开始检查连续 short>long 到第几级断裂
+      - 链长0→0, 1→1, 2→2, 3→3, 4→4, 5→6(完美排列奖励)
+      - 5>10>20>60>120>250 全部顺序 = 满分6分
+
+    日线闭环: 0~4分（只计买侧, daily_buy_level >= 4.0=4分, >=3.5=3分, >=3.0=2分）
+      - 只取★买侧的闭环质量, 不取max(buy,sell)
+
+    总分 0~16 → 方向:
+      13-16: bullish    10-12: bullish_bias
+      7-9: neutral      4-6: bearish_bias
+      0-3: bearish
     """
     if not daily_rows:
         return {'direction': 'unknown', 'label': '无数据', 'confidence': 0}
@@ -221,83 +241,126 @@ def judge_trend(code, daily_rows):
     macd_dif = safe_float(last.get('macd_dif', 0))
     macd_dea = safe_float(last.get('macd_dea', 0))
 
-    votes_up = 0
-    votes_down = 0
     details = []
 
-    # 要素1: EXPMA
-    if expma12 and expma50:
-        if expma12 > expma50:
-            votes_up += 1
+    # ── EXPMA: 0~2分 ──
+    expma_score = 1  # 默认粘合
+    if expma12 and expma50 and close > 0:
+        expma_gap = abs(expma12 - expma50) / close
+        if close > expma12 > expma50 and expma_gap > 0.005:
+            expma_score = 2
             details.append('EXPMA多头')
-        elif expma12 < expma50:
-            votes_down += 1
+        elif expma12 > expma50:
+            # 白线>黄线但价格跌破白线，结构弱化
+            expma_score = 1
+            details.append('EXPMA偏多(价破白线)')
+        elif expma12 < expma50 and expma_gap > 0.005:
+            expma_score = 0
             details.append('EXPMA空头')
         else:
+            expma_score = 1
             details.append('EXPMA粘合')
+    else:
+        details.append('EXPMA未知')
 
-    # 要素2: MACD
-    if macd_dif is not None and macd_dea is not None:
-        if macd_dif > macd_dea and macd_dif > 0:
-            votes_up += 1
-            details.append('MACD强势多头')
-        elif macd_dif > macd_dea:
-            # 0轴下的金叉: 偏多但弱
-            votes_up += 0.3
-            details.append('MACD弱金叉(0轴下)')
-        elif macd_dif < macd_dea and macd_dif < 0:
-            votes_down += 1
-            details.append('MACD强势空头')
+    # ── MACD: 0~4分 ──
+    macd_score = 2
+    if close > 0 and macd_dif is not None and macd_dea is not None:
+        dif_ratio = abs(macd_dif) / close
+        clearly_off = dif_ratio > 0.01
+
+        if clearly_off and macd_dif > 0 and macd_dif > macd_dea:
+            macd_score = 4
+            details.append('MACD多头强')
+        elif macd_dif > 0 and macd_dif > macd_dea:
+            macd_score = 3
+            details.append('MACD金叉(0轴上)')
+        elif macd_dif < 0 and macd_dif > macd_dea:
+            macd_score = 2
+            details.append('MACD金叉(0轴下)')
+        elif clearly_off and macd_dif < 0 and macd_dif < macd_dea:
+            macd_score = 0
+            details.append('MACD空头强')
         elif macd_dif < macd_dea:
-            # 0轴上的死叉: 偏空但弱
-            votes_down += 0.3
-            details.append('MACD弱死叉(0轴上)')
+            macd_score = 1
+            details.append('MACD死叉')
         else:
-            details.append('MACD粘合')
+            macd_score = 2
+            details.append('MACD中性')
+    else:
+        details.append('MACD未知')
 
-    # 要素3: 近期价格走势 (最近20根K线)
-    if len(daily_rows) >= 20:
-        recent = daily_rows[-20:]
-        first_close = safe_float(recent[0].get('close', 0))
-        if first_close and close:
-            pct_change = (close - first_close) / first_close * 100
-            if pct_change > 3:
-                votes_up += 1
-                details.append(f'近20日+{pct_change:.1f}%')
-            elif pct_change < -3:
-                votes_down += 1
-                details.append(f'近20日{pct_change:.1f}%')
-            else:
-                details.append(f'近20日{pct_change:+.1f}%(横盘)')
+    # ── MA排列: 0~6分 ──
+    closes = [safe_float(r.get('close', 0)) for r in daily_rows]
+    ma_vals = {}
+    for period in [5, 10, 20, 60, 120, 250]:
+        if len(closes) >= period:
+            ma_vals[period] = sum(closes[-period:]) / period
 
-    # 投票结果
-    total_up = votes_up
-    total_down = votes_down
+    # 链式递进: 从短到长检查连续 short>long，断裂即停
+    chain_periods = [5, 10, 20, 60, 120, 250]
+    chain_length = 0
+    for i in range(len(chain_periods) - 1):
+        sp, lp = chain_periods[i], chain_periods[i + 1]
+        if sp in ma_vals and lp in ma_vals and ma_vals[sp] > ma_vals[lp]:
+            chain_length += 1
+        else:
+            break
 
-    if total_up >= 2.5:
+    # 链长→得分: 0→0,1→1,2→2,3→3,4→4,5→6(完美排列)
+    ma_score = 6 if chain_length >= 5 else chain_length
+
+    if chain_length > 0:
+        chain_label = '→'.join(str(p) for p in chain_periods[:chain_length + 1])
+        details.append(f'均线多头排列({chain_label})')
+    elif all(p in ma_vals for p in [5, 10]):
+        details.append('均线无序')
+    else:
+        details.append('均线数据不足')
+
+    # ── 日线闭环: 0~4分（只计买侧, 来自analyze_period的buy_level） ──
+    cycle_score = 0
+    if daily_buy_level >= 4.0:
+        cycle_score = 4
+        details.append('日线★买(最强出击)')
+    elif daily_buy_level >= 3.5:
+        cycle_score = 3
+        details.append('日线★买(短期确认)')
+    elif daily_buy_level >= 3.0:
+        cycle_score = 2
+        details.append('日线★买(加强闭环)')
+
+    # ── 总分 0~16 ──
+    total_score = expma_score + macd_score + ma_score + cycle_score
+
+    if total_score >= 13:
         direction = 'bullish'
         label = '上涨趋势'
-    elif total_down >= 2.5:
-        direction = 'bearish'
-        label = '下跌趋势'
-    elif total_up >= 1.5:
+    elif total_score >= 10:
         direction = 'bullish_bias'
         label = '偏多震荡'
-    elif total_down >= 1.5:
+    elif total_score >= 7:
+        direction = 'neutral'
+        label = '横盘震荡'
+    elif total_score >= 4:
         direction = 'bearish_bias'
         label = '偏空震荡'
     else:
-        direction = 'neutral'
-        label = '横盘震荡'
+        direction = 'bearish'
+        label = '下跌趋势'
 
-    confidence = abs(total_up - total_down) / max(total_up + total_down, 1) * 100
+    confidence = abs(total_score - 8) / 8 * 100
 
     return {
         'direction': direction,
         'label': label,
         'confidence': round(confidence),
-        'votes_up': total_up,
-        'votes_down': total_down,
+        'score': total_score,
+        'expma_score': expma_score,
+        'macd_score': macd_score,
+        'ma_score': ma_score,
+        'cycle_score': cycle_score,
+        'daily_buy_level': daily_buy_level,
         'details': details,
         'close': close,
         'macd_dif': macd_dif,
@@ -469,6 +532,20 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20):
         elif '死叉' in ema:
             recent_dead.append({'ts': ts, 'close': close, 'idx': i})
 
+    # MA5/MA10 计算与交叉检测（短期趋势，比EXPMA更快）
+    closes_win = [safe_float(r.get('close', 0)) for r in recent_rows]
+    ma5_win = [sum(closes_win[i-4:i+1]) / 5 if i >= 4 else 0 for i in range(row_count)]
+    ma10_win = [sum(closes_win[i-9:i+1]) / 10 if i >= 9 else 0 for i in range(row_count)]
+
+    recent_ma5_golden = []  # MA5上穿MA10
+    recent_ma5_dead = []    # MA5下穿MA10
+    for i in range(10, row_count):
+        if ma5_win[i] > 0 and ma10_win[i] > 0 and ma5_win[i-1] > 0 and ma10_win[i-1] > 0:
+            if ma5_win[i-1] <= ma10_win[i-1] and ma5_win[i] > ma10_win[i]:
+                recent_ma5_golden.append({'idx': i})
+            elif ma5_win[i-1] >= ma10_win[i-1] and ma5_win[i] < ma10_win[i]:
+                recent_ma5_dead.append({'idx': i})
+
     details = []
 
     # --- 做多侧分析 ---
@@ -548,6 +625,33 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20):
             buy_details.append(f'闭环{pairs}对')
             buy_level += 0.3
 
+        # 5. MA5/10金叉确认（★买后→EXPMA金叉前的短期趋势确认）
+        if recent_ma5_golden:
+            first_ma5 = None
+            for ba in recent_buy_anchors:
+                for gc in recent_ma5_golden:
+                    if gc['idx'] > ba['idx']:
+                        if first_ma5 is None or gc['idx'] < first_ma5['idx']:
+                            first_ma5 = gc
+                        break
+            first_expma = None
+            for ba in recent_buy_anchors:
+                for gc in recent_golden:
+                    if gc['idx'] > ba['idx']:
+                        if first_expma is None or gc['idx'] < first_expma['idx']:
+                            first_expma = gc
+                        break
+            if first_ma5 is not None:
+                if first_expma is None:
+                    buy_level += 1.0
+                    buy_details.append('MA5/10金叉确认(无EXPMA)')
+                elif first_ma5['idx'] <= first_expma['idx']:
+                    buy_level += 1.2
+                    buy_details.append('MA5/10→EXPMA递进')
+                else:
+                    buy_level += 0.3
+                    buy_details.append('MA5/10金叉滞后')
+
     # --- 做空侧分析 ---
     sell_level = 0
     sell_details = []
@@ -618,6 +722,33 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20):
         elif pairs >= 1:
             sell_details.append(f'闭环{pairs}对')
             sell_level += 0.3
+
+        # 5. MA5/10死叉确认（★卖后→EXPMA死叉前的短期趋势确认）
+        if recent_ma5_dead:
+            first_ma5_d = None
+            for sa in recent_sell_anchors:
+                for dc in recent_ma5_dead:
+                    if dc['idx'] > sa['idx']:
+                        if first_ma5_d is None or dc['idx'] < first_ma5_d['idx']:
+                            first_ma5_d = dc
+                        break
+            first_expma_d = None
+            for sa in recent_sell_anchors:
+                for dc in recent_dead:
+                    if dc['idx'] > sa['idx']:
+                        if first_expma_d is None or dc['idx'] < first_expma_d['idx']:
+                            first_expma_d = dc
+                        break
+            if first_ma5_d is not None:
+                if first_expma_d is None:
+                    sell_level += 1.0
+                    sell_details.append('MA5/10死叉确认(无EXPMA)')
+                elif first_ma5_d['idx'] <= first_expma_d['idx']:
+                    sell_level += 1.2
+                    sell_details.append('MA5/10→EXPMA递进(空)')
+                else:
+                    sell_level += 0.3
+                    sell_details.append('MA5/10死叉滞后')
 
     # --- 根据趋势方向选择主分析侧 ---
     direction = trend['direction']
@@ -745,10 +876,205 @@ def cycle_pattern(anchors):
     }
 
 
+# ============================================================
+# 第四层扩展: 波峰间距法 — 主导循环量级检测
+# ============================================================
+
+def _wave_peaks(values):
+    """
+    找趋势线的波峰位置
+
+    波峰定义: 比前后各2个点都高的局部高点
+    返回: 波峰在 values 中的索引列表
+    """
+    if len(values) < 5:
+        return []
+
+    window = 2
+    peaks = []
+    for i in range(window, len(values) - window):
+        if all(values[i] >= values[i - j] for j in range(1, window + 1)) \
+           and all(values[i] >= values[i + j] for j in range(1, window + 1)):
+            peaks.append(i)
+
+    # 去重: 连续满足的只取最高的那根
+    if len(peaks) < 2:
+        return peaks
+    filtered = [peaks[0]]
+    for p in peaks[1:]:
+        if p - filtered[-1] <= window:
+            if values[p] > values[filtered[-1]]:
+                filtered[-1] = p
+        else:
+            filtered.append(p)
+    return filtered
+
+
+def _peak_intervals(peaks):
+    """计算连续波峰之间的间距（K线根数）"""
+    if len(peaks) < 2:
+        return []
+    return [peaks[i+1] - peaks[i] for i in range(len(peaks) - 1)]
+
+
+def detect_dominant_cycle(code, period_results):
+    """
+    波峰间距法 — 检测当前主导循环量级
+
+    从最小周期(5分钟)开始逐级向上检查:
+      每个周期取 trend_line 的波峰，量间距
+      间距稳定(当前/历史 < 1.5倍) → 该级别是主导量级
+      间距拉长(>= 1.5倍) → 上级周期在接管，继续向上查
+
+    Returns: dict
+        dominant_cycle: 'min5'|'min15'|'min30'|'min60'|'daily'
+        dominant_label: 中文标签
+        detail: 各级间距变化描述
+        stretched_periods: 被判定为拉长的级别列表
+    """
+    periods_to_check = ['min5', 'min15', 'min30', 'min60', 'daily']
+    p_labels = {'min5': '5分钟', 'min15': '15分钟', 'min30': '30分钟',
+                'min60': '60分钟', 'daily': '日线'}
+
+    all_details = []
+    stretched = []
+
+    for p in periods_to_check:
+        rows = read_csv(code, p)
+        if not rows:
+            all_details.append(f'{p_labels[p]}:无数据')
+            continue
+
+        values = [safe_float(r.get('trend_line', 0)) for r in rows if safe_float(r.get('trend_line', 0)) > 0]
+        if len(values) < 30:
+            all_details.append(f'{p_labels[p]}:数据不足({len(values)})')
+            continue
+
+        peaks = _wave_peaks(values)
+        if len(peaks) < 3:
+            all_details.append(f'{p_labels[p]}:波峰不足({len(peaks)})')
+            continue
+
+        intervals = _peak_intervals(peaks)
+        if len(intervals) < 2:
+            all_details.append(f'{p_labels[p]}:间距不足')
+            continue
+
+        current = intervals[-1]
+        baseline = intervals[:-1]
+        avg_base = sum(baseline) / len(baseline) if baseline else current
+
+        stretch = current / avg_base if avg_base > 0 else 1.0
+        all_details.append(f'{p_labels[p]}间距{current:.0f}/{avg_base:.0f}({stretch:.1f}倍)')
+
+        if stretch < 1.5:
+            return {
+                'dominant_cycle': p,
+                'dominant_label': p_labels[p],
+                'detail': ' | '.join(all_details),
+                'stretched_periods': stretched,
+            }
+        else:
+            stretched.append(p)
+
+    # 全线拉长 → 日线默认
+    return {
+        'dominant_cycle': 'daily',
+        'dominant_label': '日线',
+        'detail': ' | '.join(all_details) + ' → 全线拉长,日线主导',
+        'stretched_periods': stretched,
+    }
+
+
+# ============================================================
+# 第四层扩展: 量价阶段标注（仅日线级别）
+# ============================================================
+
+def analyze_volume_regime(code, daily_rows, period_results):
+    """
+    判断日线成交量所处的量价阶段（最小改动，不参与评分）
+
+    分析逻辑:
+      1. 计算百日地量（最近100天最低成交量）
+      2. 计算地量堆密度（最近20天在1.0~1.3倍地量的占比）
+      3. 结合日线★买/★卖信号状态，判断量价阶段
+
+    量价阶段含义:
+      - 底部地量区: ★卖周期末端的地量堆 → 供应枯竭，等需求
+      - 缩量回调: ★买周期中的百日地量附近 → 上涨中继洗盘
+      - 初步缩量: 缩到地量附近但未形成地量堆 → 观察
+      - 正常放量: 量在1.3~2.0倍地量 → 正常交易
+      - 显著放量: 量超过2倍地量 → 放量异常
+
+    Returns: dict
+        phase: 量价阶段标签
+        detail: 中文描述
+        vol_ratio: 当日量/百日地量比值
+        dilangdui_density: 地量堆密度
+    """
+    if not daily_rows or len(daily_rows) < 30:
+        return {'phase': '数据不足'}
+
+    volumes = [safe_float(r.get('volume', 0)) for r in daily_rows
+               if safe_float(r.get('volume', 0)) > 0]
+    if len(volumes) < 30:
+        return {'phase': '数据不足', 'detail': f'成交量数据{len(volumes)}条'}
+
+    # 百日地量（取5分位值，避免极端低值干扰）
+    lookback = min(100, len(volumes))
+    recent_v = volumes[-lookback:]
+    sorted_v = sorted(recent_v)
+    min_v = sorted_v[int(len(sorted_v) * 0.05)]  # 5分位值作为地量水准
+    cur_v = volumes[-1]
+    vol_r = cur_v / min_v if min_v > 0 else 999
+
+    # 地量堆密度：最近20天在[地量, 地量×1.3]的天数占比
+    win = min(20, len(recent_v))
+    watch = recent_v[-win:]
+    in_pile = sum(1 for v in watch if v <= min_v * 1.3)
+    pile_density = in_pile / win if win > 0 else 0
+
+    # 日线最近的信号主导方向
+    ds = period_results.get('daily', {})
+    sq = ds.get('signal_quality') if ds else None
+    if sq:
+        buy_lv = sq.get('buy_level', 0)
+        sell_lv = sq.get('sell_level', 0)
+    else:
+        buy_lv = 0
+        sell_lv = 0
+
+    # ---- 判断阶段 ----
+    is_dilang = vol_r < 1.3
+    is_pile = pile_density > 0.5
+    is_bearish = sell_lv > buy_lv * 1.2  # 卖侧显著占优
+
+    if is_dilang and is_pile and is_bearish:
+        phase = '底部地量区'
+        detail = f'百日地量附近(×{vol_r:.1f})，地量堆密度{pile_density:.0%}，供应枯竭'
+    elif is_dilang and is_pile and not is_bearish:
+        phase = '缩量回调'
+        detail = f'★买周期中缩量到百日地量(×{vol_r:.1f})，地量堆{pile_density:.0%}，洗盘性质'
+    elif is_dilang and not is_pile:
+        phase = '初步缩量'
+        detail = f'缩量到百日地量附近(×{vol_r:.1f})，未形成地量堆({pile_density:.0%})，观察'
+    else:
+        # 正常放量/显著放量不标注（不制造噪音）
+        phase = '正常量能'
+        detail = ''
+
+    return {
+        'phase': phase,
+        'detail': detail,
+        'vol_ratio': round(vol_r, 2),
+        'dilangdui_density': round(pile_density, 2),
+    }
+
+
 def analyze_period(code, period, position, trend):
     """
     第四层: 信号质量递进分析
-    
+
     在已知位置+方向下，分析最近一段的信号是否形成了出击窗口
     """
     rows = read_csv(code, period)
@@ -783,7 +1109,7 @@ def analyze(code, name=''):
     """
     三层架构分析:
     1. 价格位置
-    2. 趋势方向
+    2. 趋势方向 (带日线闭环信号)
     3. 循环适配
     """
     daily_rows = read_csv(code, 'daily')
@@ -791,8 +1117,16 @@ def analyze(code, name=''):
     # 第一层: 价格位置
     position = judge_position(daily_rows)
 
-    # 第二层: 趋势方向
-    trend = judge_trend(code, daily_rows)
+    # 先算日线闭环信号(placeholder趋势 → 日线 signal_quality → 买侧闭环level)
+    placeholder_trend = {'direction': 'neutral', 'confidence': 0}
+    daily_pre = analyze_period(code, 'daily', position, placeholder_trend)
+    daily_buy_level = 0
+    if daily_pre and daily_pre.get('signal_quality'):
+        sq = daily_pre['signal_quality']
+        daily_buy_level = sq.get('buy_level', 0)  # 只取买侧，不取max(buy,sell)
+
+    # 第二层: 趋势方向 (传入日线买侧闭环level)
+    trend = judge_trend(code, daily_rows, daily_buy_level)
 
     # 第三层: 各周期循环适配
     period_results = {}
@@ -801,19 +1135,44 @@ def analyze(code, name=''):
         if result:
             period_results[period] = result
 
-    # 找出最佳操作级别: 信号质量最高的
+    # 日线用真实趋势重算（覆盖placeholder结果）
+    period_results['daily'] = analyze_period(code, 'daily', position, trend) or daily_pre
+
+    # ABCD 级别匹配: 日线MACD状态 → 最低操作周期
+    macd_score = trend.get('macd_score', 2)
+    if macd_score == 4:
+        abcd_min_idx = 1  # A级: min5+, 一信号即可
+    elif macd_score == 3:
+        abcd_min_idx = 1  # B级: min5+, 需要★买+2金叉
+    elif macd_score == 1:
+        abcd_min_idx = 2  # C级: min15+, 需要★买+2金叉
+    else:
+        abcd_min_idx = 3  # D级: min30+, 等大级别底部
+
+    # 主导量级检测: 波峰间距法
+    dominant_info = detect_dominant_cycle(code, period_results)
+    dominant_idx = PERIODS.index(dominant_info['dominant_cycle'])
+
+    # 取高者: ABCD级别 vs 主导量级 → 实际最低操作级别
+    actual_min_idx = max(abcd_min_idx, dominant_idx)
+
+    # 找出最佳操作级别: 信号质量最高的（过滤低于实际最低操作级别的周期）
     best = None
-    for period in PERIODS:
+    for i, period in enumerate(PERIODS):
+        if i < actual_min_idx:
+            continue  # 低于实际最低操作级别，跳过
         p = period_results.get(period)
         if not p or not p.get('signal_quality'):
             continue
         sq = p['signal_quality']
-        # v3.1: raw level 最高优先，去掉 >= 2.0 门槛，让低级别信号也能参与比较
         if best is None or sq['level'] > best['signal_quality']['level']:
             best = p
 
-    # 综合操作建议
-    advice = _generate_advice(position, trend, best, period_results)
+    # 综合操作建议（含主导量级）
+    advice = _generate_advice(position, trend, best, period_results, dominant_info)
+
+    # 量价阶段标注（日线成交量，不参与评分，仅标注）
+    volume_info = analyze_volume_regime(code, daily_rows, period_results)
 
     return {
         'code': code,
@@ -823,37 +1182,42 @@ def analyze(code, name=''):
         'periods': period_results,
         'best_period': best,
         'advice': advice,
+        'volume_regime': volume_info,
     }
 
 
-def _grade_trend_signal(position, trend, best, all_periods):
+def _grade_trend_signal(position, trend, best, all_periods, dominant_info=None):
     """
     按日线趋势+分钟信号强度分级，返回分级定性和建议
-    
+
     分级逻辑:
       日线上涨+分钟闭环 → 可操作（🔴）
       日线中性+分钟强   → 中性偏强（🟡）
       日线中性+分钟弱   → 中性（🟢）
       日线下跌+分钟闭环 → 谨慎观望（⚪）
       日线下跌+分钟弱   → 观望（⚪）
-    
+
     新增 v3.4: 跨周期共振检测
       5-15分钟评分相同时，检查30/60分钟有无活跃金叉
       有共振者分数上调，分级升档
-    
+
+    新增 v3.6: 主导量级(波峰间距法)
+      传入 dominant_info 后自动写入描述
+
     返回:
       dict: {grade, grade_label, action, reason, min_signal_summary,
-             wait_condition, resonance_score}
+             wait_condition, resonance_score, dominant_cycle}
     """
     direction = trend['direction']
     zone = position['zone']
     risk = position['risk_level']
+    close_price = position.get('close', 0)
+    expma12 = position.get('expma12', 0)
     
-    # 分钟级信号摘要: 5/15/30/60 最强级别
+    # Internal: find strongest minute signal for grading logic
     max_min_level = 0
     best_min_label = ''
     best_min_period = ''
-    min_signal_details = []
     
     for period, p in all_periods.items():
         if not p or not p.get('signal_quality'):
@@ -864,9 +1228,53 @@ def _grade_trend_signal(position, trend, best, all_periods):
             max_min_level = lv
             best_min_label = sq['label']
             best_min_period = PERIOD_LABELS.get(period, period)
-        if lv >= 2.0:
-            d = f"{PERIOD_LABELS.get(period,period)}: {sq['label']}({lv:.1f})"
-            min_signal_details.append(d)
+    
+    # Smart signal summary: find important closed-loop for direction guidance
+    min_signal_details = []
+    sig_avail = {}
+    for p in ['daily', 'min60', 'min30', 'min15', 'min5']:
+        pp = all_periods.get(p)
+        if pp and pp.get('signal_quality') and pp['signal_quality']['level'] >= 2.0:
+            sig_avail[p] = pp['signal_quality']
+    
+    # Daily is the directional anchor (most important for direction)
+    if 'daily' in sig_avail:
+        d = sig_avail['daily']
+        bl, sl = d.get('buy_level', 0), d.get('sell_level', 0)
+        if bl >= 3.0 and sl >= 3.0:
+            pat = '买卖交替'
+        elif bl >= 3.0:
+            pat = '★买密集'
+        elif sl >= 3.0:
+            pat = '★卖密集'
+        else:
+            pat = '有信号'
+        min_signal_details.append(f"日线:{d['label']}({pat})")
+    
+    # Best minute anchor (highest priority with >=2.0 signal)
+    min_anchor = ''
+    for p in ['min60', 'min30', 'min15']:
+        if p in sig_avail:
+            d = sig_avail[p]
+            pn = p.replace('min', '') + '分'
+            bl, sl = d.get('buy_level', 0), d.get('sell_level', 0)
+            if bl >= 3.0 and sl >= 2.0:
+                min_anchor = f'{pn}:有效闭环(买卖交替)'
+            elif bl >= 3.0:
+                min_anchor = f"{pn}:{d['label']}(★买密集)"
+            elif sl >= 3.0:
+                min_anchor = f"{pn}:{d['label']}(★卖密集)"
+            else:
+                min_anchor = f"{pn}:{d['label']}"
+            break
+    
+    # 5-15min combo: if both have strong signals, override minute anchor
+    if 'min15' in sig_avail and 'min5' in sig_avail:
+        if sig_avail['min15']['level'] >= 3.5 and sig_avail['min5']['level'] >= 3.5:
+            min_anchor = '5-15分共振出击'
+    
+    if min_anchor:
+        min_signal_details.append(min_anchor)
 
     # ===== 跨周期共振检测 =====
     # 层级结构: 5-15分钟(超短线) → 30-60分钟(短线) → 日线 → 周线
@@ -1039,6 +1447,17 @@ def _grade_trend_signal(position, trend, best, all_periods):
     # 日线定档
     if direction in bullish_directions:
         if best_level >= 3.0:
+            # 偏多但要检查结构：MACD不能死叉、价格不能在白线下
+            if direction == 'bullish_bias':
+                macd_ok = trend.get('macd_score', 0) >= 2
+                price_ok = close_price > expma12 if close_price and expma12 else True
+                if not macd_ok or not price_ok:
+                    weak_reason = []
+                    if not macd_ok: weak_reason.append('MACD死叉')
+                    if not price_ok: weak_reason.append('价破EXPMA白线')
+                    return _grade_output('observe', '关注', '轻仓试错',
+                        f'{best_period_label(best)}有{best_label}，但{"+".join(weak_reason)}，只轻仓试错等确认',
+                        min_signal_details, '等MACD走好+价格站回白线', resonance_score)
             if resonance_score >= 0.7:
                 return _grade_output('actionable', '可操作', '顺势做多',
                     f'{best_period_label(best)}有{best_label}+{resonance_desc}，共振确认',
@@ -1149,18 +1568,31 @@ _actions = {
 }
 
 
-def _generate_advice(position, trend, best, all_periods):
+def _generate_advice(position, trend, best, all_periods, dominant_info=None):
     """旧版兼容，现在是_grade_trend_signal的薄封装，透传所有字段"""
-    g = _grade_trend_signal(position, trend, best, all_periods)
+    g = _grade_trend_signal(position, trend, best, all_periods, dominant_info)
     wait_part = f" 提示: {g['wait_condition']}" if g['wait_condition'] else ''
+
+    # 主导量级补充文案
+    dominant_note = ''
+    if dominant_info and dominant_info.get('dominant_cycle'):
+        dc = dominant_info['dominant_label']
+        stretched = dominant_info.get('stretched_periods', [])
+        if stretched:
+            ignore_list = ', '.join(stretched)
+            dominant_note = f' | 主导量级{dc},忽略{ignore_list}反向信号'
+        else:
+            dominant_note = f' | 主导量级{dc}'
+
     return {
         'grade': g['grade'],
         'grade_label': g['grade_label'],
         'action': g['action'],
-        'reason': g['reason'] + wait_part,
+        'reason': g['reason'] + wait_part + dominant_note,
         'min_signal_summary': g['min_signal_summary'],
         'wait_condition': g['wait_condition'],
         'resonance_score': g.get('resonance_score', 0),
+        'dominant_cycle': dominant_info,
         'confidence': '高' if g['grade'] in ('actionable','resonant_strong','observe_strong','neutral_strong') else '中',
     }
 
@@ -1174,7 +1606,7 @@ def analyze_all():
     name_map = get_name_map()
     results = [analyze(code, name_map.get(code, code)) for code in codes]
     # 按分级排序: 可操作→共振偏强→强势观望→中性偏强→中性→关注→弱势→观望
-    grade_order = {'actionable': 0, 'resonant_strong': 1, 'observe_strong': 2, 'neutral_strong': 3, 'neutral_bias': 4,
+    grade_order = {'observe_strong': 0, 'actionable': 1, 'resonant_strong': 2, 'neutral_strong': 3, 'neutral_bias': 4,
                    'neutral': 5, 'neutral_weak': 6, 'observe': 7, 'observe_weak': 8, 'avoid': 9}
     def sort_key(r):
         g = r.get('advice', {}).get('grade', 'neutral')
@@ -1245,7 +1677,7 @@ def format_report(results):
     lines.append('=' * 92)
 
     # 按分级分组
-    grade_order = ['actionable', 'resonant_strong', 'observe_strong', 'neutral_strong', 'neutral_bias', 'neutral', 'neutral_weak', 'observe', 'observe_weak', 'avoid']
+    grade_order = ['observe_strong', 'actionable', 'resonant_strong', 'neutral_strong', 'neutral_bias', 'neutral', 'neutral_weak', 'observe', 'observe_weak', 'avoid']
     by_grade = {}
     for r in results:
         g = r.get('advice', {}).get('grade', 'neutral')
@@ -1276,6 +1708,22 @@ def format_report(results):
 
             lines.append(f'\n  * {code} {name}')
             lines.append(f'    收盘: {close} | 日线: {trend_lbl} | 分钟闭环: {summary}')
+
+            # 主导量级展示
+            dc = adv.get('dominant_cycle')
+            if dc and dc.get('dominant_cycle'):
+                dc_label = dc['dominant_label']
+                dc_detail = dc.get('detail', '')
+                lines.append(f'    主导量级: {dc_label} | {dc_detail}')
+                stretched = dc.get('stretched_periods', [])
+                if stretched:
+                    lines.append(f'    ⚠ 忽略{",".join(stretched)}反向信号(被{dc_label}趋势吸收)')
+
+            # 量价阶段标注
+            vi = r.get('volume_regime')
+            if vi and vi.get('phase') not in ('数据不足', '正常放量'):
+                lines.append(f'    量价: {vi["phase"]} | {vi["detail"]}')
+
             lines.append(f'    → {action}: {reason}')
             if wc:
                 lines.append(f'    等: {wc}')

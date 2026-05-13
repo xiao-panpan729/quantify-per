@@ -38,19 +38,13 @@ def load_sold_positions():
             pass
     return {}
 
-CODES = [
-    ('sz159740', '恒生科技ETF'),
-    ('sh520600', '汽车ETF'),
-    ('sh513120', '港股创新药ETF'),
-    ('sz159326', '电网设备ETF'),
-    ('sh513310', '中韩半导体ETF'),
-    ('sz002261', '拓维信息'),
-    ('sz300118', '东方日升'),
-    ('sz000100', 'TCL科技'),
-    ('sz002129', 'TCL中环'),
-    ('sh600438', '通威股份'),
-    ('sh601012', '隆基绿能'),
-]
+# 跟踪标的列表统一从 config.NAME_MAP 读取，不再单独维护
+def _get_tracking_codes():
+    sys.path.insert(0, str(BASE))
+    from config import NAME_MAP
+    return [(code, name) for code, name in NAME_MAP.items()]
+
+CODES = _get_tracking_codes()
 
 # ==== 用户定性判断（可定期更新） ====
 QUALITATIVE_VIEWS = {

@@ -1,0 +1,8 @@
+{
+    "python.defaultInterpreterPath": "D:\\miniconda3\\python.exe",
+    "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "files.encoding": "utf8",
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda"
+}
