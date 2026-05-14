@@ -127,6 +127,20 @@ def calc_expma(values, period):
     return result
 
 
+def calc_ma(values, period):
+    """简单移动平均 MA(X, N): 最近N根K线收盘价之和/N"""
+    result = []
+    total = 0.0
+    for i, v in enumerate(values):
+        total += float(v)
+        if i >= period:
+            total -= float(values[i - period])
+            result.append(round(total / period, 4))
+        else:
+            result.append(round(total / (i + 1), 4))
+    return result
+
+
 def calc_sma(values, n, m):
     """通达信 SMA(X, N, M) = (M*X + (N-M)*Y') / N"""
     result = []
@@ -438,6 +452,14 @@ def calc_daily_all(filepath):
     golden_idx, death_idx = detect_expma_cross(e12, e50)
     red_up_idx, red_down_idx = detect_red_line_cross(p_c, bb_red)
 
+    # 简单移动平均 (judge_trend + signal_quality 直接读取, 避免重复计算)
+    ma5 = calc_ma(p_c, 5)
+    ma10 = calc_ma(p_c, 10)
+    ma20 = calc_ma(p_c, 20)
+    ma60 = calc_ma(p_c, 60)
+    ma120 = calc_ma(p_c, 120)
+    ma250 = calc_ma(p_c, 250)
+
     results = []
     for i in range(n):
         # CCI 极限值状态文字化
@@ -445,26 +467,26 @@ def calc_daily_all(filepath):
         el = cci_extreme[i]['extreme_low']
         fe_h = cci_extreme[i]['from_extreme_high']
         fe_l = cci_extreme[i]['from_extreme_low']
-        
+
         ext_label = ''
         if eh > 0:
             ext_label = 'CCI+%d' % eh
         elif el < 0:
             ext_label = 'CCI%d' % el
-        
+
         # 从极限回撤
         retreat_label = ''
         max_retreat_lvl = max(fe_h.keys()) if fe_h else 0
         if max_retreat_lvl > 0:
             retreat_label = '回撤+%d' % max_retreat_lvl
-        
+
         # 背驰
         div_label = ''
         if cci_div[i]['pos_div']:
             div_label = '顶背驰'
         elif cci_div[i]['neg_div']:
             div_label = '底背驰'
-        
+
         row = {
             'timestamp': dates[i],
             'date': dates[i],
@@ -488,6 +510,12 @@ def calc_daily_all(filepath):
             'cci_extreme': ext_label,
             'cci_retreat': retreat_label,
             'cci_divergence': div_label,
+            'ma5': ma5[i],
+            'ma10': ma10[i],
+            'ma20': ma20[i],
+            'ma60': ma60[i],
+            'ma120': ma120[i],
+            'ma250': ma250[i],
             'volume': vols[i],
             'amount': amts[i],
         }
@@ -528,33 +556,37 @@ def calc_min_all(filepath, period='min30', trend_period=None):
     buy_idx, sell_idx = detect_star_signals(trend)
     golden_idx, death_idx = detect_expma_cross(e12, e50)
 
+    # 短周期MA (signal_quality MA5/10金叉死叉检测用)
+    ma5 = calc_ma(closes, 5)
+    ma10 = calc_ma(closes, 10)
+
     results = []
     for i in range(n):
         # CCI 状态文字化
         eh = cci_extreme[i]['extreme_high']
         el = cci_extreme[i]['extreme_low']
         fe_h = cci_extreme[i]['from_extreme_high']
-        
+
         ext_label = ''
         if eh > 0:
             ext_label = '+%d' % eh
         elif el < 0:
             ext_label = '%d' % el
-        
+
         retreat_label = ''
         if fe_h:
             max_retreat_lvl = max(fe_h.keys())
             retreat_label = '回撤+%d' % max_retreat_lvl
-        
+
         div_label = ''
         if cci_div[i]['pos_div']:
             div_label = '顶背驰'
         elif cci_div[i]['neg_div']:
             div_label = '底背驰'
-        
+
         row = {
             'timestamp': timestamps[i],
-            'raw_close': int(closes[i]),
+            'close': float(closes[i]),
             'expma12': e12[i],
             'expma50': e50[i],
             'macd_dif': dif[i],
@@ -568,6 +600,8 @@ def calc_min_all(filepath, period='min30', trend_period=None):
             'buy_signal': '★买' if i in buy_idx else '',
             'sell_signal': '★卖' if i in sell_idx else '',
             'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
+            'ma5': ma5[i],
+            'ma10': ma10[i],
             'volume': vols[i],
             'amount': amts[i],
         }
@@ -605,32 +639,36 @@ def calc_min1_all(filepath, period='min1'):
     buy_idx, sell_idx = detect_star_signals(trend)
     golden_idx, death_idx = detect_expma_cross(e12, e50)
 
+    # 短周期MA (signal_quality MA5/10金叉死叉检测用)
+    ma5 = calc_ma(closes, 5)
+    ma10 = calc_ma(closes, 10)
+
     results = []
     for i in range(n):
         eh = cci_extreme[i]['extreme_high']
         el = cci_extreme[i]['extreme_low']
         fe_h = cci_extreme[i]['from_extreme_high']
-        
+
         ext_label = ''
         if eh > 0:
             ext_label = '+%d' % eh
         elif el < 0:
             ext_label = '%d' % el
-        
+
         retreat_label = ''
         if fe_h:
             max_retreat_lvl = max(fe_h.keys())
             retreat_label = '回撤+%d' % max_retreat_lvl
-        
+
         div_label = ''
         if cci_div[i]['pos_div']:
             div_label = '顶背驰'
         elif cci_div[i]['neg_div']:
             div_label = '底背驰'
-        
+
         row = {
             'timestamp': timestamps[i],
-            'raw_close': int(closes[i]),
+            'close': float(closes[i]),
             'expma12': e12[i],
             'expma50': e50[i],
             'macd_dif': dif[i],
@@ -644,6 +682,8 @@ def calc_min1_all(filepath, period='min1'):
             'buy_signal': '★买' if i in buy_idx else '',
             'sell_signal': '★卖' if i in sell_idx else '',
             'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
+            'ma5': ma5[i],
+            'ma10': ma10[i],
             'volume': vols[i],
             'amount': amts[i],
         }
@@ -659,15 +699,17 @@ DAILY_HEADERS = [
     'trend_line', 'bb_ma221', 'bb_red_line', 'red_line_cross',
     'buy_signal', 'sell_signal', 'expma_cross',
     'cci', 'cci_extreme', 'cci_retreat', 'cci_divergence',
+    'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'ma250',
     'volume', 'amount'
 ]
 
 MIN_HEADERS = [
-    'timestamp', 'raw_close',
+    'timestamp', 'close',
     'expma12', 'expma50', 'macd_dif', 'macd_dea', 'macd_hist',
     'trend_line',
     'cci', 'cci_extreme', 'cci_retreat', 'cci_divergence',
     'buy_signal', 'sell_signal', 'expma_cross',
+    'ma5', 'ma10',
     'volume', 'amount'
 ]
 

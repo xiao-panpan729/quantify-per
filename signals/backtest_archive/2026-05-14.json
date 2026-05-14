@@ -1,0 +1,7136 @@
+{
+  "sh000001": {
+    "min1": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 442,
+          "raw_cycles": 442,
+          "win_rate": 96.6,
+          "avg_pct": 0.31,
+          "max_pct": 2.64,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 63.9,
+          "bars_range": "2~315",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 70,
+          "raw_cycles": 70,
+          "win_rate": 94.3,
+          "avg_pct": 0.95,
+          "max_pct": 2.53,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 77.2,
+          "bars_range": "9~202",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 94,
+          "raw_cycles": 94,
+          "win_rate": 35.1,
+          "avg_pct": -0.01,
+          "max_pct": 1.51,
+          "min_pct": -1.86,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 18,
+          "raw_cycles": 18,
+          "win_rate": 88.9,
+          "avg_pct": 2.11,
+          "max_pct": 8.21,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 96.7,
+          "bars_range": "6~331",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 36,
+          "raw_cycles": 36,
+          "win_rate": 44.4,
+          "avg_pct": -0.46,
+          "max_pct": 0.77,
+          "min_pct": -5.03,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 100.0,
+          "avg_pct": 1.8,
+          "max_pct": 8.04,
+          "min_pct": 0.07,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 69.4,
+          "bars_range": "13~151",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 16.7,
+          "avg_pct": -0.0,
+          "max_pct": 0.45,
+          "min_pct": -0.81,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": 5.29,
+          "max_pct": 7.65,
+          "min_pct": 1.44,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 82.7,
+          "bars_range": "43~114",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 60.0,
+          "avg_pct": -0.15,
+          "max_pct": 0.34,
+          "min_pct": -0.61,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh513120": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 57,
+          "raw_cycles": 480,
+          "win_rate": 42.1,
+          "avg_pct": 0.14,
+          "max_pct": 16.74,
+          "min_pct": -5.91,
+          "avg_retreat": -2.92,
+          "max_retreat": -16.72,
+          "avg_bars": 981.1,
+          "bars_range": "18~1996",
+          "avg_segments": 8.4,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 28,
+          "raw_cycles": 313,
+          "win_rate": 39.3,
+          "avg_pct": -0.67,
+          "max_pct": 2.98,
+          "min_pct": -10.5,
+          "avg_retreat": -4.1,
+          "max_retreat": -15.49,
+          "avg_bars": 792.5,
+          "bars_range": "54~1966",
+          "avg_segments": 11.2,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 448,
+          "raw_cycles": 480,
+          "win_rate": 49.3,
+          "avg_pct": 0.03,
+          "max_pct": 7.33,
+          "min_pct": -5.91,
+          "avg_retreat": -1.61,
+          "max_retreat": -7.9,
+          "avg_bars": 124.8,
+          "bars_range": "11~648",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 269,
+          "raw_cycles": 313,
+          "win_rate": 57.2,
+          "avg_pct": -0.17,
+          "max_pct": 3.72,
+          "min_pct": -5.86,
+          "avg_retreat": -1.76,
+          "max_retreat": -6.32,
+          "avg_bars": 82.5,
+          "bars_range": "4~279",
+          "avg_segments": 1.2,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 480,
+          "raw_cycles": 480,
+          "win_rate": 59.0,
+          "avg_pct": 0.5,
+          "max_pct": 10.72,
+          "min_pct": -4.76,
+          "avg_retreat": -3.14,
+          "max_retreat": -18.03,
+          "avg_bars": 2200.2,
+          "bars_range": "11~20327",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 20.2
+        },
+        "sell": {
+          "count": 313,
+          "raw_cycles": 313,
+          "win_rate": 70.0,
+          "avg_pct": -1.28,
+          "max_pct": 3.72,
+          "min_pct": -12.38,
+          "avg_retreat": -2.65,
+          "max_retreat": -14.14,
+          "avg_bars": 262.0,
+          "bars_range": "4~1561",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 4.3
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 480,
+          "raw_cycles": 480,
+          "win_rate": 51.2,
+          "avg_pct": -0.06,
+          "max_pct": 4.46,
+          "min_pct": -5.91,
+          "avg_retreat": -1.46,
+          "max_retreat": -6.65,
+          "avg_bars": 116.5,
+          "bars_range": "11~499",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 313,
+          "raw_cycles": 313,
+          "win_rate": 59.4,
+          "avg_pct": 0.0,
+          "max_pct": 3.72,
+          "min_pct": -2.75,
+          "avg_retreat": -1.44,
+          "max_retreat": -5.17,
+          "avg_bars": 70.9,
+          "bars_range": "4~279",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": {
+          "count": 365,
+          "raw_cycles": 365,
+          "win_rate": 87.9,
+          "avg_pct": -0.74,
+          "max_pct": 0.0,
+          "min_pct": -7.05,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 82.2,
+          "bars_range": "1~352",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 11,
+          "raw_cycles": 85,
+          "win_rate": 45.5,
+          "avg_pct": -0.92,
+          "max_pct": 5.51,
+          "min_pct": -9.56,
+          "avg_retreat": -7.25,
+          "max_retreat": -17.47,
+          "avg_bars": 958.9,
+          "bars_range": "77~1991",
+          "avg_segments": 7.7,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 47,
+          "win_rate": 75.0,
+          "avg_pct": -1.56,
+          "max_pct": 6.92,
+          "min_pct": -7.08,
+          "avg_retreat": -9.55,
+          "max_retreat": -18.33,
+          "avg_bars": 943.5,
+          "bars_range": "161~1919",
+          "avg_segments": 11.8,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 79,
+          "raw_cycles": 85,
+          "win_rate": 43.0,
+          "avg_pct": -0.25,
+          "max_pct": 17.95,
+          "min_pct": -11.25,
+          "avg_retreat": -4.87,
+          "max_retreat": -15.41,
+          "avg_bars": 133.5,
+          "bars_range": "20~433",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 40,
+          "raw_cycles": 47,
+          "win_rate": 60.0,
+          "avg_pct": -0.83,
+          "max_pct": 6.92,
+          "min_pct": -12.51,
+          "avg_retreat": -4.24,
+          "max_retreat": -13.84,
+          "avg_bars": 94.3,
+          "bars_range": "16~235",
+          "avg_segments": 1.2,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 85,
+          "raw_cycles": 85,
+          "win_rate": 55.3,
+          "avg_pct": 0.61,
+          "max_pct": 12.33,
+          "min_pct": -9.56,
+          "avg_retreat": -6.46,
+          "max_retreat": -17.47,
+          "avg_bars": 839.4,
+          "bars_range": "20~3136",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 7.8
+        },
+        "sell": {
+          "count": 47,
+          "raw_cycles": 47,
+          "win_rate": 76.6,
+          "avg_pct": -2.0,
+          "max_pct": 6.92,
+          "min_pct": -12.51,
+          "avg_retreat": -4.92,
+          "max_retreat": -13.84,
+          "avg_bars": 246.0,
+          "bars_range": "16~946",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.3
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 85,
+          "raw_cycles": 85,
+          "win_rate": 44.7,
+          "avg_pct": -0.38,
+          "max_pct": 6.07,
+          "min_pct": -11.25,
+          "avg_retreat": -4.51,
+          "max_retreat": -14.31,
+          "avg_bars": 124.1,
+          "bars_range": "20~433",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 47,
+          "raw_cycles": 47,
+          "win_rate": 63.8,
+          "avg_pct": 0.03,
+          "max_pct": 6.92,
+          "min_pct": -5.3,
+          "avg_retreat": -3.16,
+          "max_retreat": -7.77,
+          "avg_bars": 80.3,
+          "bars_range": "16~235",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 85,
+          "raw_cycles": 85,
+          "win_rate": 38.8,
+          "avg_pct": 0.45,
+          "max_pct": 7.22,
+          "min_pct": -2.25,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 114,
+          "raw_cycles": 114,
+          "win_rate": 80.7,
+          "avg_pct": -0.68,
+          "max_pct": 0.0,
+          "min_pct": -8.73,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 75.4,
+          "bars_range": "6~255",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 37,
+          "win_rate": 25.0,
+          "avg_pct": -3.37,
+          "max_pct": 0.88,
+          "min_pct": -6.57,
+          "avg_retreat": -13.79,
+          "max_retreat": -17.24,
+          "avg_bars": 1083.8,
+          "bars_range": "570~1946",
+          "avg_segments": 9.2,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 1,
+          "raw_cycles": 18,
+          "win_rate": 0.0,
+          "avg_pct": 2.53,
+          "max_pct": 2.53,
+          "min_pct": 2.53,
+          "avg_retreat": -18.45,
+          "max_retreat": -18.45,
+          "avg_bars": 1382.0,
+          "bars_range": "1382~1382",
+          "avg_segments": 18.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 35,
+          "raw_cycles": 37,
+          "win_rate": 45.7,
+          "avg_pct": -1.21,
+          "max_pct": 16.9,
+          "min_pct": -10.66,
+          "avg_retreat": -7.5,
+          "max_retreat": -15.06,
+          "avg_bars": 123.9,
+          "bars_range": "26~396",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 16,
+          "raw_cycles": 18,
+          "win_rate": 56.2,
+          "avg_pct": -0.07,
+          "max_pct": 10.69,
+          "min_pct": -10.58,
+          "avg_retreat": -6.63,
+          "max_retreat": -13.58,
+          "avg_bars": 86.4,
+          "bars_range": "28~173",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 37,
+          "raw_cycles": 37,
+          "win_rate": 48.6,
+          "avg_pct": -0.84,
+          "max_pct": 7.38,
+          "min_pct": -10.09,
+          "avg_retreat": -9.03,
+          "max_retreat": -17.24,
+          "avg_bars": 572.2,
+          "bars_range": "26~2516",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 6.5
+        },
+        "sell": {
+          "count": 18,
+          "raw_cycles": 18,
+          "win_rate": 83.3,
+          "avg_pct": -2.89,
+          "max_pct": 10.69,
+          "min_pct": -10.58,
+          "avg_retreat": -8.38,
+          "max_retreat": -13.72,
+          "avg_bars": 178.0,
+          "bars_range": "28~531",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.7
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 37,
+          "raw_cycles": 37,
+          "win_rate": 45.9,
+          "avg_pct": -1.66,
+          "max_pct": 4.8,
+          "min_pct": -10.66,
+          "avg_retreat": -6.9,
+          "max_retreat": -13.51,
+          "avg_bars": 117.2,
+          "bars_range": "21~396",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 18,
+          "raw_cycles": 18,
+          "win_rate": 55.6,
+          "avg_pct": 0.69,
+          "max_pct": 10.69,
+          "min_pct": -5.42,
+          "avg_retreat": -5.52,
+          "max_retreat": -13.58,
+          "avg_bars": 76.8,
+          "bars_range": "28~173",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 37,
+          "raw_cycles": 37,
+          "win_rate": 29.7,
+          "avg_pct": 937252.89,
+          "max_pct": 8690743.6,
+          "min_pct": -3.09,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 18,
+          "raw_cycles": 18,
+          "win_rate": 94.4,
+          "avg_pct": -5.06,
+          "max_pct": 0.0,
+          "min_pct": -13.51,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 94.8,
+          "bars_range": "39~236",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 16,
+          "win_rate": 66.7,
+          "avg_pct": 1.0,
+          "max_pct": 2.91,
+          "min_pct": -2.73,
+          "avg_retreat": -11.15,
+          "max_retreat": -15.43,
+          "avg_bars": 549.0,
+          "bars_range": "34~1431",
+          "avg_segments": 5.3,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 1,
+          "raw_cycles": 8,
+          "win_rate": 100.0,
+          "avg_pct": -7.21,
+          "max_pct": -7.21,
+          "min_pct": -7.21,
+          "avg_retreat": -21.3,
+          "max_retreat": -21.3,
+          "avg_bars": 498.0,
+          "bars_range": "498~498",
+          "avg_segments": 8.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 15,
+          "raw_cycles": 16,
+          "win_rate": 60.0,
+          "avg_pct": 2.45,
+          "max_pct": 16.12,
+          "min_pct": -5.58,
+          "avg_retreat": -9.48,
+          "max_retreat": -15.43,
+          "avg_bars": 109.8,
+          "bars_range": "28~219",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 7,
+          "raw_cycles": 8,
+          "win_rate": 85.7,
+          "avg_pct": -3.59,
+          "max_pct": 5.0,
+          "min_pct": -14.54,
+          "avg_retreat": -8.99,
+          "max_retreat": -19.83,
+          "avg_bars": 71.1,
+          "bars_range": "43~122",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 16,
+          "raw_cycles": 16,
+          "win_rate": 56.2,
+          "avg_pct": 1.24,
+          "max_pct": 8.56,
+          "min_pct": -5.58,
+          "avg_retreat": -9.14,
+          "max_retreat": -15.43,
+          "avg_bars": 428.8,
+          "bars_range": "19~1431",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 4.4
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 87.5,
+          "avg_pct": -8.68,
+          "max_pct": 5.0,
+          "min_pct": -17.09,
+          "avg_retreat": -13.79,
+          "max_retreat": -21.3,
+          "avg_bars": 152.9,
+          "bars_range": "43~318",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.4
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 16,
+          "raw_cycles": 16,
+          "win_rate": 62.5,
+          "avg_pct": 1.94,
+          "max_pct": 8.56,
+          "min_pct": -5.58,
+          "avg_retreat": -8.69,
+          "max_retreat": -11.88,
+          "avg_bars": 102.9,
+          "bars_range": "19~219",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 87.5,
+          "avg_pct": -3.15,
+          "max_pct": 5.0,
+          "min_pct": -11.23,
+          "avg_retreat": -8.11,
+          "max_retreat": -15.28,
+          "avg_bars": 62.2,
+          "bars_range": "43~78",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 35.7,
+          "avg_pct": -0.04,
+          "max_pct": 2.67,
+          "min_pct": -3.82,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 100.0,
+          "avg_pct": -6.66,
+          "max_pct": -0.55,
+          "min_pct": -12.77,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 81.4,
+          "bars_range": "10~118",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 12,
+          "win_rate": 0.0,
+          "avg_pct": -1.6,
+          "max_pct": -0.09,
+          "min_pct": -3.12,
+          "avg_retreat": -11.56,
+          "max_retreat": -11.76,
+          "avg_bars": 327.5,
+          "bars_range": "155~500",
+          "avg_segments": 6.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 1,
+          "raw_cycles": 8,
+          "win_rate": 100.0,
+          "avg_pct": -6.48,
+          "max_pct": -6.48,
+          "min_pct": -6.48,
+          "avg_retreat": -19.94,
+          "max_retreat": -19.94,
+          "avg_bars": 369.0,
+          "bars_range": "369~369",
+          "avg_segments": 8.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 66.7,
+          "avg_pct": 1.69,
+          "max_pct": 6.67,
+          "min_pct": -5.96,
+          "avg_retreat": -8.9,
+          "max_retreat": -11.36,
+          "avg_bars": 54.6,
+          "bars_range": "14~107",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 7,
+          "raw_cycles": 8,
+          "win_rate": 85.7,
+          "avg_pct": -4.48,
+          "max_pct": 2.56,
+          "min_pct": -14.62,
+          "avg_retreat": -9.56,
+          "max_retreat": -19.42,
+          "avg_bars": 52.7,
+          "bars_range": "21~77",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 50.0,
+          "avg_pct": 0.36,
+          "max_pct": 6.24,
+          "min_pct": -5.96,
+          "avg_retreat": -9.16,
+          "max_retreat": -11.76,
+          "avg_bars": 164.8,
+          "bars_range": "14~500",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.7
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 87.5,
+          "avg_pct": -9.04,
+          "max_pct": 2.56,
+          "min_pct": -15.12,
+          "avg_retreat": -14.69,
+          "max_retreat": -19.94,
+          "avg_bars": 108.9,
+          "bars_range": "21~219",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.6
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 66.7,
+          "avg_pct": 1.69,
+          "max_pct": 6.67,
+          "min_pct": -5.96,
+          "avg_retreat": -8.9,
+          "max_retreat": -11.36,
+          "avg_bars": 54.6,
+          "bars_range": "14~107",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 87.5,
+          "avg_pct": -3.98,
+          "max_pct": 2.56,
+          "min_pct": -10.5,
+          "avg_retreat": -8.61,
+          "max_retreat": -14.18,
+          "avg_bars": 46.1,
+          "bars_range": "21~70",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 10,
+          "raw_cycles": 10,
+          "win_rate": 70.0,
+          "avg_pct": 2.64,
+          "max_pct": 4.47,
+          "min_pct": -0.5,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 100.0,
+          "avg_pct": -6.68,
+          "max_pct": -5.35,
+          "min_pct": -11.67,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 54.9,
+          "bars_range": "50~65",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh513310": {
+    "min1": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 41,
+          "raw_cycles": 349,
+          "win_rate": 48.8,
+          "avg_pct": 1.27,
+          "max_pct": 21.84,
+          "min_pct": -8.94,
+          "avg_retreat": -7.02,
+          "max_retreat": -20.31,
+          "avg_bars": 1521.0,
+          "bars_range": "20~1994",
+          "avg_segments": 8.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 32,
+          "raw_cycles": 182,
+          "win_rate": 34.4,
+          "avg_pct": 1.14,
+          "max_pct": 9.52,
+          "min_pct": -11.09,
+          "avg_retreat": -5.17,
+          "max_retreat": -18.98,
+          "avg_bars": 703.5,
+          "bars_range": "40~1990",
+          "avg_segments": 5.7,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 311,
+          "raw_cycles": 349,
+          "win_rate": 53.4,
+          "avg_pct": 0.1,
+          "max_pct": 20.05,
+          "min_pct": -12.54,
+          "avg_retreat": -3.33,
+          "max_retreat": -17.13,
+          "avg_bars": 200.5,
+          "bars_range": "14~890",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 159,
+          "raw_cycles": 182,
+          "win_rate": 43.4,
+          "avg_pct": 0.73,
+          "max_pct": 13.4,
+          "min_pct": -11.38,
+          "avg_retreat": -3.58,
+          "max_retreat": -19.87,
+          "avg_bars": 141.6,
+          "bars_range": "23~601",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 349,
+          "raw_cycles": 349,
+          "win_rate": 76.2,
+          "avg_pct": 26.01,
+          "max_pct": 117.49,
+          "min_pct": -12.87,
+          "avg_retreat": -18.29,
+          "max_retreat": -54.14,
+          "avg_bars": 13571.9,
+          "bars_range": "12~52894",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 76.8
+        },
+        "sell": {
+          "count": 182,
+          "raw_cycles": 182,
+          "win_rate": 61.5,
+          "avg_pct": -0.84,
+          "max_pct": 9.52,
+          "min_pct": -11.76,
+          "avg_retreat": -4.62,
+          "max_retreat": -20.78,
+          "avg_bars": 367.1,
+          "bars_range": "13~2419",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.5
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 349,
+          "raw_cycles": 349,
+          "win_rate": 55.6,
+          "avg_pct": -0.18,
+          "max_pct": 13.15,
+          "min_pct": -12.54,
+          "avg_retreat": -2.84,
+          "max_retreat": -14.86,
+          "avg_bars": 178.7,
+          "bars_range": "12~890",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 182,
+          "raw_cycles": 182,
+          "win_rate": 44.5,
+          "avg_pct": 1.01,
+          "max_pct": 13.4,
+          "min_pct": -2.96,
+          "avg_retreat": -2.99,
+          "max_retreat": -15.05,
+          "avg_bars": 123.7,
+          "bars_range": "10~601",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 523,
+          "raw_cycles": 523,
+          "win_rate": 91.0,
+          "avg_pct": 1.95,
+          "max_pct": 12.15,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 210.4,
+          "bars_range": "1~926",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 6,
+          "raw_cycles": 57,
+          "win_rate": 66.7,
+          "avg_pct": 15.2,
+          "max_pct": 50.31,
+          "min_pct": -7.93,
+          "avg_retreat": -20.07,
+          "max_retreat": -39.53,
+          "avg_bars": 1356.5,
+          "bars_range": "309~1948",
+          "avg_segments": 9.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 10,
+          "raw_cycles": 48,
+          "win_rate": 20.0,
+          "avg_pct": 3.04,
+          "max_pct": 13.0,
+          "min_pct": -9.81,
+          "avg_retreat": -9.43,
+          "max_retreat": -21.82,
+          "avg_bars": 559.8,
+          "bars_range": "36~1998",
+          "avg_segments": 4.8,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 46,
+          "raw_cycles": 57,
+          "win_rate": 65.2,
+          "avg_pct": 3.37,
+          "max_pct": 33.27,
+          "min_pct": -7.93,
+          "avg_retreat": -7.24,
+          "max_retreat": -26.52,
+          "avg_bars": 176.9,
+          "bars_range": "32~589",
+          "avg_segments": 1.2,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 44,
+          "raw_cycles": 48,
+          "win_rate": 25.0,
+          "avg_pct": 2.91,
+          "max_pct": 19.76,
+          "min_pct": -9.81,
+          "avg_retreat": -8.25,
+          "max_retreat": -21.82,
+          "avg_bars": 127.2,
+          "bars_range": "36~284",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 57,
+          "raw_cycles": 57,
+          "win_rate": 87.7,
+          "avg_pct": 39.17,
+          "max_pct": 110.66,
+          "min_pct": -4.55,
+          "avg_retreat": -27.23,
+          "max_retreat": -53.97,
+          "avg_bars": 2695.6,
+          "bars_range": "28~7415",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 18.2
+        },
+        "sell": {
+          "count": 48,
+          "raw_cycles": 48,
+          "win_rate": 45.8,
+          "avg_pct": -0.65,
+          "max_pct": 13.0,
+          "min_pct": -11.59,
+          "avg_retreat": -9.4,
+          "max_retreat": -21.82,
+          "avg_bars": 410.3,
+          "bars_range": "36~1868",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.8
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 57,
+          "raw_cycles": 57,
+          "win_rate": 70.2,
+          "avg_pct": 1.68,
+          "max_pct": 18.26,
+          "min_pct": -7.93,
+          "avg_retreat": -5.65,
+          "max_retreat": -18.82,
+          "avg_bars": 142.8,
+          "bars_range": "12~589",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 48,
+          "raw_cycles": 48,
+          "win_rate": 25.0,
+          "avg_pct": 3.06,
+          "max_pct": 19.76,
+          "min_pct": -5.42,
+          "avg_retreat": -7.42,
+          "max_retreat": -21.82,
+          "avg_bars": 116.6,
+          "bars_range": "21~284",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 148,
+          "raw_cycles": 148,
+          "win_rate": 95.3,
+          "avg_pct": 32208.72,
+          "max_pct": 2487450.13,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 208.8,
+          "bars_range": "1~559",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 48,
+          "raw_cycles": 48,
+          "win_rate": 54.2,
+          "avg_pct": -3.63,
+          "max_pct": 6.73,
+          "min_pct": -100.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 19,
+          "win_rate": 100.0,
+          "avg_pct": 29.64,
+          "max_pct": 58.95,
+          "min_pct": 0.32,
+          "avg_retreat": -23.69,
+          "max_retreat": -43.69,
+          "avg_bars": 803.0,
+          "bars_range": "192~1414",
+          "avg_segments": 9.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 6,
+          "raw_cycles": 25,
+          "win_rate": 0.0,
+          "avg_pct": 15.2,
+          "max_pct": 56.83,
+          "min_pct": 0.32,
+          "avg_retreat": -17.26,
+          "max_retreat": -38.26,
+          "avg_bars": 404.2,
+          "bars_range": "76~982",
+          "avg_segments": 4.2,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 14,
+          "raw_cycles": 19,
+          "win_rate": 78.6,
+          "avg_pct": 6.24,
+          "max_pct": 51.26,
+          "min_pct": -6.41,
+          "avg_retreat": -10.88,
+          "max_retreat": -35.26,
+          "avg_bars": 114.7,
+          "bars_range": "23~296",
+          "avg_segments": 1.4,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 24,
+          "raw_cycles": 25,
+          "win_rate": 33.3,
+          "avg_pct": 9.69,
+          "max_pct": 56.83,
+          "min_pct": -16.3,
+          "avg_retreat": -15.33,
+          "max_retreat": -38.26,
+          "avg_bars": 101.0,
+          "bars_range": "12~256",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 94.7,
+          "avg_pct": 16.23,
+          "max_pct": 67.24,
+          "min_pct": -0.48,
+          "avg_retreat": -16.71,
+          "max_retreat": -43.69,
+          "avg_bars": 441.6,
+          "bars_range": "23~1414",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 5.6
+        },
+        "sell": {
+          "count": 25,
+          "raw_cycles": 25,
+          "win_rate": 32.0,
+          "avg_pct": 9.41,
+          "max_pct": 56.83,
+          "min_pct": -16.14,
+          "avg_retreat": -14.91,
+          "max_retreat": -38.26,
+          "avg_bars": 247.0,
+          "bars_range": "12~982",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.9
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 84.2,
+          "avg_pct": 2.26,
+          "max_pct": 8.42,
+          "min_pct": -6.41,
+          "avg_retreat": -7.33,
+          "max_retreat": -18.6,
+          "avg_bars": 84.5,
+          "bars_range": "14~296",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 25,
+          "raw_cycles": 25,
+          "win_rate": 32.0,
+          "avg_pct": 9.56,
+          "max_pct": 56.83,
+          "min_pct": -16.3,
+          "avg_retreat": -14.68,
+          "max_retreat": -38.26,
+          "avg_bars": 97.0,
+          "bars_range": "12~256",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 22,
+          "raw_cycles": 22,
+          "win_rate": 95.5,
+          "avg_pct": 19.88,
+          "max_pct": 61.13,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 153.0,
+          "bars_range": "34~365",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 18,
+          "raw_cycles": 18,
+          "win_rate": 27.8,
+          "avg_pct": -0.84,
+          "max_pct": 6.64,
+          "min_pct": -17.06,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 7,
+          "win_rate": 100.0,
+          "avg_pct": 43.61,
+          "max_pct": 80.77,
+          "min_pct": 6.46,
+          "avg_retreat": -26.85,
+          "max_retreat": -46.5,
+          "avg_bars": 412.5,
+          "bars_range": "25~800",
+          "avg_segments": 3.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 11,
+          "win_rate": 50.0,
+          "avg_pct": 17.54,
+          "max_pct": 43.94,
+          "min_pct": -7.42,
+          "avg_retreat": -24.04,
+          "max_retreat": -33.39,
+          "avg_bars": 226.0,
+          "bars_range": "52~647",
+          "avg_segments": 2.8,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 6,
+          "raw_cycles": 7,
+          "win_rate": 100.0,
+          "avg_pct": 21.41,
+          "max_pct": 62.95,
+          "min_pct": 6.46,
+          "avg_retreat": -21.96,
+          "max_retreat": -40.78,
+          "avg_bars": 137.5,
+          "bars_range": "25~302",
+          "avg_segments": 1.2,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 45.5,
+          "avg_pct": 13.17,
+          "max_pct": 43.94,
+          "min_pct": -10.95,
+          "avg_retreat": -19.44,
+          "max_retreat": -33.39,
+          "avg_bars": 82.2,
+          "bars_range": "5~214",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 7,
+          "raw_cycles": 7,
+          "win_rate": 100.0,
+          "avg_pct": 22.51,
+          "max_pct": 80.77,
+          "min_pct": 6.46,
+          "avg_retreat": -21.76,
+          "max_retreat": -46.5,
+          "avg_bars": 307.6,
+          "bars_range": "25~800",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.6
+        },
+        "sell": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 45.5,
+          "avg_pct": 13.17,
+          "max_pct": 43.94,
+          "min_pct": -10.95,
+          "avg_retreat": -19.44,
+          "max_retreat": -33.39,
+          "avg_bars": 157.2,
+          "bars_range": "5~647",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.2
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 7,
+          "raw_cycles": 7,
+          "win_rate": 100.0,
+          "avg_pct": 12.0,
+          "max_pct": 19.17,
+          "min_pct": 6.46,
+          "avg_retreat": -16.37,
+          "max_retreat": -23.62,
+          "avg_bars": 117.9,
+          "bars_range": "25~302",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 45.5,
+          "avg_pct": 13.17,
+          "max_pct": 43.94,
+          "min_pct": -10.95,
+          "avg_retreat": -19.44,
+          "max_retreat": -33.39,
+          "avg_bars": 82.2,
+          "bars_range": "5~214",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 100.0,
+          "avg_pct": 49.91,
+          "max_pct": 67.81,
+          "min_pct": 6.18,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 175.5,
+          "bars_range": "42~368",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 7,
+          "raw_cycles": 7,
+          "win_rate": 42.9,
+          "avg_pct": -4.93,
+          "max_pct": 1.6,
+          "min_pct": -12.71,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": 58.39,
+          "max_pct": 58.39,
+          "min_pct": 58.39,
+          "avg_retreat": -40.49,
+          "max_retreat": -40.49,
+          "avg_bars": 176.0,
+          "bars_range": "176~176",
+          "avg_segments": 3.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 2,
+          "raw_cycles": 8,
+          "win_rate": 0.0,
+          "avg_pct": 51.07,
+          "max_pct": 61.92,
+          "min_pct": 40.22,
+          "avg_retreat": -40.88,
+          "max_retreat": -43.5,
+          "avg_bars": 396.5,
+          "bars_range": "100~693",
+          "avg_segments": 4.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": 33.55,
+          "max_pct": 60.97,
+          "min_pct": 6.13,
+          "avg_retreat": -25.06,
+          "max_retreat": -40.18,
+          "avg_bars": 88.0,
+          "bars_range": "78~98",
+          "avg_segments": 1.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 37.5,
+          "avg_pct": 20.01,
+          "max_pct": 61.92,
+          "min_pct": -14.97,
+          "avg_retreat": -25.63,
+          "max_retreat": -43.5,
+          "avg_bars": 99.1,
+          "bars_range": "2~230",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": 41.93,
+          "max_pct": 60.97,
+          "min_pct": 6.44,
+          "avg_retreat": -31.76,
+          "max_retreat": -40.49,
+          "avg_bars": 111.0,
+          "bars_range": "59~176",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 37.5,
+          "avg_pct": 20.01,
+          "max_pct": 61.92,
+          "min_pct": -14.97,
+          "avg_retreat": -25.63,
+          "max_retreat": -43.5,
+          "avg_bars": 206.9,
+          "bars_range": "2~693",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.5
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": 6.81,
+          "max_pct": 7.86,
+          "min_pct": 6.13,
+          "avg_retreat": -11.34,
+          "max_retreat": -14.61,
+          "avg_bars": 58.7,
+          "bars_range": "39~78",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 37.5,
+          "avg_pct": 20.01,
+          "max_pct": 61.92,
+          "min_pct": -14.97,
+          "avg_retreat": -25.63,
+          "max_retreat": -43.5,
+          "avg_bars": 99.1,
+          "bars_range": "2~230",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": 75.64,
+          "max_pct": 83.32,
+          "min_pct": 63.67,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 191.7,
+          "bars_range": "85~267",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 100.0,
+          "avg_pct": -5.97,
+          "max_pct": -0.47,
+          "min_pct": -7.8,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh520600": {
+    "min1": {
+      "trend": "bearish",
+      "merge_low": {
+        "buy": {
+          "count": 42,
+          "raw_cycles": 448,
+          "win_rate": 47.6,
+          "avg_pct": 0.21,
+          "max_pct": 7.22,
+          "min_pct": -3.9,
+          "avg_retreat": -2.67,
+          "max_retreat": -9.03,
+          "avg_bars": 887.2,
+          "bars_range": "30~1999",
+          "avg_segments": 10.7,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 29,
+          "raw_cycles": 397,
+          "win_rate": 48.3,
+          "avg_pct": -0.04,
+          "max_pct": 3.54,
+          "min_pct": -5.7,
+          "avg_retreat": -3.23,
+          "max_retreat": -10.36,
+          "avg_bars": 1079.7,
+          "bars_range": "83~1990",
+          "avg_segments": 13.7,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 405,
+          "raw_cycles": 448,
+          "win_rate": 53.3,
+          "avg_pct": -0.02,
+          "max_pct": 4.09,
+          "min_pct": -4.47,
+          "avg_retreat": -1.24,
+          "max_retreat": -5.05,
+          "avg_bars": 92.0,
+          "bars_range": "9~380",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 351,
+          "raw_cycles": 397,
+          "win_rate": 55.3,
+          "avg_pct": -0.01,
+          "max_pct": 3.54,
+          "min_pct": -6.62,
+          "avg_retreat": -1.35,
+          "max_retreat": -6.78,
+          "avg_bars": 89.2,
+          "bars_range": "7~340",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 448,
+          "raw_cycles": 448,
+          "win_rate": 65.8,
+          "avg_pct": 0.6,
+          "max_pct": 10.53,
+          "min_pct": -4.37,
+          "avg_retreat": -2.41,
+          "max_retreat": -14.52,
+          "avg_bars": 1560.7,
+          "bars_range": "8~16287",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 20.0
+        },
+        "sell": {
+          "count": 397,
+          "raw_cycles": 397,
+          "win_rate": 73.3,
+          "avg_pct": -0.76,
+          "max_pct": 3.54,
+          "min_pct": -7.44,
+          "avg_retreat": -1.91,
+          "max_retreat": -7.74,
+          "avg_bars": 308.1,
+          "bars_range": "7~1762",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 4.7
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 448,
+          "raw_cycles": 448,
+          "win_rate": 54.0,
+          "avg_pct": -0.1,
+          "max_pct": 2.72,
+          "min_pct": -4.47,
+          "avg_retreat": -1.09,
+          "max_retreat": -5.05,
+          "avg_bars": 83.2,
+          "bars_range": "8~349",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 397,
+          "raw_cycles": 397,
+          "win_rate": 57.4,
+          "avg_pct": 0.09,
+          "max_pct": 3.54,
+          "min_pct": -3.78,
+          "avg_retreat": -1.14,
+          "max_retreat": -5.02,
+          "avg_bars": 78.9,
+          "bars_range": "7~340",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": {
+          "count": 446,
+          "raw_cycles": 446,
+          "win_rate": 84.5,
+          "avg_pct": -0.62,
+          "max_pct": 0.0,
+          "min_pct": -5.05,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 70.3,
+          "bars_range": "1~385",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min5": {
+      "trend": "bearish",
+      "merge_low": {
+        "buy": {
+          "count": 9,
+          "raw_cycles": 80,
+          "win_rate": 55.6,
+          "avg_pct": 1.2,
+          "max_pct": 11.37,
+          "min_pct": -2.98,
+          "avg_retreat": -5.03,
+          "max_retreat": -14.46,
+          "avg_bars": 689.1,
+          "bars_range": "37~1891",
+          "avg_segments": 8.9,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 7,
+          "raw_cycles": 58,
+          "win_rate": 71.4,
+          "avg_pct": -1.83,
+          "max_pct": 2.61,
+          "min_pct": -5.78,
+          "avg_retreat": -5.61,
+          "max_retreat": -9.35,
+          "avg_bars": 620.3,
+          "bars_range": "122~1544",
+          "avg_segments": 8.3,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 73,
+          "raw_cycles": 80,
+          "win_rate": 74.0,
+          "avg_pct": 1.02,
+          "max_pct": 9.52,
+          "min_pct": -5.04,
+          "avg_retreat": -2.98,
+          "max_retreat": -10.03,
+          "avg_bars": 85.0,
+          "bars_range": "13~241",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 50,
+          "raw_cycles": 58,
+          "win_rate": 64.0,
+          "avg_pct": -0.55,
+          "max_pct": 4.63,
+          "min_pct": -7.97,
+          "avg_retreat": -2.92,
+          "max_retreat": -9.07,
+          "avg_bars": 86.8,
+          "bars_range": "13~337",
+          "avg_segments": 1.2,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 80,
+          "raw_cycles": 80,
+          "win_rate": 78.8,
+          "avg_pct": 1.79,
+          "max_pct": 10.99,
+          "min_pct": -4.03,
+          "avg_retreat": -4.44,
+          "max_retreat": -14.46,
+          "avg_bars": 600.0,
+          "bars_range": "18~2876",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 8.5
+        },
+        "sell": {
+          "count": 58,
+          "raw_cycles": 58,
+          "win_rate": 84.5,
+          "avg_pct": -2.43,
+          "max_pct": 2.61,
+          "min_pct": -7.97,
+          "avg_retreat": -4.41,
+          "max_retreat": -9.35,
+          "avg_bars": 213.2,
+          "bars_range": "13~1380",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.6
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 80,
+          "raw_cycles": 80,
+          "win_rate": 75.0,
+          "avg_pct": 0.79,
+          "max_pct": 5.92,
+          "min_pct": -5.04,
+          "avg_retreat": -2.75,
+          "max_retreat": -6.73,
+          "avg_bars": 77.5,
+          "bars_range": "13~216",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 58,
+          "raw_cycles": 58,
+          "win_rate": 65.5,
+          "avg_pct": -0.21,
+          "max_pct": 4.63,
+          "min_pct": -4.58,
+          "avg_retreat": -2.39,
+          "max_retreat": -5.85,
+          "avg_bars": 74.9,
+          "bars_range": "13~337",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 80,
+          "raw_cycles": 80,
+          "win_rate": 27.5,
+          "avg_pct": -0.22,
+          "max_pct": 5.84,
+          "min_pct": -3.18,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 129,
+          "raw_cycles": 129,
+          "win_rate": 82.9,
+          "avg_pct": -0.73,
+          "max_pct": 0.0,
+          "min_pct": -6.73,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 66.9,
+          "bars_range": "4~173",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bearish",
+      "merge_low": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 35,
+          "win_rate": 50.0,
+          "avg_pct": 0.26,
+          "max_pct": 3.11,
+          "min_pct": -3.25,
+          "avg_retreat": -7.15,
+          "max_retreat": -14.26,
+          "avg_bars": 626.8,
+          "bars_range": "73~1504",
+          "avg_segments": 8.8,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 19,
+          "win_rate": 50.0,
+          "avg_pct": -0.28,
+          "max_pct": 3.36,
+          "min_pct": -3.3,
+          "avg_retreat": -5.57,
+          "max_retreat": -9.28,
+          "avg_bars": 335.5,
+          "bars_range": "37~810",
+          "avg_segments": 4.8,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 34,
+          "raw_cycles": 35,
+          "win_rate": 64.7,
+          "avg_pct": 0.59,
+          "max_pct": 7.58,
+          "min_pct": -4.42,
+          "avg_retreat": -4.25,
+          "max_retreat": -10.21,
+          "avg_bars": 73.7,
+          "bars_range": "11~218",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 18,
+          "raw_cycles": 19,
+          "win_rate": 72.2,
+          "avg_pct": -0.47,
+          "max_pct": 5.74,
+          "min_pct": -4.01,
+          "avg_retreat": -4.17,
+          "max_retreat": -7.64,
+          "avg_bars": 74.6,
+          "bars_range": "24~173",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 35,
+          "raw_cycles": 35,
+          "win_rate": 65.7,
+          "avg_pct": 0.78,
+          "max_pct": 7.33,
+          "min_pct": -5.48,
+          "avg_retreat": -5.37,
+          "max_retreat": -14.26,
+          "avg_bars": 435.3,
+          "bars_range": "11~1504",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 6.3
+        },
+        "sell": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 68.4,
+          "avg_pct": -0.39,
+          "max_pct": 5.74,
+          "min_pct": -3.83,
+          "avg_retreat": -5.04,
+          "max_retreat": -9.28,
+          "avg_bars": 184.7,
+          "bars_range": "24~767",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.8
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 35,
+          "raw_cycles": 35,
+          "win_rate": 62.9,
+          "avg_pct": 0.41,
+          "max_pct": 4.98,
+          "min_pct": -4.42,
+          "avg_retreat": -4.07,
+          "max_retreat": -7.77,
+          "avg_bars": 71.6,
+          "bars_range": "11~218",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 73.7,
+          "avg_pct": -0.41,
+          "max_pct": 5.74,
+          "min_pct": -4.01,
+          "avg_retreat": -3.94,
+          "max_retreat": -7.64,
+          "avg_bars": 70.6,
+          "bars_range": "24~173",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 34,
+          "raw_cycles": 34,
+          "win_rate": 44.1,
+          "avg_pct": 0.21,
+          "max_pct": 4.02,
+          "min_pct": -1.5,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 20,
+          "raw_cycles": 20,
+          "win_rate": 85.0,
+          "avg_pct": -2.64,
+          "max_pct": 0.0,
+          "min_pct": -7.64,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 67.8,
+          "bars_range": "8~247",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bearish",
+      "merge_low": {
+        "buy": {
+          "count": 5,
+          "raw_cycles": 14,
+          "win_rate": 100.0,
+          "avg_pct": 1.88,
+          "max_pct": 5.51,
+          "min_pct": 0.16,
+          "avg_retreat": -6.08,
+          "max_retreat": -12.96,
+          "avg_bars": 187.2,
+          "bars_range": "10~382",
+          "avg_segments": 2.8,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 12,
+          "win_rate": 100.0,
+          "avg_pct": -2.63,
+          "max_pct": -0.81,
+          "min_pct": -4.4,
+          "avg_retreat": -4.88,
+          "max_retreat": -6.34,
+          "avg_bars": 116.5,
+          "bars_range": "25~238",
+          "avg_segments": 3.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 100.0,
+          "avg_pct": 2.83,
+          "max_pct": 7.38,
+          "min_pct": 0.16,
+          "avg_retreat": -5.74,
+          "max_retreat": -8.95,
+          "avg_bars": 66.9,
+          "bars_range": "10~195",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 91.7,
+          "avg_pct": -1.94,
+          "max_pct": 0.08,
+          "min_pct": -3.95,
+          "avg_retreat": -3.71,
+          "max_retreat": -6.12,
+          "avg_bars": 38.8,
+          "bars_range": "16~108",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 100.0,
+          "avg_pct": 3.07,
+          "max_pct": 8.08,
+          "min_pct": 0.16,
+          "avg_retreat": -6.35,
+          "max_retreat": -12.96,
+          "avg_bars": 160.2,
+          "bars_range": "10~382",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.5
+        },
+        "sell": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 91.7,
+          "avg_pct": -1.99,
+          "max_pct": 0.08,
+          "min_pct": -3.95,
+          "avg_retreat": -3.77,
+          "max_retreat": -6.34,
+          "avg_bars": 64.5,
+          "bars_range": "16~131",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.9
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 100.0,
+          "avg_pct": 2.83,
+          "max_pct": 7.38,
+          "min_pct": 0.16,
+          "avg_retreat": -5.74,
+          "max_retreat": -8.95,
+          "avg_bars": 66.9,
+          "bars_range": "10~195",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 91.7,
+          "avg_pct": -1.94,
+          "max_pct": 0.08,
+          "min_pct": -3.95,
+          "avg_retreat": -3.71,
+          "max_retreat": -6.12,
+          "avg_bars": 38.8,
+          "bars_range": "16~108",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 28.6,
+          "avg_pct": -0.9,
+          "max_pct": 0.48,
+          "min_pct": -3.71,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 13,
+          "raw_cycles": 13,
+          "win_rate": 92.3,
+          "avg_pct": -3.64,
+          "max_pct": 0.0,
+          "min_pct": -6.67,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 46.8,
+          "bars_range": "11~73",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bearish",
+      "merge_low": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 5,
+          "win_rate": 100.0,
+          "avg_pct": 4.33,
+          "max_pct": 6.6,
+          "min_pct": 2.05,
+          "avg_retreat": -10.45,
+          "max_retreat": -12.94,
+          "avg_bars": 185.5,
+          "bars_range": "183~188",
+          "avg_segments": 2.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 2,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": -3.97,
+          "max_pct": -2.87,
+          "min_pct": -5.06,
+          "avg_retreat": -7.65,
+          "max_retreat": -9.39,
+          "avg_bars": 46.5,
+          "bars_range": "36~57",
+          "avg_segments": 1.5,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 60.0,
+          "avg_pct": 3.29,
+          "max_pct": 11.94,
+          "min_pct": -1.95,
+          "avg_retreat": -6.71,
+          "max_retreat": -12.94,
+          "avg_bars": 74.2,
+          "bars_range": "30~153",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": -4.79,
+          "max_pct": -2.87,
+          "min_pct": -6.42,
+          "avg_retreat": -8.13,
+          "max_retreat": -9.39,
+          "avg_bars": 31.0,
+          "bars_range": "24~36",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 60.0,
+          "avg_pct": 2.22,
+          "max_pct": 6.6,
+          "min_pct": -1.95,
+          "avg_retreat": -6.71,
+          "max_retreat": -12.94,
+          "avg_bars": 103.0,
+          "bars_range": "30~188",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.8
+        },
+        "sell": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": -4.79,
+          "max_pct": -2.87,
+          "min_pct": -6.42,
+          "avg_retreat": -8.13,
+          "max_retreat": -9.39,
+          "avg_bars": 39.0,
+          "bars_range": "24~57",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.3
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 60.0,
+          "avg_pct": 3.29,
+          "max_pct": 11.94,
+          "min_pct": -1.95,
+          "avg_retreat": -6.71,
+          "max_retreat": -12.94,
+          "avg_bars": 74.2,
+          "bars_range": "30~153",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": -4.79,
+          "max_pct": -2.87,
+          "min_pct": -6.42,
+          "avg_retreat": -8.13,
+          "max_retreat": -9.39,
+          "avg_bars": 31.0,
+          "bars_range": "24~36",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 66.7,
+          "avg_pct": 0.22,
+          "max_pct": 1.62,
+          "min_pct": -1.12,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": -4.95,
+          "max_pct": -3.96,
+          "min_pct": -5.44,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 37.0,
+          "bars_range": "31~49",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bearish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh588200": {
+    "min1": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 36,
+          "raw_cycles": 432,
+          "win_rate": 61.1,
+          "avg_pct": 1.61,
+          "max_pct": 14.97,
+          "min_pct": -5.96,
+          "avg_retreat": -4.8,
+          "max_retreat": -17.02,
+          "avg_bars": 945.7,
+          "bars_range": "40~1996",
+          "avg_segments": 12.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 49,
+          "raw_cycles": 421,
+          "win_rate": 42.9,
+          "avg_pct": 0.07,
+          "max_pct": 11.96,
+          "min_pct": -8.12,
+          "avg_retreat": -3.26,
+          "max_retreat": -11.38,
+          "avg_bars": 694.6,
+          "bars_range": "66~2000",
+          "avg_segments": 8.6,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 383,
+          "raw_cycles": 432,
+          "win_rate": 60.8,
+          "avg_pct": 0.31,
+          "max_pct": 18.62,
+          "min_pct": -5.96,
+          "avg_retreat": -1.93,
+          "max_retreat": -17.02,
+          "avg_bars": 88.9,
+          "bars_range": "10~382",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 383,
+          "raw_cycles": 421,
+          "win_rate": 58.5,
+          "avg_pct": 0.08,
+          "max_pct": 11.96,
+          "min_pct": -6.48,
+          "avg_retreat": -1.91,
+          "max_retreat": -10.68,
+          "avg_bars": 88.9,
+          "bars_range": "10~397",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 432,
+          "raw_cycles": 432,
+          "win_rate": 74.5,
+          "avg_pct": 6.74,
+          "max_pct": 47.99,
+          "min_pct": -4.62,
+          "avg_retreat": -8.11,
+          "max_retreat": -35.62,
+          "avg_bars": 2938.7,
+          "bars_range": "12~29726",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 38.2
+        },
+        "sell": {
+          "count": 421,
+          "raw_cycles": 421,
+          "win_rate": 71.3,
+          "avg_pct": -0.8,
+          "max_pct": 11.96,
+          "min_pct": -7.71,
+          "avg_retreat": -2.57,
+          "max_retreat": -10.68,
+          "avg_bars": 311.5,
+          "bars_range": "10~2062",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 4.4
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 432,
+          "raw_cycles": 432,
+          "win_rate": 63.4,
+          "avg_pct": 0.13,
+          "max_pct": 4.08,
+          "min_pct": -5.96,
+          "avg_retreat": -1.66,
+          "max_retreat": -7.47,
+          "avg_bars": 78.8,
+          "bars_range": "10~382",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 421,
+          "raw_cycles": 421,
+          "win_rate": 59.6,
+          "avg_pct": 0.19,
+          "max_pct": 11.96,
+          "min_pct": -2.44,
+          "avg_retreat": -1.7,
+          "max_retreat": -10.68,
+          "avg_bars": 80.8,
+          "bars_range": "10~397",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 504,
+          "raw_cycles": 504,
+          "win_rate": 91.9,
+          "avg_pct": 1.04,
+          "max_pct": 8.93,
+          "min_pct": -0.03,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 88.7,
+          "bars_range": "1~427",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 8,
+          "raw_cycles": 68,
+          "win_rate": 75.0,
+          "avg_pct": 6.9,
+          "max_pct": 34.89,
+          "min_pct": -3.57,
+          "avg_retreat": -10.7,
+          "max_retreat": -32.11,
+          "avg_bars": 636.9,
+          "bars_range": "14~1884",
+          "avg_segments": 8.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 13,
+          "raw_cycles": 79,
+          "win_rate": 46.2,
+          "avg_pct": 1.65,
+          "max_pct": 12.53,
+          "min_pct": -5.89,
+          "avg_retreat": -6.21,
+          "max_retreat": -19.43,
+          "avg_bars": 634.1,
+          "bars_range": "66~1925",
+          "avg_segments": 6.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 58,
+          "raw_cycles": 68,
+          "win_rate": 82.8,
+          "avg_pct": 2.53,
+          "max_pct": 25.98,
+          "min_pct": -1.79,
+          "avg_retreat": -5.12,
+          "max_retreat": -21.4,
+          "avg_bars": 87.8,
+          "bars_range": "13~274",
+          "avg_segments": 1.2,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 72,
+          "raw_cycles": 79,
+          "win_rate": 50.0,
+          "avg_pct": 0.33,
+          "max_pct": 12.54,
+          "min_pct": -6.98,
+          "avg_retreat": -4.08,
+          "max_retreat": -12.55,
+          "avg_bars": 114.5,
+          "bars_range": "3~277",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 68,
+          "raw_cycles": 68,
+          "win_rate": 88.2,
+          "avg_pct": 13.8,
+          "max_pct": 50.64,
+          "min_pct": -3.57,
+          "avg_retreat": -13.19,
+          "max_retreat": -34.5,
+          "avg_bars": 846.9,
+          "bars_range": "14~4817",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 11.5
+        },
+        "sell": {
+          "count": 79,
+          "raw_cycles": 79,
+          "win_rate": 58.2,
+          "avg_pct": -0.22,
+          "max_pct": 12.54,
+          "min_pct": -10.09,
+          "avg_retreat": -4.52,
+          "max_retreat": -12.55,
+          "avg_bars": 329.3,
+          "bars_range": "3~1708",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.6
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 68,
+          "raw_cycles": 68,
+          "win_rate": 85.3,
+          "avg_pct": 1.59,
+          "max_pct": 6.29,
+          "min_pct": -1.79,
+          "avg_retreat": -4.12,
+          "max_retreat": -7.92,
+          "avg_bars": 74.9,
+          "bars_range": "11~274",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 79,
+          "raw_cycles": 79,
+          "win_rate": 53.2,
+          "avg_pct": 0.4,
+          "max_pct": 12.54,
+          "min_pct": -5.2,
+          "avg_retreat": -3.73,
+          "max_retreat": -12.55,
+          "avg_bars": 104.3,
+          "bars_range": "3~277",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 159,
+          "raw_cycles": 159,
+          "win_rate": 96.2,
+          "avg_pct": 41243.59,
+          "max_pct": 3279751.01,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 102.3,
+          "bars_range": "13~253",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 79,
+          "raw_cycles": 79,
+          "win_rate": 39.2,
+          "avg_pct": -2.62,
+          "max_pct": 3.1,
+          "min_pct": -100.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 19,
+          "win_rate": 100.0,
+          "avg_pct": 6.31,
+          "max_pct": 12.39,
+          "min_pct": 0.23,
+          "avg_retreat": -12.01,
+          "max_retreat": -21.7,
+          "avg_bars": 556.0,
+          "bars_range": "14~1098",
+          "avg_segments": 9.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 36,
+          "win_rate": 20.0,
+          "avg_pct": 14.1,
+          "max_pct": 38.6,
+          "min_pct": -9.9,
+          "avg_retreat": -18.41,
+          "max_retreat": -29.67,
+          "avg_bars": 979.4,
+          "bars_range": "221~1890",
+          "avg_segments": 7.2,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 18,
+          "raw_cycles": 19,
+          "win_rate": 66.7,
+          "avg_pct": 1.86,
+          "max_pct": 16.46,
+          "min_pct": -3.43,
+          "avg_retreat": -6.05,
+          "max_retreat": -16.67,
+          "avg_bars": 61.8,
+          "bars_range": "9~141",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 33,
+          "raw_cycles": 36,
+          "win_rate": 36.4,
+          "avg_pct": 8.78,
+          "max_pct": 38.6,
+          "min_pct": -14.64,
+          "avg_retreat": -12.17,
+          "max_retreat": -29.67,
+          "avg_bars": 148.4,
+          "bars_range": "15~360",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 68.4,
+          "avg_pct": 2.76,
+          "max_pct": 13.61,
+          "min_pct": -3.06,
+          "avg_retreat": -7.34,
+          "max_retreat": -21.7,
+          "avg_bars": 214.3,
+          "bars_range": "9~1098",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.8
+        },
+        "sell": {
+          "count": 36,
+          "raw_cycles": 36,
+          "win_rate": 50.0,
+          "avg_pct": 4.89,
+          "max_pct": 38.6,
+          "min_pct": -17.61,
+          "avg_retreat": -13.97,
+          "max_retreat": -29.67,
+          "avg_bars": 586.9,
+          "bars_range": "15~2701",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 5.9
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 63.2,
+          "avg_pct": 1.11,
+          "max_pct": 8.27,
+          "min_pct": -3.43,
+          "avg_retreat": -5.26,
+          "max_retreat": -9.74,
+          "avg_bars": 58.5,
+          "bars_range": "9~141",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 36,
+          "raw_cycles": 36,
+          "win_rate": 41.7,
+          "avg_pct": 8.14,
+          "max_pct": 38.6,
+          "min_pct": -5.92,
+          "avg_retreat": -11.22,
+          "max_retreat": -29.67,
+          "avg_bars": 136.0,
+          "bars_range": "15~360",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 27,
+          "raw_cycles": 27,
+          "win_rate": 81.5,
+          "avg_pct": 4.43,
+          "max_pct": 50.82,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 82.6,
+          "bars_range": "10~398",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 23,
+          "raw_cycles": 23,
+          "win_rate": 39.1,
+          "avg_pct": 0.08,
+          "max_pct": 4.22,
+          "min_pct": -3.21,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 9,
+          "win_rate": 100.0,
+          "avg_pct": 13.97,
+          "max_pct": 13.97,
+          "min_pct": 13.97,
+          "avg_retreat": -18.46,
+          "max_retreat": -18.46,
+          "avg_bars": 910.0,
+          "bars_range": "910~910",
+          "avg_segments": 9.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 3,
+          "raw_cycles": 19,
+          "win_rate": 33.3,
+          "avg_pct": 15.11,
+          "max_pct": 38.16,
+          "min_pct": -4.41,
+          "avg_retreat": -17.92,
+          "max_retreat": -29.36,
+          "avg_bars": 709.0,
+          "bars_range": "50~1222",
+          "avg_segments": 6.3,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 8,
+          "raw_cycles": 9,
+          "win_rate": 87.5,
+          "avg_pct": 5.31,
+          "max_pct": 20.89,
+          "min_pct": -3.11,
+          "avg_retreat": -11.19,
+          "max_retreat": -18.46,
+          "avg_bars": 113.8,
+          "bars_range": "30~198",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 26.3,
+          "avg_pct": 11.51,
+          "max_pct": 38.16,
+          "min_pct": -4.41,
+          "avg_retreat": -14.96,
+          "max_retreat": -29.36,
+          "avg_bars": 111.9,
+          "bars_range": "5~211",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 9,
+          "raw_cycles": 9,
+          "win_rate": 88.9,
+          "avg_pct": 4.05,
+          "max_pct": 13.97,
+          "min_pct": -3.11,
+          "avg_retreat": -10.7,
+          "max_retreat": -18.46,
+          "avg_bars": 346.9,
+          "bars_range": "30~910",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.7
+        },
+        "sell": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 26.3,
+          "avg_pct": 10.71,
+          "max_pct": 38.16,
+          "min_pct": -6.0,
+          "avg_retreat": -15.48,
+          "max_retreat": -29.36,
+          "avg_bars": 415.2,
+          "bars_range": "5~1222",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 4.8
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 9,
+          "raw_cycles": 9,
+          "win_rate": 88.9,
+          "avg_pct": 3.1,
+          "max_pct": 8.66,
+          "min_pct": -3.11,
+          "avg_retreat": -9.29,
+          "max_retreat": -12.41,
+          "avg_bars": 101.1,
+          "bars_range": "30~198",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 26.3,
+          "avg_pct": 11.51,
+          "max_pct": 38.16,
+          "min_pct": -4.41,
+          "avg_retreat": -14.96,
+          "max_retreat": -29.36,
+          "avg_bars": 111.9,
+          "bars_range": "5~211",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 9,
+          "raw_cycles": 9,
+          "win_rate": 100.0,
+          "avg_pct": 37.27,
+          "max_pct": 50.59,
+          "min_pct": 3.23,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 169.0,
+          "bars_range": "71~215",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 10,
+          "raw_cycles": 10,
+          "win_rate": 80.0,
+          "avg_pct": -1.87,
+          "max_pct": 2.58,
+          "min_pct": -3.55,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 4,
+          "win_rate": 100.0,
+          "avg_pct": 2.19,
+          "max_pct": 2.19,
+          "min_pct": 2.19,
+          "avg_retreat": -16.36,
+          "max_retreat": -16.36,
+          "avg_bars": 430.0,
+          "bars_range": "430~430",
+          "avg_segments": 4.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 2,
+          "raw_cycles": 11,
+          "win_rate": 0.0,
+          "avg_pct": 21.51,
+          "max_pct": 31.09,
+          "min_pct": 11.92,
+          "avg_retreat": -24.07,
+          "max_retreat": -25.49,
+          "avg_bars": 417.0,
+          "bars_range": "182~652",
+          "avg_segments": 5.5,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 100.0,
+          "avg_pct": 6.04,
+          "max_pct": 13.06,
+          "min_pct": 2.19,
+          "avg_retreat": -15.39,
+          "max_retreat": -16.36,
+          "avg_bars": 107.5,
+          "bars_range": "62~165",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 18.2,
+          "avg_pct": 10.25,
+          "max_pct": 31.09,
+          "min_pct": -5.83,
+          "avg_retreat": -16.32,
+          "max_retreat": -25.49,
+          "avg_bars": 75.8,
+          "bars_range": "24~168",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 100.0,
+          "avg_pct": 6.04,
+          "max_pct": 13.06,
+          "min_pct": 2.19,
+          "avg_retreat": -15.39,
+          "max_retreat": -16.36,
+          "avg_bars": 226.5,
+          "bars_range": "62~430",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.5
+        },
+        "sell": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 18.2,
+          "avg_pct": 10.25,
+          "max_pct": 31.09,
+          "min_pct": -5.83,
+          "avg_retreat": -16.32,
+          "max_retreat": -25.49,
+          "avg_bars": 225.7,
+          "bars_range": "24~652",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.5
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 100.0,
+          "avg_pct": 6.04,
+          "max_pct": 13.06,
+          "min_pct": 2.19,
+          "avg_retreat": -15.39,
+          "max_retreat": -16.36,
+          "avg_bars": 107.5,
+          "bars_range": "62~165",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 18.2,
+          "avg_pct": 10.25,
+          "max_pct": 31.09,
+          "min_pct": -5.83,
+          "avg_retreat": -16.32,
+          "max_retreat": -25.49,
+          "avg_bars": 75.8,
+          "bars_range": "24~168",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 100.0,
+          "avg_pct": 39.94,
+          "max_pct": 42.7,
+          "min_pct": 31.68,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 124.5,
+          "bars_range": "93~219",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 7,
+          "raw_cycles": 7,
+          "win_rate": 0.0,
+          "avg_pct": 0.98,
+          "max_pct": 1.03,
+          "min_pct": 0.68,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh600438": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": {
+          "count": 290,
+          "raw_cycles": 290,
+          "win_rate": 91.7,
+          "avg_pct": -0.93,
+          "max_pct": 0.0,
+          "min_pct": -4.85,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 87.4,
+          "bars_range": "1~390",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 80,
+          "raw_cycles": 80,
+          "win_rate": 31.2,
+          "avg_pct": -0.11,
+          "max_pct": 4.22,
+          "min_pct": -3.14,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 104,
+          "raw_cycles": 104,
+          "win_rate": 98.1,
+          "avg_pct": -1.31,
+          "max_pct": 0.0,
+          "min_pct": -10.98,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 83.3,
+          "bars_range": "10~373",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 30,
+          "raw_cycles": 30,
+          "win_rate": 33.3,
+          "avg_pct": 21327.14,
+          "max_pct": 639835.82,
+          "min_pct": -5.24,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 7,
+          "raw_cycles": 7,
+          "win_rate": 100.0,
+          "avg_pct": -3.15,
+          "max_pct": -0.06,
+          "min_pct": -12.55,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 88.7,
+          "bars_range": "13~260",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 21,
+          "raw_cycles": 21,
+          "win_rate": 47.6,
+          "avg_pct": -0.28,
+          "max_pct": 3.28,
+          "min_pct": -14.66,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 100.0,
+          "avg_pct": -4.42,
+          "max_pct": -2.66,
+          "min_pct": -5.3,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 65.3,
+          "bars_range": "22~87",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 10,
+          "raw_cycles": 10,
+          "win_rate": 0.0,
+          "avg_pct": -2.36,
+          "max_pct": -0.17,
+          "min_pct": -10.28,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 1,
+          "raw_cycles": 1,
+          "win_rate": 100.0,
+          "avg_pct": -1.34,
+          "max_pct": -1.34,
+          "min_pct": -1.34,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 38.0,
+          "bars_range": "38~38",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh601012": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": {
+          "count": 369,
+          "raw_cycles": 369,
+          "win_rate": 87.0,
+          "avg_pct": -0.94,
+          "max_pct": 0.0,
+          "min_pct": -5.26,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 92.0,
+          "bars_range": "1~552",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 74,
+          "raw_cycles": 74,
+          "win_rate": 47.3,
+          "avg_pct": -0.01,
+          "max_pct": 2.52,
+          "min_pct": -2.91,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 109,
+          "raw_cycles": 109,
+          "win_rate": 98.2,
+          "avg_pct": -1.77,
+          "max_pct": 0.0,
+          "min_pct": -99.99,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 73.9,
+          "bars_range": "3~387",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 22,
+          "raw_cycles": 22,
+          "win_rate": 36.4,
+          "avg_pct": 30114.07,
+          "max_pct": 662521.07,
+          "min_pct": -6.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 21,
+          "raw_cycles": 21,
+          "win_rate": 100.0,
+          "avg_pct": -3.09,
+          "max_pct": -0.16,
+          "min_pct": -8.21,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 67.8,
+          "bars_range": "12~271",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 9,
+          "raw_cycles": 9,
+          "win_rate": 55.6,
+          "avg_pct": 0.61,
+          "max_pct": 4.12,
+          "min_pct": -2.93,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 100.0,
+          "avg_pct": -8.1,
+          "max_pct": -1.01,
+          "min_pct": -11.42,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 90.0,
+          "bars_range": "24~137",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 66.7,
+          "avg_pct": 1.68,
+          "max_pct": 4.53,
+          "min_pct": -0.72,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 1,
+          "raw_cycles": 1,
+          "win_rate": 100.0,
+          "avg_pct": -10.07,
+          "max_pct": -10.07,
+          "min_pct": -10.07,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 63.0,
+          "bars_range": "63~63",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz000100": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 46,
+          "raw_cycles": 497,
+          "win_rate": 39.1,
+          "avg_pct": 0.09,
+          "max_pct": 10.84,
+          "min_pct": -6.22,
+          "avg_retreat": -3.68,
+          "max_retreat": -11.57,
+          "avg_bars": 1088.9,
+          "bars_range": "45~1996",
+          "avg_segments": 10.8,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 31,
+          "raw_cycles": 375,
+          "win_rate": 54.8,
+          "avg_pct": -0.16,
+          "max_pct": 5.73,
+          "min_pct": -11.97,
+          "avg_retreat": -4.22,
+          "max_retreat": -15.18,
+          "avg_bars": 1022.5,
+          "bars_range": "82~1998",
+          "avg_segments": 12.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 465,
+          "raw_cycles": 497,
+          "win_rate": 42.6,
+          "avg_pct": -0.25,
+          "max_pct": 6.81,
+          "min_pct": -6.22,
+          "avg_retreat": -1.87,
+          "max_retreat": -8.43,
+          "avg_bars": 107.7,
+          "bars_range": "10~475",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 337,
+          "raw_cycles": 375,
+          "win_rate": 43.6,
+          "avg_pct": 0.1,
+          "max_pct": 5.73,
+          "min_pct": -7.08,
+          "avg_retreat": -1.73,
+          "max_retreat": -7.73,
+          "avg_bars": 94.1,
+          "bars_range": "10~334",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 497,
+          "raw_cycles": 497,
+          "win_rate": 50.9,
+          "avg_pct": 0.12,
+          "max_pct": 7.2,
+          "min_pct": -6.22,
+          "avg_retreat": -3.54,
+          "max_retreat": -21.05,
+          "avg_bars": 3353.0,
+          "bars_range": "10~50089",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 33.3
+        },
+        "sell": {
+          "count": 375,
+          "raw_cycles": 375,
+          "win_rate": 61.9,
+          "avg_pct": -0.99,
+          "max_pct": 5.73,
+          "min_pct": -10.07,
+          "avg_retreat": -2.57,
+          "max_retreat": -11.04,
+          "avg_bars": 366.0,
+          "bars_range": "12~2977",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 5.1
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 497,
+          "raw_cycles": 497,
+          "win_rate": 41.4,
+          "avg_pct": -0.33,
+          "max_pct": 6.32,
+          "min_pct": -6.22,
+          "avg_retreat": -1.71,
+          "max_retreat": -8.43,
+          "avg_bars": 100.8,
+          "bars_range": "10~475",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 375,
+          "raw_cycles": 375,
+          "win_rate": 43.5,
+          "avg_pct": 0.25,
+          "max_pct": 5.73,
+          "min_pct": -2.45,
+          "avg_retreat": -1.47,
+          "max_retreat": -7.73,
+          "avg_bars": 84.5,
+          "bars_range": "10~334",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": {
+          "count": 561,
+          "raw_cycles": 561,
+          "win_rate": 73.3,
+          "avg_pct": -0.82,
+          "max_pct": 0.48,
+          "min_pct": -6.89,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 92.6,
+          "bars_range": "1~398",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 8,
+          "raw_cycles": 76,
+          "win_rate": 25.0,
+          "avg_pct": 0.54,
+          "max_pct": 23.65,
+          "min_pct": -5.79,
+          "avg_retreat": -9.27,
+          "max_retreat": -20.12,
+          "avg_bars": 1197.4,
+          "bars_range": "428~1884",
+          "avg_segments": 9.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 7,
+          "raw_cycles": 50,
+          "win_rate": 42.9,
+          "avg_pct": -1.37,
+          "max_pct": 3.46,
+          "min_pct": -11.55,
+          "avg_retreat": -6.28,
+          "max_retreat": -18.39,
+          "avg_bars": 496.3,
+          "bars_range": "109~1931",
+          "avg_segments": 7.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 70,
+          "raw_cycles": 76,
+          "win_rate": 58.6,
+          "avg_pct": 0.46,
+          "max_pct": 11.08,
+          "min_pct": -6.17,
+          "avg_retreat": -4.36,
+          "max_retreat": -11.26,
+          "avg_bars": 136.8,
+          "bars_range": "20~558",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 45,
+          "raw_cycles": 50,
+          "win_rate": 55.6,
+          "avg_pct": -0.58,
+          "max_pct": 3.46,
+          "min_pct": -10.24,
+          "avg_retreat": -3.27,
+          "max_retreat": -11.16,
+          "avg_bars": 77.2,
+          "bars_range": "13~233",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 76,
+          "raw_cycles": 76,
+          "win_rate": 71.1,
+          "avg_pct": 0.7,
+          "max_pct": 5.91,
+          "min_pct": -6.17,
+          "avg_retreat": -5.93,
+          "max_retreat": -20.74,
+          "avg_bars": 1178.3,
+          "bars_range": "21~9579",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 10.5
+        },
+        "sell": {
+          "count": 50,
+          "raw_cycles": 50,
+          "win_rate": 68.0,
+          "avg_pct": -1.26,
+          "max_pct": 3.46,
+          "min_pct": -13.86,
+          "avg_retreat": -3.88,
+          "max_retreat": -15.14,
+          "avg_bars": 193.9,
+          "bars_range": "13~1010",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.7
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 76,
+          "raw_cycles": 76,
+          "win_rate": 60.5,
+          "avg_pct": 0.28,
+          "max_pct": 7.96,
+          "min_pct": -6.17,
+          "avg_retreat": -3.99,
+          "max_retreat": -11.26,
+          "avg_bars": 126.0,
+          "bars_range": "20~558",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 50,
+          "raw_cycles": 50,
+          "win_rate": 56.0,
+          "avg_pct": -0.22,
+          "max_pct": 3.46,
+          "min_pct": -5.04,
+          "avg_retreat": -2.86,
+          "max_retreat": -9.96,
+          "avg_bars": 69.5,
+          "bars_range": "13~233",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 76,
+          "raw_cycles": 76,
+          "win_rate": 14.5,
+          "avg_pct": -0.67,
+          "max_pct": 2.98,
+          "min_pct": -3.02,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 120,
+          "raw_cycles": 120,
+          "win_rate": 86.7,
+          "avg_pct": -0.71,
+          "max_pct": 0.0,
+          "min_pct": -6.56,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 72.7,
+          "bars_range": "4~284",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 23,
+          "win_rate": 50.0,
+          "avg_pct": 0.09,
+          "max_pct": 8.46,
+          "min_pct": -10.54,
+          "avg_retreat": -10.75,
+          "max_retreat": -16.87,
+          "avg_bars": 522.2,
+          "bars_range": "94~1092",
+          "avg_segments": 5.8,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 17,
+          "win_rate": 50.0,
+          "avg_pct": -1.44,
+          "max_pct": 7.19,
+          "min_pct": -16.93,
+          "avg_retreat": -10.21,
+          "max_retreat": -18.0,
+          "avg_bars": 268.5,
+          "bars_range": "48~693",
+          "avg_segments": 4.2,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 22,
+          "raw_cycles": 23,
+          "win_rate": 63.6,
+          "avg_pct": 0.18,
+          "max_pct": 14.93,
+          "min_pct": -10.54,
+          "avg_retreat": -6.54,
+          "max_retreat": -16.87,
+          "avg_bars": 95.0,
+          "bars_range": "21~298",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 16,
+          "raw_cycles": 17,
+          "win_rate": 62.5,
+          "avg_pct": -0.28,
+          "max_pct": 7.19,
+          "min_pct": -11.7,
+          "avg_retreat": -5.15,
+          "max_retreat": -15.14,
+          "avg_bars": 67.1,
+          "bars_range": "15~139",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 23,
+          "raw_cycles": 23,
+          "win_rate": 65.2,
+          "avg_pct": 0.61,
+          "max_pct": 10.18,
+          "min_pct": -10.54,
+          "avg_retreat": -7.79,
+          "max_retreat": -16.87,
+          "avg_bars": 291.2,
+          "bars_range": "28~1092",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.7
+        },
+        "sell": {
+          "count": 17,
+          "raw_cycles": 17,
+          "win_rate": 76.5,
+          "avg_pct": -0.87,
+          "max_pct": 7.19,
+          "min_pct": -11.7,
+          "avg_retreat": -5.26,
+          "max_retreat": -15.14,
+          "avg_bars": 124.7,
+          "bars_range": "15~352",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.2
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 23,
+          "raw_cycles": 23,
+          "win_rate": 65.2,
+          "avg_pct": -0.13,
+          "max_pct": 4.96,
+          "min_pct": -10.54,
+          "avg_retreat": -6.16,
+          "max_retreat": -16.87,
+          "avg_bars": 90.8,
+          "bars_range": "21~298",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 17,
+          "raw_cycles": 17,
+          "win_rate": 64.7,
+          "avg_pct": 0.35,
+          "max_pct": 7.19,
+          "min_pct": -3.54,
+          "avg_retreat": -4.4,
+          "max_retreat": -10.38,
+          "avg_bars": 63.2,
+          "bars_range": "15~139",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 23,
+          "raw_cycles": 23,
+          "win_rate": 43.5,
+          "avg_pct": 107922.66,
+          "max_pct": 2482235.33,
+          "min_pct": -8.25,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 21,
+          "raw_cycles": 21,
+          "win_rate": 85.7,
+          "avg_pct": -2.04,
+          "max_pct": 0.0,
+          "min_pct": -6.56,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 42.8,
+          "bars_range": "3~98",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 12,
+          "win_rate": 100.0,
+          "avg_pct": 5.16,
+          "max_pct": 5.16,
+          "min_pct": 5.16,
+          "avg_retreat": -21.47,
+          "max_retreat": -21.47,
+          "avg_bars": 1505.0,
+          "bars_range": "1505~1505",
+          "avg_segments": 12.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 2,
+          "raw_cycles": 5,
+          "win_rate": 50.0,
+          "avg_pct": -3.59,
+          "max_pct": 7.91,
+          "min_pct": -15.09,
+          "avg_retreat": -13.64,
+          "max_retreat": -16.37,
+          "avg_bars": 194.5,
+          "bars_range": "122~267",
+          "avg_segments": 2.5,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 11,
+          "raw_cycles": 12,
+          "win_rate": 63.6,
+          "avg_pct": 2.58,
+          "max_pct": 22.11,
+          "min_pct": -8.6,
+          "avg_retreat": -9.69,
+          "max_retreat": -21.47,
+          "avg_bars": 136.8,
+          "bars_range": "24~340",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 5,
+          "win_rate": 50.0,
+          "avg_pct": -2.23,
+          "max_pct": 7.91,
+          "min_pct": -15.09,
+          "avg_retreat": -9.03,
+          "max_retreat": -16.37,
+          "avg_bars": 97.2,
+          "bars_range": "37~131",
+          "avg_segments": 1.2,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 66.7,
+          "avg_pct": 1.07,
+          "max_pct": 11.43,
+          "min_pct": -10.27,
+          "avg_retreat": -10.11,
+          "max_retreat": -21.47,
+          "avg_bars": 424.2,
+          "bars_range": "32~1505",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 4.2
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 60.0,
+          "avg_pct": -2.43,
+          "max_pct": 7.91,
+          "min_pct": -15.09,
+          "avg_retreat": -8.22,
+          "max_retreat": -16.37,
+          "avg_bars": 128.4,
+          "bars_range": "37~267",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.8
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 12,
+          "raw_cycles": 12,
+          "win_rate": 66.7,
+          "avg_pct": 1.59,
+          "max_pct": 11.43,
+          "min_pct": -8.6,
+          "avg_retreat": -8.6,
+          "max_retreat": -16.09,
+          "avg_bars": 125.4,
+          "bars_range": "18~322",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 60.0,
+          "avg_pct": -0.21,
+          "max_pct": 7.91,
+          "min_pct": -4.02,
+          "avg_retreat": -6.3,
+          "max_retreat": -10.92,
+          "avg_bars": 77.8,
+          "bars_range": "37~131",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 54.5,
+          "avg_pct": -1.73,
+          "max_pct": 1.04,
+          "min_pct": -11.09,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 7,
+          "raw_cycles": 7,
+          "win_rate": 100.0,
+          "avg_pct": -1.97,
+          "max_pct": -1.34,
+          "min_pct": -2.78,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 48.1,
+          "bars_range": "39~71",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 3,
+          "win_rate": 50.0,
+          "avg_pct": -0.6,
+          "max_pct": 0.63,
+          "min_pct": -1.83,
+          "avg_retreat": -5.08,
+          "max_retreat": -6.14,
+          "avg_bars": 124.0,
+          "bars_range": "20~228",
+          "avg_segments": 1.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 1,
+          "raw_cycles": 4,
+          "win_rate": 0.0,
+          "avg_pct": 4.81,
+          "max_pct": 4.81,
+          "min_pct": 4.81,
+          "avg_retreat": -19.54,
+          "max_retreat": -19.54,
+          "avg_bars": 626.0,
+          "bars_range": "626~626",
+          "avg_segments": 4.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 66.7,
+          "avg_pct": -0.32,
+          "max_pct": 0.63,
+          "min_pct": -1.83,
+          "avg_retreat": -4.98,
+          "max_retreat": -6.14,
+          "avg_bars": 82.7,
+          "bars_range": "20~133",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 25.0,
+          "avg_pct": 3.98,
+          "max_pct": 14.9,
+          "min_pct": -9.36,
+          "avg_retreat": -16.19,
+          "max_retreat": -19.54,
+          "avg_bars": 156.5,
+          "bars_range": "64~209",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 66.7,
+          "avg_pct": -0.32,
+          "max_pct": 0.63,
+          "min_pct": -1.83,
+          "avg_retreat": -4.98,
+          "max_retreat": -6.14,
+          "avg_bars": 114.3,
+          "bars_range": "20~228",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.3
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 75.0,
+          "avg_pct": -3.16,
+          "max_pct": 4.81,
+          "min_pct": -9.36,
+          "avg_retreat": -18.22,
+          "max_retreat": -19.54,
+          "avg_bars": 332.8,
+          "bars_range": "64~626",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.5
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 66.7,
+          "avg_pct": -0.32,
+          "max_pct": 0.63,
+          "min_pct": -1.83,
+          "avg_retreat": -4.98,
+          "max_retreat": -6.14,
+          "avg_bars": 82.7,
+          "bars_range": "20~133",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 25.0,
+          "avg_pct": 3.98,
+          "max_pct": 14.9,
+          "min_pct": -9.36,
+          "avg_retreat": -16.19,
+          "max_retreat": -19.54,
+          "avg_bars": 156.5,
+          "bars_range": "64~209",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 0.0,
+          "avg_pct": -0.67,
+          "max_pct": -0.2,
+          "min_pct": -0.91,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 62.5,
+          "avg_pct": -6.24,
+          "max_pct": 0.0,
+          "min_pct": -13.24,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 89.4,
+          "bars_range": "28~147",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz002129": {
+    "min1": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": {
+          "count": 41,
+          "raw_cycles": 411,
+          "win_rate": 43.9,
+          "avg_pct": -0.42,
+          "max_pct": 5.92,
+          "min_pct": -7.6,
+          "avg_retreat": -3.96,
+          "max_retreat": -9.59,
+          "avg_bars": 1142.5,
+          "bars_range": "74~1995",
+          "avg_segments": 10.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 25,
+          "raw_cycles": 277,
+          "win_rate": 36.0,
+          "avg_pct": -0.23,
+          "max_pct": 4.43,
+          "min_pct": -11.71,
+          "avg_retreat": -3.74,
+          "max_retreat": -12.11,
+          "avg_bars": 831.1,
+          "bars_range": "36~1998",
+          "avg_segments": 11.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 373,
+          "raw_cycles": 411,
+          "win_rate": 52.5,
+          "avg_pct": -0.19,
+          "max_pct": 5.91,
+          "min_pct": -7.6,
+          "avg_retreat": -2.14,
+          "max_retreat": -8.16,
+          "avg_bars": 125.6,
+          "bars_range": "6~604",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 245,
+          "raw_cycles": 277,
+          "win_rate": 52.7,
+          "avg_pct": -0.1,
+          "max_pct": 5.14,
+          "min_pct": -5.19,
+          "avg_retreat": -1.82,
+          "max_retreat": -10.15,
+          "avg_bars": 84.8,
+          "bars_range": "2~368",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 411,
+          "raw_cycles": 411,
+          "win_rate": 73.2,
+          "avg_pct": 1.43,
+          "max_pct": 9.98,
+          "min_pct": -4.1,
+          "avg_retreat": -4.52,
+          "max_retreat": -18.32,
+          "avg_bars": 3541.2,
+          "bars_range": "12~22649",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 36.5
+        },
+        "sell": {
+          "count": 277,
+          "raw_cycles": 277,
+          "win_rate": 67.5,
+          "avg_pct": -0.76,
+          "max_pct": 3.93,
+          "min_pct": -6.82,
+          "avg_retreat": -2.34,
+          "max_retreat": -10.84,
+          "avg_bars": 279.1,
+          "bars_range": "7~2221",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.8
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 411,
+          "raw_cycles": 411,
+          "win_rate": 53.8,
+          "avg_pct": -0.26,
+          "max_pct": 3.86,
+          "min_pct": -7.6,
+          "avg_retreat": -1.92,
+          "max_retreat": -8.16,
+          "avg_bars": 114.0,
+          "bars_range": "6~604",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 277,
+          "raw_cycles": 277,
+          "win_rate": 53.4,
+          "avg_pct": 0.06,
+          "max_pct": 5.4,
+          "min_pct": -3.53,
+          "avg_retreat": -1.56,
+          "max_retreat": -7.78,
+          "avg_bars": 75.0,
+          "bars_range": "2~323",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 800,
+          "raw_cycles": 800,
+          "win_rate": 88.8,
+          "avg_pct": 1.67,
+          "max_pct": 8.75,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 141.9,
+          "bars_range": "2~682",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 424,
+          "raw_cycles": 424,
+          "win_rate": 87.3,
+          "avg_pct": -0.9,
+          "max_pct": 0.0,
+          "min_pct": -4.29,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 75.8,
+          "bars_range": "1~305",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min5": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": {
+          "count": 6,
+          "raw_cycles": 62,
+          "win_rate": 33.3,
+          "avg_pct": 0.83,
+          "max_pct": 9.49,
+          "min_pct": -3.32,
+          "avg_retreat": -8.93,
+          "max_retreat": -14.01,
+          "avg_bars": 996.5,
+          "bars_range": "40~1987",
+          "avg_segments": 10.3,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 42,
+          "win_rate": 60.0,
+          "avg_pct": -1.73,
+          "max_pct": 3.1,
+          "min_pct": -9.21,
+          "avg_retreat": -8.63,
+          "max_retreat": -15.72,
+          "avg_bars": 756.2,
+          "bars_range": "286~1644",
+          "avg_segments": 8.4,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 55,
+          "raw_cycles": 62,
+          "win_rate": 56.4,
+          "avg_pct": 0.62,
+          "max_pct": 8.53,
+          "min_pct": -6.42,
+          "avg_retreat": -4.59,
+          "max_retreat": -12.15,
+          "avg_bars": 108.7,
+          "bars_range": "22~310",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 36,
+          "raw_cycles": 42,
+          "win_rate": 47.2,
+          "avg_pct": -0.22,
+          "max_pct": 4.87,
+          "min_pct": -9.99,
+          "avg_retreat": -4.19,
+          "max_retreat": -13.91,
+          "avg_bars": 105.0,
+          "bars_range": "20~296",
+          "avg_segments": 1.2,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 62,
+          "raw_cycles": 62,
+          "win_rate": 72.6,
+          "avg_pct": 3.45,
+          "max_pct": 13.37,
+          "min_pct": -3.32,
+          "avg_retreat": -8.48,
+          "max_retreat": -18.32,
+          "avg_bars": 1138.6,
+          "bars_range": "15~4063",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 14.2
+        },
+        "sell": {
+          "count": 42,
+          "raw_cycles": 42,
+          "win_rate": 61.9,
+          "avg_pct": -1.96,
+          "max_pct": 3.38,
+          "min_pct": -12.7,
+          "avg_retreat": -5.69,
+          "max_retreat": -15.72,
+          "avg_bars": 354.5,
+          "bars_range": "29~1125",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.9
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 62,
+          "raw_cycles": 62,
+          "win_rate": 56.5,
+          "avg_pct": 0.27,
+          "max_pct": 5.48,
+          "min_pct": -6.42,
+          "avg_retreat": -4.01,
+          "max_retreat": -12.15,
+          "avg_bars": 96.4,
+          "bars_range": "9~310",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 42,
+          "raw_cycles": 42,
+          "win_rate": 47.6,
+          "avg_pct": 0.27,
+          "max_pct": 4.87,
+          "min_pct": -3.28,
+          "avg_retreat": -3.42,
+          "max_retreat": -8.19,
+          "avg_bars": 90.0,
+          "bars_range": "19~224",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 257,
+          "raw_cycles": 257,
+          "win_rate": 91.8,
+          "avg_pct": 1.09,
+          "max_pct": 16.82,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 118.2,
+          "bars_range": "14~346",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 108,
+          "raw_cycles": 108,
+          "win_rate": 96.3,
+          "avg_pct": -0.8,
+          "max_pct": 0.0,
+          "min_pct": -6.29,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 65.2,
+          "bars_range": "3~189",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": {
+          "count": 3,
+          "raw_cycles": 23,
+          "win_rate": 33.3,
+          "avg_pct": -0.52,
+          "max_pct": 13.7,
+          "min_pct": -14.36,
+          "avg_retreat": -13.04,
+          "max_retreat": -18.72,
+          "avg_bars": 774.3,
+          "bars_range": "93~1258",
+          "avg_segments": 7.7,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 15,
+          "win_rate": 60.0,
+          "avg_pct": -1.49,
+          "max_pct": 1.74,
+          "min_pct": -4.67,
+          "avg_retreat": -7.73,
+          "max_retreat": -15.92,
+          "avg_bars": 265.8,
+          "bars_range": "14~1127",
+          "avg_segments": 3.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 22,
+          "raw_cycles": 23,
+          "win_rate": 68.2,
+          "avg_pct": 0.81,
+          "max_pct": 13.46,
+          "min_pct": -14.36,
+          "avg_retreat": -8.93,
+          "max_retreat": -18.72,
+          "avg_bars": 105.6,
+          "bars_range": "21~238",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 15,
+          "raw_cycles": 15,
+          "win_rate": 40.0,
+          "avg_pct": 4.99,
+          "max_pct": 17.36,
+          "min_pct": -4.67,
+          "avg_retreat": -8.01,
+          "max_retreat": -15.83,
+          "avg_bars": 88.6,
+          "bars_range": "3~341",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 23,
+          "raw_cycles": 23,
+          "win_rate": 69.6,
+          "avg_pct": 4.36,
+          "max_pct": 19.71,
+          "min_pct": -14.36,
+          "avg_retreat": -11.44,
+          "max_retreat": -18.72,
+          "avg_bars": 428.0,
+          "bars_range": "21~1258",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 5.6
+        },
+        "sell": {
+          "count": 15,
+          "raw_cycles": 15,
+          "win_rate": 40.0,
+          "avg_pct": 4.86,
+          "max_pct": 17.36,
+          "min_pct": -4.67,
+          "avg_retreat": -10.02,
+          "max_retreat": -15.92,
+          "avg_bars": 348.3,
+          "bars_range": "14~1127",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.5
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 23,
+          "raw_cycles": 23,
+          "win_rate": 69.6,
+          "avg_pct": 0.88,
+          "max_pct": 10.6,
+          "min_pct": -14.36,
+          "avg_retreat": -8.74,
+          "max_retreat": -18.72,
+          "avg_bars": 101.0,
+          "bars_range": "21~238",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 15,
+          "raw_cycles": 15,
+          "win_rate": 40.0,
+          "avg_pct": 4.99,
+          "max_pct": 17.36,
+          "min_pct": -4.67,
+          "avg_retreat": -8.01,
+          "max_retreat": -15.83,
+          "avg_bars": 88.6,
+          "bars_range": "3~341",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 30,
+          "raw_cycles": 30,
+          "win_rate": 90.0,
+          "avg_pct": 5.44,
+          "max_pct": 21.92,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 101.2,
+          "bars_range": "12~277",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 19,
+          "raw_cycles": 19,
+          "win_rate": 94.7,
+          "avg_pct": -4.37,
+          "max_pct": 0.0,
+          "min_pct": -12.92,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 149.4,
+          "bars_range": "8~291",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 11,
+          "win_rate": 50.0,
+          "avg_pct": -1.33,
+          "max_pct": 5.89,
+          "min_pct": -8.56,
+          "avg_retreat": -17.46,
+          "max_retreat": -18.72,
+          "avg_bars": 723.5,
+          "bars_range": "363~1084",
+          "avg_segments": 5.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 2,
+          "raw_cycles": 5,
+          "win_rate": 0.0,
+          "avg_pct": 4.7,
+          "max_pct": 6.31,
+          "min_pct": 3.08,
+          "avg_retreat": -10.09,
+          "max_retreat": -12.21,
+          "avg_bars": 155.0,
+          "bars_range": "97~213",
+          "avg_segments": 2.5,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 10,
+          "raw_cycles": 11,
+          "win_rate": 30.0,
+          "avg_pct": -0.97,
+          "max_pct": 12.92,
+          "min_pct": -8.56,
+          "avg_retreat": -10.74,
+          "max_retreat": -18.72,
+          "avg_bars": 144.7,
+          "bars_range": "25~292",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 20.0,
+          "avg_pct": 4.48,
+          "max_pct": 12.06,
+          "min_pct": -2.79,
+          "avg_retreat": -8.07,
+          "max_retreat": -12.12,
+          "avg_bars": 62.0,
+          "bars_range": "6~111",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 63.6,
+          "avg_pct": 2.64,
+          "max_pct": 12.92,
+          "min_pct": -8.56,
+          "avg_retreat": -13.27,
+          "max_retreat": -18.72,
+          "avg_bars": 354.5,
+          "bars_range": "25~1084",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.3
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 20.0,
+          "avg_pct": 4.38,
+          "max_pct": 12.06,
+          "min_pct": -2.79,
+          "avg_retreat": -8.51,
+          "max_retreat": -12.21,
+          "avg_bars": 91.4,
+          "bars_range": "6~213",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.8
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 36.4,
+          "avg_pct": -1.2,
+          "max_pct": 7.47,
+          "min_pct": -8.56,
+          "avg_retreat": -9.66,
+          "max_retreat": -18.72,
+          "avg_bars": 131.5,
+          "bars_range": "25~292",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 20.0,
+          "avg_pct": 4.48,
+          "max_pct": 12.06,
+          "min_pct": -2.79,
+          "avg_retreat": -8.07,
+          "max_retreat": -12.12,
+          "avg_bars": 62.0,
+          "bars_range": "6~111",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 29,
+          "raw_cycles": 29,
+          "win_rate": 100.0,
+          "avg_pct": 14.28,
+          "max_pct": 30.36,
+          "min_pct": 0.78,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 133.3,
+          "bars_range": "45~346",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 60.0,
+          "avg_pct": -5.26,
+          "max_pct": 0.0,
+          "min_pct": -8.77,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 90.2,
+          "bars_range": "86~93",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 4,
+          "win_rate": 50.0,
+          "avg_pct": 1.67,
+          "max_pct": 5.98,
+          "min_pct": -2.63,
+          "avg_retreat": -17.46,
+          "max_retreat": -18.72,
+          "avg_bars": 238.5,
+          "bars_range": "236~241",
+          "avg_segments": 2.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 2,
+          "raw_cycles": 3,
+          "win_rate": 0.0,
+          "avg_pct": 4.22,
+          "max_pct": 5.21,
+          "min_pct": 3.22,
+          "avg_retreat": -6.49,
+          "max_retreat": -9.38,
+          "avg_bars": 23.0,
+          "bars_range": "6~40",
+          "avg_segments": 1.5,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 75.0,
+          "avg_pct": 7.04,
+          "max_pct": 12.5,
+          "min_pct": -2.63,
+          "avg_retreat": -16.14,
+          "max_retreat": -18.72,
+          "avg_bars": 119.2,
+          "bars_range": "86~155",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 33.3,
+          "avg_pct": 2.68,
+          "max_pct": 5.21,
+          "min_pct": -0.4,
+          "avg_retreat": -4.46,
+          "max_retreat": -9.38,
+          "avg_bars": 15.3,
+          "bars_range": "2~40",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 75.0,
+          "avg_pct": 7.04,
+          "max_pct": 12.5,
+          "min_pct": -2.63,
+          "avg_retreat": -16.14,
+          "max_retreat": -18.72,
+          "avg_bars": 166.2,
+          "bars_range": "86~241",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.5
+        },
+        "sell": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 33.3,
+          "avg_pct": 2.68,
+          "max_pct": 5.21,
+          "min_pct": -0.4,
+          "avg_retreat": -4.46,
+          "max_retreat": -9.38,
+          "avg_bars": 16.0,
+          "bars_range": "2~40",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.3
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 4,
+          "win_rate": 75.0,
+          "avg_pct": 7.04,
+          "max_pct": 12.5,
+          "min_pct": -2.63,
+          "avg_retreat": -16.14,
+          "max_retreat": -18.72,
+          "avg_bars": 119.2,
+          "bars_range": "86~155",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 3,
+          "raw_cycles": 3,
+          "win_rate": 33.3,
+          "avg_pct": 2.68,
+          "max_pct": 5.21,
+          "min_pct": -0.4,
+          "avg_retreat": -4.46,
+          "max_retreat": -9.38,
+          "avg_bars": 15.3,
+          "bars_range": "2~40",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 100.0,
+          "avg_pct": 24.74,
+          "max_pct": 30.36,
+          "min_pct": 0.88,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 102.4,
+          "bars_range": "25~164",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 2,
+          "raw_cycles": 2,
+          "win_rate": 100.0,
+          "avg_pct": -6.63,
+          "max_pct": -6.63,
+          "min_pct": -6.63,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 40.0,
+          "bars_range": "40~40",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz002261": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": {
+          "count": 301,
+          "raw_cycles": 301,
+          "win_rate": 91.0,
+          "avg_pct": -0.78,
+          "max_pct": 0.0,
+          "min_pct": -6.27,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 69.9,
+          "bars_range": "1~336",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 69,
+          "raw_cycles": 69,
+          "win_rate": 37.7,
+          "avg_pct": 0.11,
+          "max_pct": 12.34,
+          "min_pct": -9.92,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 98,
+          "raw_cycles": 98,
+          "win_rate": 95.9,
+          "avg_pct": -1.89,
+          "max_pct": 0.02,
+          "min_pct": -13.9,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 96.2,
+          "bars_range": "9~363",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 24,
+          "raw_cycles": 24,
+          "win_rate": 25.0,
+          "avg_pct": -1.18,
+          "max_pct": 2.91,
+          "min_pct": -7.19,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 20,
+          "raw_cycles": 20,
+          "win_rate": 100.0,
+          "avg_pct": -2.92,
+          "max_pct": -0.31,
+          "min_pct": -9.43,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 71.0,
+          "bars_range": "6~215",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 13,
+          "raw_cycles": 13,
+          "win_rate": 38.5,
+          "avg_pct": 0.93,
+          "max_pct": 4.86,
+          "min_pct": -1.25,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 15,
+          "raw_cycles": 15,
+          "win_rate": 100.0,
+          "avg_pct": -7.83,
+          "max_pct": -2.38,
+          "min_pct": -11.25,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 95.7,
+          "bars_range": "31~143",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 62.5,
+          "avg_pct": -0.79,
+          "max_pct": 0.06,
+          "min_pct": -2.18,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 6,
+          "raw_cycles": 6,
+          "win_rate": 83.3,
+          "avg_pct": -6.02,
+          "max_pct": 0.0,
+          "min_pct": -8.1,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 53.7,
+          "bars_range": "14~70",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz159326": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 28,
+          "raw_cycles": 429,
+          "win_rate": 64.3,
+          "avg_pct": 2.05,
+          "max_pct": 14.45,
+          "min_pct": -4.33,
+          "avg_retreat": -4.68,
+          "max_retreat": -15.6,
+          "avg_bars": 1081.3,
+          "bars_range": "24~2000",
+          "avg_segments": 15.3,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 51,
+          "raw_cycles": 440,
+          "win_rate": 35.3,
+          "avg_pct": 0.13,
+          "max_pct": 6.24,
+          "min_pct": -9.88,
+          "avg_retreat": -2.95,
+          "max_retreat": -15.71,
+          "avg_bars": 644.8,
+          "bars_range": "41~1994",
+          "avg_segments": 8.6,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 376,
+          "raw_cycles": 429,
+          "win_rate": 61.7,
+          "avg_pct": 0.44,
+          "max_pct": 9.41,
+          "min_pct": -4.33,
+          "avg_retreat": -1.78,
+          "max_retreat": -9.78,
+          "avg_bars": 80.5,
+          "bars_range": "9~496",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 398,
+          "raw_cycles": 440,
+          "win_rate": 55.0,
+          "avg_pct": -0.03,
+          "max_pct": 6.24,
+          "min_pct": -6.65,
+          "avg_retreat": -1.48,
+          "max_retreat": -8.35,
+          "avg_bars": 82.6,
+          "bars_range": "10~343",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 429,
+          "raw_cycles": 429,
+          "win_rate": 75.1,
+          "avg_pct": 5.45,
+          "max_pct": 50.51,
+          "min_pct": -4.33,
+          "avg_retreat": -6.41,
+          "max_retreat": -35.44,
+          "avg_bars": 3875.4,
+          "bars_range": "9~30276",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 54.3
+        },
+        "sell": {
+          "count": 440,
+          "raw_cycles": 440,
+          "win_rate": 63.6,
+          "avg_pct": -0.52,
+          "max_pct": 6.24,
+          "min_pct": -10.25,
+          "avg_retreat": -1.86,
+          "max_retreat": -10.83,
+          "avg_bars": 251.4,
+          "bars_range": "10~1624",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 4.0
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 429,
+          "raw_cycles": 429,
+          "win_rate": 62.7,
+          "avg_pct": 0.23,
+          "max_pct": 5.92,
+          "min_pct": -4.33,
+          "avg_retreat": -1.48,
+          "max_retreat": -6.73,
+          "avg_bars": 70.6,
+          "bars_range": "9~355",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 440,
+          "raw_cycles": 440,
+          "win_rate": 57.5,
+          "avg_pct": 0.05,
+          "max_pct": 6.24,
+          "min_pct": -4.35,
+          "avg_retreat": -1.32,
+          "max_retreat": -8.35,
+          "avg_bars": 74.7,
+          "bars_range": "10~343",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": {
+          "count": 490,
+          "raw_cycles": 490,
+          "win_rate": 82.7,
+          "avg_pct": -0.57,
+          "max_pct": 0.0,
+          "min_pct": -4.09,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 59.2,
+          "bars_range": "2~344",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 5,
+          "raw_cycles": 63,
+          "win_rate": 80.0,
+          "avg_pct": 8.04,
+          "max_pct": 37.99,
+          "min_pct": -2.64,
+          "avg_retreat": -10.67,
+          "max_retreat": -34.36,
+          "avg_bars": 1039.8,
+          "bars_range": "24~1986",
+          "avg_segments": 12.6,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 12,
+          "raw_cycles": 76,
+          "win_rate": 50.0,
+          "avg_pct": 1.31,
+          "max_pct": 5.58,
+          "min_pct": -1.79,
+          "avg_retreat": -5.28,
+          "max_retreat": -14.08,
+          "avg_bars": 578.8,
+          "bars_range": "36~1289",
+          "avg_segments": 6.3,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 52,
+          "raw_cycles": 63,
+          "win_rate": 71.2,
+          "avg_pct": 1.5,
+          "max_pct": 12.68,
+          "min_pct": -8.8,
+          "avg_retreat": -4.77,
+          "max_retreat": -13.3,
+          "avg_bars": 100.0,
+          "bars_range": "10~257",
+          "avg_segments": 1.2,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 70,
+          "raw_cycles": 76,
+          "win_rate": 52.9,
+          "avg_pct": 0.07,
+          "max_pct": 5.58,
+          "min_pct": -8.46,
+          "avg_retreat": -3.34,
+          "max_retreat": -11.22,
+          "avg_bars": 99.2,
+          "bars_range": "12~298",
+          "avg_segments": 1.1,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 63,
+          "raw_cycles": 63,
+          "win_rate": 84.1,
+          "avg_pct": 8.61,
+          "max_pct": 44.82,
+          "min_pct": -8.8,
+          "avg_retreat": -10.6,
+          "max_retreat": -34.36,
+          "avg_bars": 1566.3,
+          "bars_range": "11~5175",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 17.4
+        },
+        "sell": {
+          "count": 76,
+          "raw_cycles": 76,
+          "win_rate": 65.8,
+          "avg_pct": -0.43,
+          "max_pct": 5.58,
+          "min_pct": -11.6,
+          "avg_retreat": -3.61,
+          "max_retreat": -14.08,
+          "avg_bars": 238.2,
+          "bars_range": "12~1239",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 2.9
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 63,
+          "raw_cycles": 63,
+          "win_rate": 74.6,
+          "avg_pct": 0.9,
+          "max_pct": 9.68,
+          "min_pct": -8.8,
+          "avg_retreat": -3.86,
+          "max_retreat": -11.28,
+          "avg_bars": 82.5,
+          "bars_range": "10~257",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 76,
+          "raw_cycles": 76,
+          "win_rate": 52.6,
+          "avg_pct": 0.27,
+          "max_pct": 5.58,
+          "min_pct": -3.35,
+          "avg_retreat": -2.94,
+          "max_retreat": -7.31,
+          "avg_bars": 91.4,
+          "bars_range": "12~298",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 63,
+          "raw_cycles": 63,
+          "win_rate": 30.2,
+          "avg_pct": 0.02,
+          "max_pct": 8.58,
+          "min_pct": -2.52,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 169,
+          "raw_cycles": 169,
+          "win_rate": 95.3,
+          "avg_pct": -0.78,
+          "max_pct": 0.0,
+          "min_pct": -10.06,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 78.0,
+          "bars_range": "4~256",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 24,
+          "win_rate": 100.0,
+          "avg_pct": 46.12,
+          "max_pct": 46.12,
+          "min_pct": 46.12,
+          "avg_retreat": -33.22,
+          "max_retreat": -33.22,
+          "avg_bars": 1336.0,
+          "bars_range": "1336~1336",
+          "avg_segments": 24.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 8,
+          "raw_cycles": 38,
+          "win_rate": 37.5,
+          "avg_pct": 3.02,
+          "max_pct": 15.82,
+          "min_pct": -4.9,
+          "avg_retreat": -7.58,
+          "max_retreat": -17.57,
+          "avg_bars": 408.0,
+          "bars_range": "41~962",
+          "avg_segments": 4.8,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 19,
+          "raw_cycles": 24,
+          "win_rate": 78.9,
+          "avg_pct": 3.78,
+          "max_pct": 18.6,
+          "min_pct": -8.85,
+          "avg_retreat": -7.61,
+          "max_retreat": -18.03,
+          "avg_bars": 70.3,
+          "bars_range": "20~146",
+          "avg_segments": 1.3,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 37,
+          "raw_cycles": 38,
+          "win_rate": 43.2,
+          "avg_pct": 2.32,
+          "max_pct": 17.54,
+          "min_pct": -11.02,
+          "avg_retreat": -6.7,
+          "max_retreat": -17.57,
+          "avg_bars": 88.2,
+          "bars_range": "15~217",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 24,
+          "raw_cycles": 24,
+          "win_rate": 95.8,
+          "avg_pct": 16.35,
+          "max_pct": 46.12,
+          "min_pct": -2.12,
+          "avg_retreat": -16.01,
+          "max_retreat": -33.22,
+          "avg_bars": 625.4,
+          "bars_range": "13~1336",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 11.0
+        },
+        "sell": {
+          "count": 38,
+          "raw_cycles": 38,
+          "win_rate": 47.4,
+          "avg_pct": 1.71,
+          "max_pct": 15.82,
+          "min_pct": -11.02,
+          "avg_retreat": -6.86,
+          "max_retreat": -17.57,
+          "avg_bars": 225.2,
+          "bars_range": "15~864",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.2
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 24,
+          "raw_cycles": 24,
+          "win_rate": 79.2,
+          "avg_pct": 1.59,
+          "max_pct": 5.16,
+          "min_pct": -8.85,
+          "avg_retreat": -5.39,
+          "max_retreat": -13.89,
+          "avg_bars": 55.7,
+          "bars_range": "13~146",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 38,
+          "raw_cycles": 38,
+          "win_rate": 44.7,
+          "avg_pct": 2.49,
+          "max_pct": 17.54,
+          "min_pct": -3.59,
+          "avg_retreat": -6.38,
+          "max_retreat": -17.57,
+          "avg_bars": 85.9,
+          "bars_range": "15~217",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 24,
+          "raw_cycles": 24,
+          "win_rate": 33.3,
+          "avg_pct": -0.2,
+          "max_pct": 1.34,
+          "min_pct": -2.49,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 34,
+          "raw_cycles": 34,
+          "win_rate": 100.0,
+          "avg_pct": -1.74,
+          "max_pct": -0.17,
+          "min_pct": -13.52,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 49.0,
+          "bars_range": "8~224",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 10,
+          "win_rate": 100.0,
+          "avg_pct": 48.15,
+          "max_pct": 48.15,
+          "min_pct": 48.15,
+          "avg_retreat": -33.54,
+          "max_retreat": -33.54,
+          "avg_bars": 585.0,
+          "bars_range": "585~585",
+          "avg_segments": 10.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 23,
+          "win_rate": 0.0,
+          "avg_pct": 5.57,
+          "max_pct": 11.33,
+          "min_pct": 0.2,
+          "avg_retreat": -9.91,
+          "max_retreat": -18.57,
+          "avg_bars": 344.4,
+          "bars_range": "25~808",
+          "avg_segments": 4.6,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 4,
+          "raw_cycles": 10,
+          "win_rate": 75.0,
+          "avg_pct": 11.74,
+          "max_pct": 35.82,
+          "min_pct": -3.6,
+          "avg_retreat": -13.94,
+          "max_retreat": -30.25,
+          "avg_bars": 146.2,
+          "bars_range": "98~248",
+          "avg_segments": 2.5,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 22,
+          "raw_cycles": 23,
+          "win_rate": 36.4,
+          "avg_pct": 1.77,
+          "max_pct": 10.36,
+          "min_pct": -4.81,
+          "avg_retreat": -8.6,
+          "max_retreat": -18.57,
+          "avg_bars": 78.3,
+          "bars_range": "6~184",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 10,
+          "raw_cycles": 10,
+          "win_rate": 100.0,
+          "avg_pct": 18.87,
+          "max_pct": 48.15,
+          "min_pct": 1.9,
+          "avg_retreat": -17.56,
+          "max_retreat": -33.54,
+          "avg_bars": 336.8,
+          "bars_range": "20~585",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 5.5
+        },
+        "sell": {
+          "count": 23,
+          "raw_cycles": 23,
+          "win_rate": 34.8,
+          "avg_pct": 2.31,
+          "max_pct": 11.33,
+          "min_pct": -4.7,
+          "avg_retreat": -9.12,
+          "max_retreat": -18.57,
+          "avg_bars": 246.8,
+          "bars_range": "6~808",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 3.6
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 10,
+          "raw_cycles": 10,
+          "win_rate": 80.0,
+          "avg_pct": 1.32,
+          "max_pct": 5.69,
+          "min_pct": -5.26,
+          "avg_retreat": -4.97,
+          "max_retreat": -8.9,
+          "avg_bars": 58.5,
+          "bars_range": "10~133",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 23,
+          "raw_cycles": 23,
+          "win_rate": 34.8,
+          "avg_pct": 1.94,
+          "max_pct": 10.36,
+          "min_pct": -5.5,
+          "avg_retreat": -8.39,
+          "max_retreat": -18.57,
+          "avg_bars": 74.9,
+          "bars_range": "6~184",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 10,
+          "raw_cycles": 10,
+          "win_rate": 70.0,
+          "avg_pct": -0.04,
+          "max_pct": 1.93,
+          "min_pct": -4.4,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 20,
+          "raw_cycles": 20,
+          "win_rate": 90.0,
+          "avg_pct": -4.45,
+          "max_pct": 0.0,
+          "min_pct": -11.63,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 65.8,
+          "bars_range": "11~296",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 1,
+          "win_rate": 100.0,
+          "avg_pct": 2.46,
+          "max_pct": 2.46,
+          "min_pct": 2.46,
+          "avg_retreat": -8.43,
+          "max_retreat": -8.43,
+          "avg_bars": 75.0,
+          "bars_range": "75~75",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 2,
+          "raw_cycles": 14,
+          "win_rate": 0.0,
+          "avg_pct": 20.39,
+          "max_pct": 32.85,
+          "min_pct": 7.92,
+          "avg_retreat": -22.3,
+          "max_retreat": -33.08,
+          "avg_bars": 892.0,
+          "bars_range": "112~1672",
+          "avg_segments": 7.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "merge_50": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 1,
+          "win_rate": 100.0,
+          "avg_pct": 2.46,
+          "max_pct": 2.46,
+          "min_pct": 2.46,
+          "avg_retreat": -8.43,
+          "max_retreat": -8.43,
+          "avg_bars": 75.0,
+          "bars_range": "75~75",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 28.6,
+          "avg_pct": 11.39,
+          "max_pct": 32.85,
+          "min_pct": -7.38,
+          "avg_retreat": -19.76,
+          "max_retreat": -33.08,
+          "avg_bars": 127.4,
+          "bars_range": "3~270",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "per_signal": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 1,
+          "win_rate": 100.0,
+          "avg_pct": 2.46,
+          "max_pct": 2.46,
+          "min_pct": 2.46,
+          "avg_retreat": -8.43,
+          "max_retreat": -8.43,
+          "avg_bars": 75.0,
+          "bars_range": "75~75",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 28.6,
+          "avg_pct": 11.39,
+          "max_pct": 32.85,
+          "min_pct": -7.38,
+          "avg_retreat": -19.76,
+          "max_retreat": -33.08,
+          "avg_bars": 538.8,
+          "bars_range": "3~1672",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 5.1
+        }
+      },
+      "no_merge": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 1,
+          "win_rate": 100.0,
+          "avg_pct": 2.46,
+          "max_pct": 2.46,
+          "min_pct": 2.46,
+          "avg_retreat": -8.43,
+          "max_retreat": -8.43,
+          "avg_bars": 75.0,
+          "bars_range": "75~75",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 28.6,
+          "avg_pct": 11.39,
+          "max_pct": 32.85,
+          "min_pct": -7.38,
+          "avg_retreat": -19.76,
+          "max_retreat": -33.08,
+          "avg_bars": 127.4,
+          "bars_range": "3~270",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 1,
+          "raw_cycles": 1,
+          "win_rate": 0.0,
+          "avg_pct": -1.68,
+          "max_pct": -1.68,
+          "min_pct": -1.68,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 100.0,
+          "avg_pct": -8.38,
+          "max_pct": -8.38,
+          "min_pct": -8.38,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 69.0,
+          "bars_range": "69~69",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz159740": {
+    "min1": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz300118": {
+    "min1": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 628,
+          "raw_cycles": 628,
+          "win_rate": 88.7,
+          "avg_pct": 2.14,
+          "max_pct": 43.66,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 93.4,
+          "bars_range": "2~550",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 184,
+          "raw_cycles": 184,
+          "win_rate": 92.4,
+          "avg_pct": 26615.08,
+          "max_pct": 699473.95,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 221.6,
+          "bars_range": "12~913",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 36,
+          "raw_cycles": 36,
+          "win_rate": 36.1,
+          "avg_pct": -10.96,
+          "max_pct": 12.17,
+          "min_pct": -99.98,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 29,
+          "raw_cycles": 29,
+          "win_rate": 100.0,
+          "avg_pct": 16.1,
+          "max_pct": 43.66,
+          "min_pct": 0.77,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 154.2,
+          "bars_range": "14~346",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 10,
+          "raw_cycles": 10,
+          "win_rate": 30.0,
+          "avg_pct": 2.43,
+          "max_pct": 10.55,
+          "min_pct": -5.97,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 100.0,
+          "avg_pct": 21.36,
+          "max_pct": 56.46,
+          "min_pct": 0.26,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 101.6,
+          "bars_range": "23~174",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 6,
+          "raw_cycles": 6,
+          "win_rate": 16.7,
+          "avg_pct": 1.98,
+          "max_pct": 11.4,
+          "min_pct": -11.09,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 8,
+          "raw_cycles": 8,
+          "win_rate": 75.0,
+          "avg_pct": 18.12,
+          "max_pct": 122.17,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 62.4,
+          "bars_range": "14~171",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 100.0,
+          "avg_pct": -13.45,
+          "max_pct": -3.77,
+          "min_pct": -19.74,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz399006": {
+    "min1": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 482,
+          "raw_cycles": 482,
+          "win_rate": 96.9,
+          "avg_pct": 0.72,
+          "max_pct": 4.6,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 80.6,
+          "bars_range": "1~390",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 80,
+          "raw_cycles": 80,
+          "win_rate": 98.8,
+          "avg_pct": 2.51,
+          "max_pct": 12.85,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 104.8,
+          "bars_range": "7~514",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 78,
+          "raw_cycles": 78,
+          "win_rate": 37.2,
+          "avg_pct": -0.04,
+          "max_pct": 3.34,
+          "min_pct": -6.09,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min15": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 24,
+          "raw_cycles": 24,
+          "win_rate": 95.8,
+          "avg_pct": 5.63,
+          "max_pct": 14.95,
+          "min_pct": 0.0,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 97.7,
+          "bars_range": "11~194",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 30,
+          "raw_cycles": 30,
+          "win_rate": 20.0,
+          "avg_pct": -0.02,
+          "max_pct": 1.79,
+          "min_pct": -3.7,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min30": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 11,
+          "raw_cycles": 11,
+          "win_rate": 100.0,
+          "avg_pct": 4.62,
+          "max_pct": 13.69,
+          "min_pct": 0.6,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 83.2,
+          "bars_range": "27~176",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 14,
+          "raw_cycles": 14,
+          "win_rate": 21.4,
+          "avg_pct": 0.18,
+          "max_pct": 1.14,
+          "min_pct": -2.84,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "min60": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": {
+          "count": 2,
+          "raw_cycles": 2,
+          "win_rate": 100.0,
+          "avg_pct": 11.08,
+          "max_pct": 20.63,
+          "min_pct": 1.53,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 63.5,
+          "bars_range": "35~92",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        },
+        "sell": {
+          "count": 5,
+          "raw_cycles": 5,
+          "win_rate": 20.0,
+          "avg_pct": 0.72,
+          "max_pct": 1.14,
+          "min_pct": -0.79,
+          "avg_retreat": 0.0,
+          "max_retreat": 0,
+          "avg_bars": 1.0,
+          "bars_range": "1~1",
+          "avg_segments": 1.0,
+          "avg_merged_signals": 1.0
+        }
+      }
+    },
+    "daily": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  }
+}

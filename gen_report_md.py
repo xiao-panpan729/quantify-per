@@ -17,24 +17,82 @@ from config import NAME_MAP
 DATA = 'signals/tracking/cycle_report.json'
 data = json.load(open(DATA, 'r', encoding='utf-8'))
 
+# ════════════════ HHT 数据 ════════════════
+HHT_PATH = 'signals/tracking/hht_report.json'
+def _load_hht():
+    if os.path.exists(HHT_PATH):
+        try:
+            raw = json.load(open(HHT_PATH, 'r', encoding='utf-8'))
+            return {r['code']: r for r in raw}
+        except:
+            pass
+    return {}
+hht_data = _load_hht()
+
+def _hht_summary(code):
+    """取标的最重要的HHT状态，返回紧凑标签（含方向）"""
+    h = hht_data.get(code)
+    if not h:
+        return '-'
+    periods = h.get('periods', {})
+    for pkey in ['daily', 'min60', 'min30', 'min15', 'min5']:
+        pd = periods.get(pkey, {})
+        s = pd.get('summary', {})
+        if not s:
+            continue
+        sl = s.get('stability_label', '')
+        # 从标签中提取方向（↑/↓）
+        direction = ''
+        if sl.startswith(('↑', '↓')):
+            direction = sl[0]
+        if '循环破位' in sl:
+            return '⚠%s循环破位' % direction
+        if '突破' in sl:
+            return '⚡%s能量爆发' % direction
+        if '压缩' in sl:
+            return '🔒蓄力'
+        if '动能增强' in sl:
+            return '📈%s动能' % direction
+        if '频率散乱' in sl:
+            return '⇄方向切换'
+    dp = periods.get('daily', {})
+    ds = dp.get('summary', {})
+    if ds: return '✓正常'
+    return '-'
+
 # ════════════════ 分数历史 ════════════════
 SCORE_HISTORY = 'signals/tracking/score_history.json'
 
 def load_score_history():
+    """返回最近两次有数据的日期: {prev_date, prev_scores}, 如果只有一次数据则 prev_scores 为空"""
     if os.path.exists(SCORE_HISTORY):
         try:
-            return json.load(open(SCORE_HISTORY, 'r', encoding='utf-8'))
+            raw = json.load(open(SCORE_HISTORY, 'r', encoding='utf-8'))
+            entries = raw.get('history', [])
+            entries.sort(key=lambda e: e['date'])
+            if len(entries) >= 2:
+                return {'date': entries[-1]['date'], 'scores': entries[-2]['scores']}
+            elif len(entries) == 1:
+                return {'date': entries[0]['date'], 'scores': {}}
         except:
-            return {}
-    return {}
+            pass
+    return {'date': '无', 'scores': {}}
 
 def save_score_history():
-    """保存今日分数快照"""
-    hist = {'date': date_str, 'scores': {}}
+    """追加今日分数快照（保留历史用于跨日对比）"""
+    raw = {}
+    if os.path.exists(SCORE_HISTORY):
+        try:
+            raw = json.load(open(SCORE_HISTORY, 'r', encoding='utf-8'))
+        except:
+            pass
+    entries = raw.get('history', [])
+    # 如果今天已经有记录，更新；否则追加
+    today_entry = {'date': date_str, 'scores': {}}
     for item in data:
         code = item['code']
         t = item['trend']
-        hist['scores'][code] = {
+        today_entry['scores'][code] = {
             'score': t.get('score', 0),
             'direction': t.get('direction', 'unknown'),
             'name': item.get('name', ''),
@@ -43,8 +101,17 @@ def save_score_history():
             'ma_score': t.get('ma_score', 0),
             'cycle_score': t.get('cycle_score', 0),
         }
-    # 保存最新快照
-    json.dump(hist, open(SCORE_HISTORY, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+    # 替换同日记录或追加
+    replaced = False
+    for i, e in enumerate(entries):
+        if e['date'] == date_str:
+            entries[i] = today_entry
+            replaced = True
+            break
+    if not replaced:
+        entries.append(today_entry)
+    raw['history'] = entries
+    json.dump(raw, open(SCORE_HISTORY, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 
 # ════════════════ 翻译函数 ════════════════
 
@@ -198,10 +265,9 @@ def table_rows(items):
         close_str = ('%.3f' % close) if isinstance(close, (int,float)) else str(close)
         if change is not None: close_str += ' ' + price_color_str(change)
         stock_cell = '%s %s %s' % (c, n[:6], close_str)
-        # 替换 summary 中的 | 为 ·，避免破坏 markdown 表格
-        summary = summary.replace('|', '·')
+        summary = summary.replace('|', '→')
         if wc:
-            summary += ' · 等: ' + wc
+            summary += ' → ' + wc
 
         # 主导量级
         dc = adv.get('dominant_cycle', {})
@@ -210,13 +276,44 @@ def table_rows(items):
             stretched = dc.get('stretched_periods', [])
             if stretched:
                 ignore = ','.join(p.replace('min','') for p in stretched)
-                dc_str = f'{dc_label} (忽略{ignore}反向)'
+                trend_d = t.get('direction', '')
+                if trend_d in ('bullish', 'bullish_bias'):
+                    dc_str = f'{dc_label}主导(小级卖信号暂不采信)'
+                elif trend_d in ('bearish', 'bearish_bias', 'bearish'):
+                    dc_str = f'{dc_label}主导(小级买信号暂不采信)'
+                else:
+                    dc_str = f'{dc_label}主导(小级反向暂不采信)'
             else:
                 dc_str = dc_label
         else:
             dc_str = '-'
 
-        rows.append('| %s | %s | %s | %s | %s |' % (stock_cell, trend_dir, summary, dc_str, advice_cn(action)))
+        # 排列熵总览：优先日线的pe_label，含完整状态机标签
+        periods = item.get('periods', {})
+        if isinstance(periods, dict):
+            best_pe = '➖-'
+            for pe_check_p in ['daily', 'min60', 'min30', 'min15', 'min5']:
+                pp = periods.get(pe_check_p, {})
+                if not pp: continue
+                sq = pp.get('signal_quality', {}) or {}
+                pe = sq.get('trend_pe', None) if isinstance(sq, dict) else None
+                if not pe: pe = pp.get('trend_pe')
+                if pe and isinstance(pe, dict):
+                    # 优先显示异常状态：降熵/熵增/触底回升
+                    phase = pe.get('pe_phase', '')
+                    if phase:
+                        best_pe = phase
+                        break
+                    # 否则用简标签
+                    label = pe.get('pe_label', '')
+                    if label:
+                        best_pe = label
+                        break
+        else:
+            best_pe = '-'
+
+        hht_tag = _hht_summary(c)
+        rows.append('| %s | %s | %s | %s | %s | %s | %s |' % (stock_cell, trend_dir, summary, best_pe, hht_tag, dc_str, advice_cn(action)))
     return rows
 
 # ════════════════ 正文开始 ════════════════
@@ -252,8 +349,8 @@ for gk in GRADE_ORDER:
     title, desc = GRADE_INFO.get(gk, ('', ''))
     lines.append('### %s (%d 只) — %s' % (title, len(grp), desc))
     lines.append('')
-    lines.append('| 标的 收盘 | 日线趋势 | 分钟闭环 | 主导量级 | 操作建议 |')
-    lines.append('|----------|----------|----------|----------|----------|')
+    lines.append('| 标的 收盘 | 日线趋势 | 分钟闭环 | 结构状态 | HHT | 主导量级 | 操作建议 |')
+    lines.append('|----------|----------|----------|--------|-----|----------|----------|')
     for r in table_rows(grp):
         lines.append(r)
     lines.append('')
@@ -267,7 +364,7 @@ lines.append('')
 history = load_score_history()
 prev_scores = history.get('scores', {})
 prev_date = history.get('date', '无')
-lines.append('> 对比 %s → 今日 %s，跟踪趋势评分变化' % (prev_date[:4] if prev_date != '无' else '--', date_str[:4]))
+lines.append('> 对比 %s → 今日 %s，跟踪趋势评分变化' % (prev_date[-4:] if prev_date != '无' else '--', date_str[-4:]))
 lines.append('')
 lines.append('| 标的 | 昨日总分 | 今日总分 | 变动 | 方向变化 |')
 lines.append('|------|---------|---------|------|---------|')
@@ -297,6 +394,64 @@ lines.append('')
 lines.append('## 二、重点标的深度分析')
 lines.append('')
 
+def _synthesize(item):
+    """生成一句话总结：位置+趋势+结构+能量 → 操作"""
+    p = item.get('position', {})
+    t = item.get('trend', {})
+    adv = item.get('advice', {})
+    periods = item.get('periods', {})
+    if isinstance(periods, list): periods = {}
+
+    zone = zone_cn(p.get('zone', '?'))
+    dev_y = p.get('deviation_yellow_pct', 0)
+    trend_dir = trend_cn(t.get('direction', '?'))
+    action = adv.get('action', '?')
+
+    # 最重要的结构信号
+    best_phase = ''
+    for pk in ['daily', 'min60', 'min30', 'min15', 'min5']:
+        pp = periods.get(pk, {}) if isinstance(periods, dict) else {}
+        sq = pp.get('signal_quality', {}) or {}
+        pe = sq.get('trend_pe') or pp.get('trend_pe', {})
+        phase = pe.get('pe_phase', '') if isinstance(pe, dict) else ''
+        if '突破' in phase or '压缩' in phase or '强化' in phase:
+            best_phase = f'{period_cn(pk)}{phase}'
+            break
+    if not best_phase:
+        for pk in ['daily', 'min60', 'min30', 'min15', 'min5']:
+            pp = periods.get(pk, {}) if isinstance(periods, dict) else {}
+            sq = pp.get('signal_quality', {}) or {}
+            pe = sq.get('trend_pe') or pp.get('trend_pe', {})
+            phase = pe.get('pe_phase', '') if isinstance(pe, dict) else ''
+            if phase:
+                best_phase = f'{period_cn(pk)}{phase}'
+                break
+
+    # 最重要的HHT状态（带方向）
+    hht_str = ''
+    h = hht_data.get(item['code'])
+    if h:
+        for pk in ['daily', 'min60', 'min30', 'min15', 'min5']:
+            hpd = h.get('periods', {}).get(pk, {})
+            hs = hpd.get('summary', {})
+            sl = hs.get('stability_label', '')
+            # 从标签提取方向
+            direction = ''
+            if sl.startswith(('↑', '↓')):
+                direction = sl[0]
+            if '循环破位' in sl:
+                hht_str = f'{direction}{period_cn(pk)}循环破位'
+                break
+            if '突破' in sl:
+                hht_str = f'{direction}{period_cn(pk)}能量爆发'
+                break
+
+    parts = [f'价格{zone}(偏离{dev_y}%)', f'趋势{trend_dir}']
+    if best_phase: parts.append(best_phase)
+    if hht_str: parts.append(hht_str)
+    parts.append(f'→ {action}')
+    return '，'.join(parts)
+
 for item in data:
     c = item['code']; n = item.get('name', ''); p = item['position']; t = item['trend']
     adv = item.get('advice', {})
@@ -305,46 +460,102 @@ for item in data:
     lv = item.get('best_signal_level', 0)
     if isinstance(lv, str): lv = float(lv)
 
-    zone = p.get('zone', '?'); risk = p.get('risk_level', '?')
+    zone = p.get('zone', '?')
     close = p.get('close', '?'); change = p.get('change_pct', None)
     expma12 = p.get('expma12', '?'); expma50 = p.get('expma50', '?')
     dev_w = p.get('deviation_white_pct', '?'); dev_y = p.get('deviation_yellow_pct', '?')
-    trend_dir = trend_cn(t.get('direction', '?')); trend_conf = t.get('confidence', '?')
-    trend_detail = t.get('details', t.get('detail', ''))
-    action = adv.get('action', '?'); reason = adv.get('reason', ''); conf = adv.get('confidence', '?')
+    trend_dir = trend_cn(t.get('direction', '?'))
+    trend_detail = t.get('details', [])
+    trend_score = t.get('score', 0)
+    action = adv.get('action', '?'); conf = adv.get('confidence', '?')
 
-    periods = item.get('period_results', {})
+    periods = item.get('periods', {})
     if isinstance(periods, dict): period_detail = periods
     elif isinstance(periods, list): period_detail = {p_['period']: p_ for p_ in periods}
     else: period_detail = {}
 
     close_str = ('%s %.3f' % (n, close)) if isinstance(close, (int,float)) else n
     if change is not None: close_str += '  %s' % price_color_str(change)
-    close_str += '  [%s %s]' % (zone_cn(zone), level_label(lv))
-    lines.append('### %s %s' % (c, close_str))
+    lines.append('### %s %s  [%s %s]' % (c, close_str, zone_cn(zone), level_label(lv)))
     lines.append('')
 
-    trend_summary = '%s (置信度%s%%)' % (trend_dir, trend_conf)
-    if isinstance(trend_detail, str) and trend_detail:
-        trend_summary += ' | ' + trend_detail[:80]
-    lines.append('- **趋势**: %s' % trend_summary)
-    lines.append('  - 位置: EXPMA12=%s, EXPMA50=%s, 偏离%s%% / %s%%  |  最佳周期: %s  |  建议: **%s** (置信度:%s)' %
-        (expma12, expma50, dev_w, dev_y, period_cn(best_p) if best_p else '-', advice_cn(action), conf))
-    if reason: lines.append('  - %s' % reason)
+    # ── 一句话总结 ──
+    lines.append('> %s' % _synthesize(item))
+    lines.append('')
 
-    for ptype in ['min5','min15','min30','min60','daily']:
-        if ptype in period_detail:
-            pd_ = period_detail[ptype]
-            sig_str = pd_.get('signal_label', '--')
-            price_line = pd_.get('price_line', '')
-            timestamps = pd_.get('signals_timeline', pd_.get('timestamps', []))
-            ts_str = ''
-            if timestamps and isinstance(timestamps, list) and len(timestamps) > 0:
-                ts_str = ' | ' + ' '.join(timestamps[:3])
-            if price_line:
-                lines.append('- **%s**: %s | 价格有效性: %s%s' % (period_cn(ptype), sig_str, price_line, ts_str))
+    # ── 趋势（含评分+明细） ──
+    trend_parts = ['%s %d/16' % (trend_dir, trend_score)]
+    if isinstance(trend_detail, list) and trend_detail:
+        trend_parts.append(' | ' + ' '.join(trend_detail))
+    lines.append('- **趋势**: %s' % ''.join(trend_parts))
+
+    # ── 位置 ──
+    pos_parts = ['EXPMA12=%s EXPMA50=%s' % (expma12, expma50)]
+    pos_parts.append('偏离+%s%%/+%s%%' % (dev_w, dev_y))
+    pos_parts.append('最佳周期:%s' % period_cn(best_p) if best_p else '-')
+    lines.append('- **位置**: %s' % ' | '.join(pos_parts))
+
+    # ── 结构（排列熵各周期一行） ──
+    pe_parts = []
+    for pe_p in ['daily','min60','min30','min15','min5']:
+        pp = period_detail.get(pe_p, {})
+        sq = pp.get('signal_quality', {}) or {}
+        pe = sq.get('trend_pe') or pp.get('trend_pe', {})
+        if isinstance(pe, dict) and pe.get('pe_phase'):
+            pe_parts.append('%s %s' % (period_cn(pe_p), pe['pe_phase']))
+    if pe_parts:
+        lines.append('- **结构**: %s' % ' | '.join(pe_parts))
+
+    # ── HHT（各周期一行，含 fs/er 数值和方向） ──
+    h = hht_data.get(c)
+    if h:
+        hht_parts = []
+        for hp in ['daily','min60','min30','min15','min5']:
+            hpd = h.get('periods', {}).get(hp, {})
+            hs = hpd.get('summary', {})
+            sl = hs.get('stability_label', '')
+            if sl:
+                fs = hs.get('freq_stability', '')
+                er = hs.get('energy_ratio', '')
+                fb = hs.get('false_breakout')
+                fb_tag = ''
+                if fb is True:
+                    fb_tag = ' ⚠假突破'
+                elif fb is False:
+                    fb_tag = ' ✓有效突破'
+                hht_parts.append('%s %s(fs=%.2f,er=%.2f)%s' % (
+                    period_cn(hp), sl,
+                    fs if isinstance(fs, (int, float)) else 1.0,
+                    er if isinstance(er, (int, float)) else 1.0,
+                    fb_tag))
+        if hht_parts:
+            lines.append('- **HHT**: %s' % ' | '.join(hht_parts))
+
+    # ── 信号（各周期信号质量一行） ──
+    sig_parts = []
+    for sp in ['daily','min60','min30','min15','min5']:
+        pp = period_detail.get(sp, {})
+        sq = pp.get('signal_quality', {}) or {}
+        label = sq.get('label', '--') if isinstance(sq, dict) else '--'
+        sig_parts.append('%s %s' % (period_cn(sp), label))
+    lines.append('- **信号**: %s' % ' | '.join(sig_parts))
+
+    # ── 主导量级 + 建议 ──
+    dc = adv.get('dominant_cycle')
+    dc_str = ''
+    if dc and dc.get('dominant_cycle'):
+        dc_str = dc['dominant_label']
+        stretched = dc.get('stretched_periods', [])
+        if stretched:
+            ignore = ','.join(p.replace('min','') for p in stretched)
+            trend_d = t.get('direction', '')
+            if trend_d in ('bullish', 'bullish_bias'):
+                dc_str += f'主导(小级卖信号暂不采信)'
+            elif trend_d in ('bearish', 'bearish_bias', 'bearish'):
+                dc_str += f'主导(小级买信号暂不采信)'
             else:
-                lines.append('- **%s**: %s%s' % (period_cn(ptype), sig_str, ts_str))
+                dc_str += f'主导(小级反向暂不采信)'
+    lines.append('- **主导**: %s | **建议**: %s (置信度:%s)' % (dc_str or '-', advice_cn(action), conf))
 
     lines.append('')
     lines.append('---')
@@ -568,7 +779,7 @@ for item in data:
             dc_parts = [f'**{dc_label}**']
             if stretched:
                 ignore_str = ','.join(p.replace('min','') for p in stretched)
-                dc_parts.append(f'忽略{ignore_str}级反向信号')
+                dc_parts.append(f'小级反向暂不采信')
             if dc_detail:
                 dc_parts.append(f'({dc_detail})')
             lines.append(f'\n> **主导量级**: {" | ".join(dc_parts)}')
@@ -576,13 +787,142 @@ for item in data:
         lines.append(f'\n> **当前状态**: EXPMA={expma_status} | MACD={macd_status} | 收盘={cs} | 最佳={period_cn(best_p) if best_p else "-"} | {reason or advice_cn(action)}')
         lines.append('')
 
+def append_params_reference(lines):
+    lines.append('')
+    lines.append('---')
+    lines.append('')
+    lines.append('## 📊 参数参考')
+    lines.append('')
+    lines.append('### HHT 循环状态')
+    lines.append('')
+    lines.append('| 条件 | 标签 | 含义 |')
+    lines.append('|------|------|------|')
+    lines.append('| `er>2.0 + fs<0.7` | ↑↓突破(能量暴增+循环锁定) | 最理想突破：放量+结构锁定 |')
+    lines.append('| `er>2.0` | ↑↓突破(能量暴增) | 单纯放量，结构未必锁定 |')
+    lines.append('| `fs>1.8` | ↑↓循环破位 | 频率比历史大1.8倍，节奏已乱 |')
+    lines.append('| `fs<0.6` | 循环压缩(蓄力) | 频率收窄，蓄势待发 |')
+    lines.append('| `fs>1.5` | ↑↓频率散乱(方向切换) | 方向切换中 |')
+    lines.append('| `er>1.5` | ↑↓动能增强 | 温和放量 |')
+    lines.append('| `er<0.5` | 动能枯竭 | 缩量衰竭 |')
+    lines.append('')
+    lines.append('> `fs`=频率稳定性：`<0.6`蓄力 → `0.6~1.5`正常 → `>1.5`散乱 → `>1.8`循环破位')
+    lines.append('> `er`=能量比：`<0.5`枯竭 → `0.5~1.5`正常 → `>1.5`增强 → `>2.0`暴增')
+    lines.append('')
+    lines.append('### 0-16 趋势评分')
+    lines.append('')
+    lines.append('| 维度 | 分值 | 逻辑 |')
+    lines.append('|------|:----:|------|')
+    lines.append('| EXPMA | 0~2 | e12>e50=2，粘合=1，空头=0 |')
+    lines.append('| MACD | 0~4 | 0轴+金叉死叉，强势>0.01% |')
+    lines.append('| MA排列 | 0~6 | 5→10→20→60→120→250链式递进，断链即停 |')
+    lines.append('| 日线闭环 | 0~4 | buy_level≥4→4分，≥3.5→3分 |')
+    lines.append('')
+    lines.append('> **方向**: `13~16`上涨 | `10~12`偏多 | `7~9`中性 | `4~6`偏空 | `0~3`下跌')
+    lines.append('')
+    lines.append('### 主导量级')
+    lines.append('')
+    lines.append('通过波峰间距检测主导循环周期。小级别信号与主导量级反向 → 「小级暂不采信」')
+    lines.append('')
+    lines.append('### 结构状态（排列熵 PE）')
+    lines.append('')
+    lines.append('> 蓄力压缩 → 方向形成中 → 趋势锁定 → 趋势延续 → 趋势松动 → 无序放大')
+    lines.append('')
+    lines.append('### ABCD 级别')
+    lines.append('')
+    lines.append('| 等级 | 条件 | 最小操作 |')
+    lines.append('|:----:|------|:--------:|')
+    lines.append('| A | EXPMA白线上方 | 5分钟一信号 |')
+    lines.append('| B | 白线~黄线之间 | 5分钟★买+2次金叉 |')
+    lines.append('| C | 黄线下但MACD>0 | 15分钟★买+2次金叉 |')
+    lines.append('| D | MACD<0或死叉 | 不参与，等大级别底部 |')
+    lines.append('')
+    lines.append('### 信号质量递进（买侧 5 维）')
+    lines.append('')
+    lines.append('> ★买密集(+0.5~1.5) → 金叉跟随(+0.3~1.5) → 底部抬升(+1.0) → 闭环成对(+0.3~1.0) → MA5/10金叉(+0.3~1.2)')
+    lines.append('')
+    lines.append('### CCI 闭环')
+    lines.append('')
+    lines.append('> 极值(≤-200/≥+200) → 背驰(看面积非高度) → ★买/★卖 → EXPMA金叉/死叉确认')
+    lines.append('')
+
+
+# ═══════════════════════════════════════
+# 增量数据保存 — 积累型 analysis_history.json
+# ═══════════════════════════════════════
+ANALYSIS_HISTORY = 'signals/tracking/analysis_history.json'
+
+def save_analysis_history(data, date_str):
+    """将当日完整分析快照增量追加到 analysis_history.json
+
+    结构: { records: [{ date, update_time, stocks: { code: { name, score, trend, hht, ... } } }] }
+    """
+    import json
+    # 加载已有历史
+    history = {'records': []}
+    if os.path.exists(ANALYSIS_HISTORY):
+        try:
+            with open(ANALYSIS_HISTORY, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+        except:
+            history = {'records': []}
+
+    # 检查该日期是否已存在记录（避免重复追加）
+    for rec in history.get('records', []):
+        if rec.get('date') == date_str:
+            print('[分析历史] %s 已存在，跳过' % date_str)
+            return
+
+    # 构建当日快照
+    snapshot = {}
+    for item in data:
+        code = item['code']
+        hht = hht_data.get(code, {})
+        code_hht = {}
+        for pk in ['daily','min60','min30','min15','min5']:
+            hpd = hht.get('periods', {}).get(pk, {})
+            hs = hpd.get('summary', {})
+            if hs:
+                code_hht[pk] = {
+                    'fs': hs.get('freq_stability'),
+                    'er': hs.get('energy_ratio'),
+                    'label': hs.get('stability_label'),
+                    'dir': hs.get('trend_dir', ''),
+                }
+
+        snapshot[code] = {
+            'name': item.get('name', ''),
+            'score': item.get('trend', {}).get('score'),
+            'direction': item.get('trend', {}).get('direction'),
+            'position': item.get('position', {}).get('zone'),
+            'dominant_level': item.get('best_period'),
+            'advice': item.get('advice', {}).get('action'),
+            'hht': code_hht,
+        }
+
+    record = {
+        'date': date_str,
+        'update_time': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'stocks': snapshot,
+    }
+
+    if 'records' not in history:
+        history['records'] = []
+    history['records'].append(record)
+
+    os.makedirs(os.path.dirname(ANALYSIS_HISTORY), exist_ok=True)
+    with open(ANALYSIS_HISTORY, 'w', encoding='utf-8') as f:
+        json.dump(history, f, ensure_ascii=False, indent=2)
+    print('[分析历史] 追加完成: 共 %d 条记录' % len(history['records']))
+
 # ════════════════ 写入文件 ════════════════
+append_params_reference(lines)
 report = '\n'.join(lines)
 out_path = 'reports/daily/%s_v3.md' % date_str
 os.makedirs(os.path.dirname(out_path), exist_ok=True)
 with open(out_path, 'w', encoding='utf-8') as f:
     f.write(report)
 save_score_history()
+save_analysis_history(data, date_str)
 print('已生成: ' + out_path)
 import webbrowser
 webbrowser.open(os.path.abspath(out_path))

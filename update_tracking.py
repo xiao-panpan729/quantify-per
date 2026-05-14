@@ -25,10 +25,13 @@ from config import NAME_MAP
 
 # 跟踪列表从 config.NAME_MAP 自动生成（加/删/改名只需维护 config.py）
 def _get_market(code):
-    """从代码自动推断市场（输入格式: sh520600 或 520600）"""
-    # 剥离市场前缀
-    if code.startswith(('sh', 'sz')):
-        code = code[2:]
+    """从代码自动推断市场（输入格式: sh000001 或 520600）"""
+    # 如果代码已带市场前缀(如 sh000001 上证指数), 直接使用
+    if code.startswith('sh'):
+        return 'sh'
+    if code.startswith('sz'):
+        return 'sz'
+    # 从数字代码首位推导: 6=上海主板, 5=上海ETF
     return 'sh' if code[0] in ('6', '5') else 'sz'
 
 TRACKING_STOCKS = [(code, _get_market(code)) for code in NAME_MAP.keys()]

@@ -27,7 +27,17 @@
       "Read(//d/knowledge-hub/**)",
       "Bash(cp \"D:/quantify-per/cycle_engine.py\" \"/c/Users/Administrator/.claude/projects/C--Users-Administrator/archives/2026-05-13_cycle_engine_before_dominant_cycle.txt\" && echo \"backup done\")",
       "Bash(cp \"D:/quantify-per/cycle_engine.py\" \"/c/Users/Administrator/.claude/projects/C--Users-Administrator/archives/2026-05-13_cycle_engine_after_dominant_cycle.txt\" && echo \"archive done\")",
-      "Bash(python \"C:\\\\Users\\\\Administrator\\\\.easyclaw\\\\workspace\\\\memory\\\\scripts\\\\mem_merge.py\" --scan --freq-up)"
+      "Bash(python \"C:\\\\Users\\\\Administrator\\\\.easyclaw\\\\workspace\\\\memory\\\\scripts\\\\mem_merge.py\" --scan --freq-up)",
+      "Bash(python -c \"from pytdx.reader import TdxDailyBarReader; r=TdxDailyBarReader\\(\\); p='C:/zd_cjzq/vipdoc/sz/lday/sz159740.day'; df=r.get_df\\(p\\); print\\(f'最新日线:{str\\(df.index[-1].date\\(\\)\\)} 收盘:{df.close.iloc[-1]/1000:.3f}'\\)\")",
+      "Bash(python cycle_engine.py sz159740)",
+      "Read(//c/zd_cjzq/vipdoc/sh/lday/**)",
+      "Read(//c/zd_cjzq/vipdoc/sz/lday/**)",
+      "Read(//c/zd_cjzq/vipdoc/sh/minline/**)",
+      "Read(//c/zd_cjzq/vipdoc/sz/minline/**)",
+      "Bash(python update_from_tdx.py)",
+      "Bash(python update_tracking.py sh000001)",
+      "Bash(python update_tracking.py sz399006)",
+      "Bash(git checkout *)"
     ],
     "additionalDirectories": [
       "d:\\quantify-per",
