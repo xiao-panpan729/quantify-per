@@ -10,11 +10,13 @@
 v3.3 — 2026-05-06
 """
 
-import csv, json, sqlite3, shutil
+import csv, json, sqlite3, shutil, os, sys
 from datetime import datetime
 from pathlib import Path
 
-BASE = Path('D:/quantify-per')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from config import PROJECT_ROOT
+BASE = Path(PROJECT_ROOT)
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
 BACKTEST_OUT = BASE / 'signals' / 'tracking' / 'backtest_report.json'
 BACKTEST_DB  = BASE / 'signals' / 'tracking' / 'backtest_trades.db'

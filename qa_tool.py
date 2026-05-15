@@ -9,18 +9,10 @@
   python qa_tool.py                # 全市场5分钟胜率对比(终端)
   python qa_tool.py sz159740 min5 --fix   # 修正版(★卖→下一个死叉)
 """
-import sys, csv
-sys.path.insert(0, 'D:/quantify-per')
+import sys, csv, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from config import NAME_MAP
 from backtest_signals import read_csv
-
-NAME_MAP = {
-    'sz159740': '恒生科技ETF', 'sh520600': '港股汽车ETF',
-    'sh513120': '创新药ETF',    'sz159326': '电网设备ETF',
-    'sh513310': '中韩半导体',   'sh588200': '科创芯片',
-    'sz002261': '拓维信息',     'sz300118': '东方日升',
-    'sz000100': 'TCL科技',      'sz002129': 'TCL中环',
-    'sh600438': '通威股份',     'sh601012': '隆基绿能',
-}
 
 def _fv(v):
     try: return float(v)

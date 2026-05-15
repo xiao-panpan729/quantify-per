@@ -556,9 +556,17 @@ def calc_min_all(filepath, period='min30', trend_period=None):
     buy_idx, sell_idx = detect_star_signals(trend)
     golden_idx, death_idx = detect_expma_cross(e12, e50)
 
-    # 短周期MA (signal_quality MA5/10金叉死叉检测用)
+    # 短周期MA
     ma5 = calc_ma(closes, 5)
     ma10 = calc_ma(closes, 10)
+    ma20 = calc_ma(closes, 20)
+    ma60 = calc_ma(closes, 60)
+    ma120 = calc_ma(closes, 120)
+    ma250 = calc_ma(closes, 250)
+
+    # 布林带 / 牛熊红线
+    bb_ma, bb_red = calc_bull_bear_line(closes)
+    red_up_idx, red_down_idx = detect_red_line_cross(closes, bb_red)
 
     results = []
     for i in range(n):
@@ -584,8 +592,13 @@ def calc_min_all(filepath, period='min30', trend_period=None):
         elif cci_div[i]['neg_div']:
             div_label = '底背驰'
 
+        ts = timestamps[i]
         row = {
-            'timestamp': timestamps[i],
+            'timestamp': ts,
+            'date': int(str(ts)[:8]) if len(str(ts)) >= 8 else ts,
+            'open': float(opens[i]),
+            'high': float(highs[i]),
+            'low': float(lows[i]),
             'close': float(closes[i]),
             'expma12': e12[i],
             'expma50': e50[i],
@@ -593,15 +606,22 @@ def calc_min_all(filepath, period='min30', trend_period=None):
             'macd_dea': dea[i],
             'macd_hist': hist[i],
             'trend_line': round(trend[i], 2),
+            'bb_ma221': bb_ma[i],
+            'bb_red_line': bb_red[i],
+            'red_line_cross': '突破红线' if i in red_up_idx else ('跌破红线' if i in red_down_idx else ''),
+            'buy_signal': '★买' if i in buy_idx else '',
+            'sell_signal': '★卖' if i in sell_idx else '',
+            'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
             'cci': round(cci_vals[i], 1),
             'cci_extreme': ext_label,
             'cci_retreat': retreat_label,
             'cci_divergence': div_label,
-            'buy_signal': '★买' if i in buy_idx else '',
-            'sell_signal': '★卖' if i in sell_idx else '',
-            'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
             'ma5': ma5[i],
             'ma10': ma10[i],
+            'ma20': ma20[i],
+            'ma60': ma60[i],
+            'ma120': ma120[i],
+            'ma250': ma250[i],
             'volume': vols[i],
             'amount': amts[i],
         }
@@ -639,9 +659,17 @@ def calc_min1_all(filepath, period='min1'):
     buy_idx, sell_idx = detect_star_signals(trend)
     golden_idx, death_idx = detect_expma_cross(e12, e50)
 
-    # 短周期MA (signal_quality MA5/10金叉死叉检测用)
+    # MA 系列
     ma5 = calc_ma(closes, 5)
     ma10 = calc_ma(closes, 10)
+    ma20 = calc_ma(closes, 20)
+    ma60 = calc_ma(closes, 60)
+    ma120 = calc_ma(closes, 120)
+    ma250 = calc_ma(closes, 250)
+
+    # 布林带 / 牛熊红线
+    bb_ma, bb_red = calc_bull_bear_line(closes)
+    red_up_idx, red_down_idx = detect_red_line_cross(closes, bb_red)
 
     results = []
     for i in range(n):
@@ -666,8 +694,13 @@ def calc_min1_all(filepath, period='min1'):
         elif cci_div[i]['neg_div']:
             div_label = '底背驰'
 
+        ts = timestamps[i]
         row = {
-            'timestamp': timestamps[i],
+            'timestamp': ts,
+            'date': int(str(ts)[:8]) if len(str(ts)) >= 8 else ts,
+            'open': float(opens[i]),
+            'high': float(highs[i]),
+            'low': float(lows[i]),
             'close': float(closes[i]),
             'expma12': e12[i],
             'expma50': e50[i],
@@ -675,15 +708,22 @@ def calc_min1_all(filepath, period='min1'):
             'macd_dea': dea[i],
             'macd_hist': hist[i],
             'trend_line': round(trend[i], 2),
+            'bb_ma221': bb_ma[i],
+            'bb_red_line': bb_red[i],
+            'red_line_cross': '突破红线' if i in red_up_idx else ('跌破红线' if i in red_down_idx else ''),
+            'buy_signal': '★买' if i in buy_idx else '',
+            'sell_signal': '★卖' if i in sell_idx else '',
+            'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
             'cci': round(cci_vals[i], 1),
             'cci_extreme': ext_label,
             'cci_retreat': retreat_label,
             'cci_divergence': div_label,
-            'buy_signal': '★买' if i in buy_idx else '',
-            'sell_signal': '★卖' if i in sell_idx else '',
-            'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
             'ma5': ma5[i],
             'ma10': ma10[i],
+            'ma20': ma20[i],
+            'ma60': ma60[i],
+            'ma120': ma120[i],
+            'ma250': ma250[i],
             'volume': vols[i],
             'amount': amts[i],
         }
@@ -704,12 +744,12 @@ DAILY_HEADERS = [
 ]
 
 MIN_HEADERS = [
-    'timestamp', 'close',
+    'timestamp', 'date', 'open', 'high', 'low', 'close',
     'expma12', 'expma50', 'macd_dif', 'macd_dea', 'macd_hist',
-    'trend_line',
-    'cci', 'cci_extreme', 'cci_retreat', 'cci_divergence',
+    'trend_line', 'bb_ma221', 'bb_red_line', 'red_line_cross',
     'buy_signal', 'sell_signal', 'expma_cross',
-    'ma5', 'ma10',
+    'cci', 'cci_extreme', 'cci_retreat', 'cci_divergence',
+    'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'ma250',
     'volume', 'amount'
 ]
 

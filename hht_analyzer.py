@@ -30,7 +30,9 @@ from scipy.signal import hilbert
 
 # ════════════════ 配置 ════════════════
 
-BASE = Path('D:/quantify-per')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from config import PROJECT_ROOT
+BASE = Path(PROJECT_ROOT)
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
 OUTPUT_PATH = SNAPSHOT_DIR / 'hht_report.json'
 
@@ -67,7 +69,6 @@ def read_code_periods():
 
 def get_name_map():
     try:
-        sys.path.insert(0, str(BASE))
         from config import NAME_MAP
         return NAME_MAP
     except:
