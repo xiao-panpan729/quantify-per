@@ -518,15 +518,26 @@ def main():
             n_periods = len(item.get('periods', {}))
             print(f'{n_periods}个周期完成')
 
-    # ── 保存 JSON ──
-    clean = []
+    # ── 保存 JSON（单标模式：读旧文件→更新→写回，不丢其他标的数据）──
+    existing = {}
+    if target_code and OUTPUT_PATH.exists():
+        try:
+            old = json.loads(OUTPUT_PATH.read_text(encoding='utf-8'))
+            existing = {r['code']: r for r in old}
+        except Exception:
+            pass
+
     for r in results:
-        clean.append({
+        clean_item = {
             'code': r['code'],
             'name': r['name'],
             'error': r.get('error'),
             'periods': r.get('periods', {}),
-        })
+        }
+        existing[r['code']] = clean_item
+
+    clean = list(existing.values())
+    clean.sort(key=lambda x: x['code'])
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:

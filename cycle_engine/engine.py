@@ -4,10 +4,19 @@ cycle_engine 综合引擎 — 单周期分析 / 单标的分析 / 全量分析 /
 """
 import json
 import time
-from .utils import read_csv, get_all_codes, get_name_map, SNAPSHOT_DIR, PERIODS, PERIOD_LABELS, KLINES_LOOKBACK
-from .indicators import analyze_trend_pe, judge_position, judge_trend, extract_anchors, price_effectiveness, signal_quality
-from .cycle_structure import cycle_pattern, detect_dominant_cycle, analyze_volume_regime, judge_wave_structure, detect_exponential_readiness, detect_rs_density
+from .utils import (read_csv, get_all_codes, get_name_map,
+                     SNAPSHOT_DIR, PERIODS, PERIOD_LABELS, KLINES_LOOKBACK)
+from .indicators import (analyze_trend_pe, judge_position, judge_trend,
+                          extract_anchors, price_effectiveness, signal_quality)
+from .cycle_structure import (cycle_pattern, detect_dominant_cycle,
+                               analyze_volume_regime, judge_wave_structure,
+                               detect_exponential_readiness, detect_rs_density)
 from .grading import _generate_advice
+
+
+# ============================================================
+# 大盘系数（模块级缓存，一次会话只算一次）
+# ============================================================
 
 def get_market_coefficient():
     """
@@ -21,43 +30,52 @@ def get_market_coefficient():
       3. 大盘主导周期: detect_dominant_cycle
       4. 大盘结构: judge_wave_structure
 
-    大盘上涨(13-16) → ×1.2  大盘偏多(10-12) → ×1.1
-    大盘中性(7-9)   → ×1.0  大盘偏空(4-6)   → ×0.8
-    大盘下跌(0-3)   → ×0.5
+    大盘上涨(13-16) → x1.2  大盘偏多(10-12) → x1.1
+    大盘中性(7-9)   → x1.0  大盘偏空(4-6)   → x0.8
+    大盘下跌(0-3)   → x0.5
     """
+    # 批次内缓存：同一 run 内多次调用不重复算
+    if get_market_coefficient._cache is not None:
+        return get_market_coefficient._cache
+
     code = 'sh000001'
-    daily_rows = read_csv(code, 'daily')
+    cached_rows = {p: read_csv(code, p) for p in PERIODS}
+    daily_rows = cached_rows.get('daily', [])
     if not daily_rows or len(daily_rows) < 60:
-        return {
+        result = {
             'market_trend': {'direction': 'neutral', 'score': 8, 'label': '上证数据缺失'},
             'coefficient': 1.0,
             'label': '数据不足',
         }
+        get_market_coefficient._cache = result
+        return result
 
-    # ── 大盘基础评分（和个股完全一样） ──
+    # 大盘基础评分（和个股完全一样）
     trend = judge_trend(code, daily_rows, 0)
     direction = trend.get('direction', 'neutral')
     score = trend.get('score', 8)
 
-    # ── 大盘自身周期分析（判断主导量级和结构方向） ──
+    # 大盘自身周期分析
     position = judge_position(daily_rows)
     placeholder_trend = {'direction': 'neutral', 'confidence': 0}
     period_results = {}
     for period in PERIODS:
-        result = analyze_period(code, period, position, placeholder_trend)
+        result = analyze_period(code, period, position, placeholder_trend,
+                                _rows=cached_rows.get(period))
         if result:
             period_results[period] = result
-    period_results['daily'] = analyze_period(code, 'daily', position, trend)
+    period_results['daily'] = analyze_period(code, 'daily', position, trend,
+                                              _rows=cached_rows.get('daily'))
 
-    dominant_info = detect_dominant_cycle(code, period_results)
-    wave_struc = judge_wave_structure(code, period_results, dominant_info)
+    dominant_info = detect_dominant_cycle(code, period_results,
+                                           _cached_rows=cached_rows)
+    wave_struc = judge_wave_structure(code, period_results, dominant_info,
+                                       _cached_rows=cached_rows)
 
     dc_label = dominant_info.get('dominant_label', '')
     ws_direction = wave_struc.get('direction', '') if wave_struc else ''
 
-    # ── 拐点: 评分 + 主导周期方向（不用额外维度） ──
-    # 高分(>=10偏多以上) + 自身周期走弱(卖闭环) → 从强势回落
-    # 低分(<=6偏空以下) + 自身周期走强(买闭环) → 从低位回升
+    # 拐点: 评分 + 主导周期方向
     if score >= 10 and ws_direction == '卖闭环':
         inflection = '高位走弱'
         inflection_adj = -0.05
@@ -68,7 +86,7 @@ def get_market_coefficient():
         inflection = '平稳'
         inflection_adj = 0.0
 
-    # ── 系数（评分映射 + 拐点微调） ──
+    # 系数
     if direction == 'bullish':
         base_coeff = 1.2
     elif direction == 'bullish_bias':
@@ -85,7 +103,7 @@ def get_market_coefficient():
     if inflection != '平稳':
         label_parts.append(inflection)
 
-    return {
+    result = {
         'market_trend': {
             'direction': direction,
             'score': score,
@@ -98,16 +116,24 @@ def get_market_coefficient():
         'coefficient': coeff,
         'label': '·'.join(label_parts),
     }
+    get_market_coefficient._cache = result
+    return result
+
+get_market_coefficient._cache = None
 
 
+# ============================================================
+# 单周期分析
+# ============================================================
 
-def analyze_period(code, period, position, trend):
+def analyze_period(code, period, position, trend, _rows=None):
     """
     第四层: 信号质量递进分析
 
-    在已知位置+方向下，分析最近一段的信号是否形成了出击窗口
+    在已知位置+方向下，分析最近一段的信号是否形成了出击窗口。
+    _rows: 可选，预读取的行数据，避免重复读 CSV
     """
-    rows = read_csv(code, period)
+    rows = _rows if _rows is not None else read_csv(code, period)
     if not rows:
         return None
 
@@ -142,26 +168,30 @@ def analyze_period(code, period, position, trend):
 # 主分析函数: 三层架构
 # ============================================================
 
-
 def analyze(code, name=''):
     """
     三层架构分析:
     1. 价格位置
     2. 趋势方向 (带日线闭环信号)
     3. 循环适配
+
+    优化: 所有周期 CSV 只读一次，通过 _rows/_cached_rows 向下传递
     """
-    daily_rows = read_csv(code, 'daily')
+    # ── 一次性预读全部周期 CSV ──
+    cached_rows = {p: read_csv(code, p) for p in PERIODS}
+    daily_rows = cached_rows.get('daily', [])
 
     # 第一层: 价格位置
     position = judge_position(daily_rows)
 
     # 先算日线闭环信号(placeholder趋势 → 日线 signal_quality → 买侧闭环level)
     placeholder_trend = {'direction': 'neutral', 'confidence': 0}
-    daily_pre = analyze_period(code, 'daily', position, placeholder_trend)
+    daily_pre = analyze_period(code, 'daily', position, placeholder_trend,
+                                _rows=daily_rows)
     daily_buy_level = 0
     if daily_pre and daily_pre.get('signal_quality'):
         sq = daily_pre['signal_quality']
-        daily_buy_level = sq.get('buy_level', 0)  # 只取买侧，不取max(buy,sell)
+        daily_buy_level = sq.get('buy_level', 0)
 
     # 第二层: 趋势方向 (传入日线买侧闭环level)
     trend = judge_trend(code, daily_rows, daily_buy_level)
@@ -169,12 +199,14 @@ def analyze(code, name=''):
     # 第三层: 各周期循环适配
     period_results = {}
     for period in PERIODS:
-        result = analyze_period(code, period, position, trend)
+        result = analyze_period(code, period, position, trend,
+                                _rows=cached_rows.get(period))
         if result:
             period_results[period] = result
 
     # 日线用真实趋势重算（覆盖placeholder结果）
-    period_results['daily'] = analyze_period(code, 'daily', position, trend) or daily_pre
+    period_results['daily'] = analyze_period(code, 'daily', position, trend,
+                                              _rows=daily_rows) or daily_pre
 
     # ABCD 级别匹配: 日线MACD状态 → 最低操作周期
     macd_score = trend.get('macd_score', 2)
@@ -188,17 +220,18 @@ def analyze(code, name=''):
         abcd_min_idx = 3  # D级: min30+, 等大级别底部
 
     # 主导量级检测: 波峰间距法
-    dominant_info = detect_dominant_cycle(code, period_results)
+    dominant_info = detect_dominant_cycle(code, period_results,
+                                           _cached_rows=cached_rows)
     dominant_idx = PERIODS.index(dominant_info['dominant_cycle'])
 
     # 取高者: ABCD级别 vs 主导量级 → 实际最低操作级别
     actual_min_idx = max(abcd_min_idx, dominant_idx)
 
-    # 找出最佳操作级别: 信号质量最高的（过滤低于实际最低操作级别的周期）
+    # 找出最佳操作级别
     best = None
     for i, period in enumerate(PERIODS):
         if i < actual_min_idx:
-            continue  # 低于实际最低操作级别，跳过
+            continue
         p = period_results.get(period)
         if not p or not p.get('signal_quality'):
             continue
@@ -210,19 +243,23 @@ def analyze(code, name=''):
     volume_info = analyze_volume_regime(code, daily_rows, period_results)
 
     # 结构分析：主导量级方向+次级别浪结构+回调深度
-    wave_structure = judge_wave_structure(code, period_results, dominant_info)
+    wave_structure = judge_wave_structure(code, period_results, dominant_info,
+                                           _cached_rows=cached_rows)
 
     # 指数级行情条件检测
-    exp_readiness = detect_exponential_readiness(code, daily_rows, period_results, dominant_info)
+    exp_readiness = detect_exponential_readiness(
+        code, daily_rows, period_results, dominant_info,
+        _cached_rows=cached_rows)
 
-    # 新增 v3.8: 缠论结构分析(阻支密度)
+    # 缠论结构分析(阻支密度)
     rs_density = detect_rs_density(code, daily_rows)
 
-    # 新增 v3.8: 大盘系数权重
+    # 大盘系数权重
     market_coeff = get_market_coefficient()
 
-    # 综合操作建议（含主导量级+大盘系数）
-    advice = _generate_advice(position, trend, best, period_results, dominant_info, market_coeff)
+    # 综合操作建议
+    advice = _generate_advice(position, trend, best, period_results,
+                               dominant_info, market_coeff)
 
     return {
         'code': code,
@@ -240,20 +277,18 @@ def analyze(code, name=''):
     }
 
 
-
 def analyze_all():
     codes = get_all_codes()
     name_map = get_name_map()
     results = [analyze(code, name_map.get(code, code)) for code in codes]
     # 按分级排序: 可操作→共振偏强→强势观望→中性偏强→中性→关注→弱势→观望
-    grade_order = {'observe_strong': 0, 'actionable': 1, 'resonant_strong': 2, 'neutral_strong': 3, 'neutral_bias': 4,
-                   'neutral': 5, 'neutral_weak': 6, 'observe': 7, 'observe_weak': 8, 'avoid': 9}
+    grade_order = {'observe_strong': 0, 'actionable': 1, 'resonant_strong': 2,
+                   'neutral_strong': 3, 'neutral_bias': 4,
+                   'neutral': 5, 'neutral_weak': 6, 'observe': 7,
+                   'observe_weak': 8, 'avoid': 9}
     def sort_key(r):
         g = r.get('advice', {}).get('grade', 'neutral')
         rs = r.get('advice', {}).get('resonance_score', 0)
-        return (grade_order.get(g, 99), -rs)  # -rs 让高分排在前面
+        return (grade_order.get(g, 99), -rs)
     results.sort(key=sort_key)
     return results
-
-
-

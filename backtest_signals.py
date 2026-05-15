@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import PROJECT_ROOT
+from cycle_engine.utils import safe_float
 BASE = Path(PROJECT_ROOT)
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
 BACKTEST_OUT = BASE / 'signals' / 'tracking' / 'backtest_report.json'
@@ -46,49 +47,52 @@ def trend_dir(code):
     return 'neutral'
 
 
-def find_next(rows, start_i, field, target):
-    for i in range(start_i, len(rows)):
-        if rows[i].get(field, '').strip() == target:
-            return i, rows[i]
-    return None, None
-
-
 def extract_raw_closes(rows, entry_field, entry_target, exit_field, exit_target):
     """
     提取每个★信号的原始区间数据（保留全程收盘价序列）
-    返回: [{'entry_i': int, 'entry_time': str, 'close': [float,...], 'entry_price': float, 'min': float, 'max': float}, ...]
+    O(n) 单次遍历：预收集 entry/exit 位置，避免重复扫描
     """
+    # 预收集所有 entry 和 exit 位置
+    entries = []
+    exits = []
+    for idx, r in enumerate(rows):
+        if r.get(entry_field, '').strip() == entry_target:
+            entries.append(idx)
+        if r.get(exit_field, '').strip() == exit_target:
+            exits.append(idx)
+
     cycles = []
-    i = 0
-    while i < len(rows):
-        e = find_next(rows, i, entry_field, entry_target)
-        if not e[0]: break
-        ei, erow = e
+    exit_ptr = 0
+    for ei in entries:
+        erow = rows[ei]
         try: entry_price = float(erow.get('raw_close', 0))
         except: entry_price = 0
-        if entry_price <= 0: i = ei + 1; continue
-        # 过滤价格异常数据（×10000精度未还原/乱码）
-        if entry_price >= 100000: i = ei + 1; continue
+        if entry_price <= 0: continue
+        if entry_price >= 100000: continue
 
-        x = find_next(rows, ei + 1, exit_field, exit_target)
-        xi = x[0] if x[0] else min(ei + 500, len(rows) - 1)
-        if xi <= ei: i = ei + 1; continue
+        # 找该 entry 之后最近的 exit
+        while exit_ptr < len(exits) and exits[exit_ptr] <= ei:
+            exit_ptr += 1
+        if exit_ptr < len(exits):
+            xi = exits[exit_ptr]
+        else:
+            xi = min(ei + 500, len(rows) - 1)
+        if xi <= ei: continue
 
         closes = []
-        for r in rows[ei:xi+1]:
+        for r in rows[ei:xi + 1]:
             try:
                 v = float(r.get('raw_close', 0))
-                if v >= 100000: continue  # 跳过异常价格
+                if v >= 100000: continue
                 closes.append(v)
             except: pass
-        if len(closes) < 2: i = ei + 1; continue
+        if len(closes) < 2: continue
 
         cycles.append({
-            'entry_i': ei, 'entry_time': rows[ei].get('timestamp',''),
+            'entry_i': ei, 'entry_time': rows[ei].get('timestamp', ''),
             'close': closes, 'entry_price': closes[0],
             'min_seq': min(closes), 'max_seq': max(closes),
         })
-        i = ei + 1
     return cycles
 
 
@@ -97,30 +101,23 @@ def extract_raw_closes(rows, entry_field, entry_target, exit_field, exit_target)
 def do_merge(segments):
     merged = []
     for seg in segments:
-        if len(seg) == 1:
-            s = seg[0]
-            merged.append({
-                'entry_time': s['entry_time'], 'exit_time': s['entry_time'],
-                'entry': s['entry_price'], 'exit': s['close'][-1],
-                'max': s['max_seq'], 'min': s['min_seq'],
-                'max_gain': (s['max_seq']-s['entry_price'])/s['entry_price']*100 if s['entry_price'] else 0,
-                'max_loss': (s['min_seq']-s['entry_price'])/s['entry_price']*100 if s['entry_price'] else 0,
-                'retreat': (s['min_seq']-max(s['max_seq'],s['entry_price']))/max(s['max_seq'],s['entry_price'])*100 if max(s['max_seq'],s['entry_price']) else 0,
-                'total_pct': (s['close'][-1]-s['entry_price'])/s['entry_price']*100 if s['entry_price'] else 0,
-                'bars': len(s['close']), 'segments': 1,
-            })
-        else:
-            entry = seg[0]['entry_price']; exit_ = seg[-1]['close'][-1]
-            max_c = max(c['max_seq'] for c in seg); min_c = min(c['min_seq'] for c in seg)
-            merged.append({
-                'entry_time': seg[0]['entry_time'], 'exit_time': seg[-1]['entry_time'],
-                'entry': entry, 'exit': exit_, 'max': max_c, 'min': min_c,
-                'max_gain': (max_c-entry)/entry*100 if entry else 0,
-                'max_loss': (min_c-entry)/entry*100 if entry else 0,
-                'retreat': (min_c-max(max_c,entry))/max(max_c,entry)*100 if max(max_c,entry) else 0,
-                'total_pct': (exit_-entry)/entry*100 if entry else 0,
-                'bars': sum(len(c['close']) for c in seg), 'segments': len(seg),
-            })
+        entry = seg[0]['entry_price']
+        exit_price = seg[-1]['close'][-1]
+        max_c = max(c['max_seq'] for c in seg)
+        min_c = min(c['min_seq'] for c in seg)
+        total_bars = sum(len(c['close']) for c in seg)
+
+        merged.append({
+            'entry_time': seg[0]['entry_time'],
+            'exit_time': seg[-1]['entry_time'],
+            'entry': entry, 'exit': exit_price,
+            'max': max_c, 'min': min_c,
+            'max_gain': (max_c - entry) / entry * 100 if entry else 0,
+            'max_loss': (min_c - entry) / entry * 100 if entry else 0,
+            'retreat': (min_c - max(max_c, entry)) / max(max_c, entry) * 100 if max(max_c, entry) else 0,
+            'total_pct': (exit_price - entry) / entry * 100 if entry else 0,
+            'bars': total_bars, 'segments': len(seg),
+        })
     return merged
 
 
@@ -328,10 +325,6 @@ def per_signal_golden_no_new_low(code, period):
         for idx, sr in enumerate(sub_rows):
             sub_ts_map[int(sr.get('timestamp', 0))] = idx
 
-    def _fv(v):
-        try: return float(v)
-        except: return 0.0
-
     buy_results = []
     sell_results = []
     i = 0
@@ -348,18 +341,19 @@ def per_signal_golden_no_new_low(code, period):
             sell_j = None
             sell_exit = None
             exit_j = None
+            running_min = float('inf')
 
             j = i + 1
             while j < len(rows):
                 rj = rows[j]
                 cross = rj.get('expma_cross', '').strip()
                 ss2 = rj.get('sell_signal', '').strip()
-                close_j = _fv(rj.get('raw_close', 0))
+                close_j = safe_float(rj.get('raw_close', 0))
+                if close_j < running_min:
+                    running_min = close_j
 
                 if '金叉' in cross:
-                    prev_idx = gc_list[-1]['idx'] if gc_list else entry_i
-                    band_low_vals = [_fv(rows[k].get('raw_close', 0)) for k in range(prev_idx, j + 1)]
-                    band_low = min(band_low_vals) if band_low_vals else close_j
+                    band_low = running_min
 
                     if low_water is None:
                         low_water = band_low
@@ -370,6 +364,7 @@ def per_signal_golden_no_new_low(code, period):
 
                     if valid:
                         gc_list.append({'idx': j, 'close': close_j, 'band_low': band_low})
+                        running_min = float('inf')  # 重置，下一段重新累积
 
                 if ss2:
                     # ★卖信号出现：记录但不立即终止，继续找下一个死叉
@@ -385,7 +380,7 @@ def per_signal_golden_no_new_low(code, period):
             if sell_j is not None and gc_list:
                 if exit_j is None:
                     exit_j = len(rows) - 1
-                max_close = max(_fv(rows[k].get('raw_close', 0)) for k in range(gc_list[0]['idx'], exit_j + 1))
+                max_close = max(safe_float(rows[k].get('raw_close', 0)) for k in range(gc_list[0]['idx'], exit_j + 1))
                 for gc in gc_list:
                     if gc['close'] > 0:
                         pct = (max_close - gc['close']) / gc['close'] * 100
@@ -403,7 +398,7 @@ def per_signal_golden_no_new_low(code, period):
 
             # 无★卖终结但金叉后创了新高 → 也算成功（用区间最高价）
             if j >= len(rows) and gc_list and sell_j is None:
-                max_close = max(_fv(rows[k].get('raw_close', 0)) for k in range(gc_list[-1]['idx'], len(rows)))
+                max_close = max(safe_float(rows[k].get('raw_close', 0)) for k in range(gc_list[-1]['idx'], len(rows)))
                 for gc in gc_list:
                     if gc['close'] > 0:
                         pct = (max_close - gc['close']) / gc['close'] * 100
@@ -427,18 +422,19 @@ def per_signal_golden_no_new_low(code, period):
             high_water = None
             buy_j = None
             exit_j = None
+            running_max = float('-inf')
 
             j = i + 1
             while j < len(rows):
                 rj = rows[j]
                 cross = rj.get('expma_cross', '').strip()
                 bs2 = rj.get('buy_signal', '').strip()
-                close_j = _fv(rj.get('raw_close', 0))
+                close_j = safe_float(rj.get('raw_close', 0))
+                if close_j > running_max:
+                    running_max = close_j
 
                 if '死叉' in cross:
-                    prev_idx = dc_list[-1]['idx'] if dc_list else entry_i
-                    band_high_vals = [_fv(rows[k].get('raw_close', 0)) for k in range(prev_idx, j + 1)]
-                    band_high = max(band_high_vals) if band_high_vals else close_j
+                    band_high = running_max
 
                     if high_water is None:
                         high_water = band_high
@@ -449,6 +445,7 @@ def per_signal_golden_no_new_low(code, period):
 
                     if valid:
                         dc_list.append({'idx': j, 'close': close_j, 'band_high': band_high})
+                        running_max = float('-inf')  # 重置
 
                 if bs2:
                     # ★买信号出现：记录但不立即终止，继续找下一个金叉
@@ -463,14 +460,14 @@ def per_signal_golden_no_new_low(code, period):
             if buy_j is not None and dc_list:
                 if exit_j is None:
                     exit_j = len(rows) - 1
-                min_close = min(_fv(rows[k].get('raw_close', 0)) for k in range(dc_list[0]['idx'], exit_j + 1))
+                min_close = min(safe_float(rows[k].get('raw_close', 0)) for k in range(dc_list[0]['idx'], exit_j + 1))
                 for dc in dc_list:
                     if dc['close'] > 0:
                         pct = (min_close - dc['close']) / dc['close'] * 100
                         sell_results.append({
                             'entry_time': rows[dc['idx']].get('timestamp', ''),
                             'entry': dc['close'],
-                            'exit': _fv(rows[buy_j].get('raw_close', 0)),
+                            'exit': safe_float(rows[buy_j].get('raw_close', 0)),
                             'max_gain': pct,
                             'total_pct': pct,
                             'retreat': 0,
@@ -481,7 +478,7 @@ def per_signal_golden_no_new_low(code, period):
 
             # 无★买终结但死叉后创了新低 → 也算成功（用区间最低价，跌了=赚）
             if j >= len(rows) and dc_list and buy_j is None:
-                min_close = min(_fv(rows[k].get('raw_close', 0)) for k in range(dc_list[-1]['idx'], len(rows)))
+                min_close = min(safe_float(rows[k].get('raw_close', 0)) for k in range(dc_list[-1]['idx'], len(rows)))
                 for dc in dc_list:
                     if dc['close'] > 0:
                         pct = (min_close - dc['close']) / dc['close'] * 100
@@ -515,8 +512,8 @@ def per_signal_golden_no_new_low(code, period):
                 while j < len(rows):
                     cross = rows[j].get('expma_cross', '').strip()
                     if '死叉' in cross:
-                        entry_price = _fv(rows[j].get('raw_close', 0))
-                        exit_price = _fv(sub_rows[sub_exit_idx].get('raw_close', 0))
+                        entry_price = safe_float(rows[j].get('raw_close', 0))
+                        exit_price = safe_float(sub_rows[sub_exit_idx].get('raw_close', 0))
                         if entry_price > 0:
                             pct = (exit_price - entry_price) / entry_price * 100
                             sell_results.append({
@@ -547,8 +544,8 @@ def per_signal_golden_no_new_low(code, period):
                 while j < len(rows):
                     cross = rows[j].get('expma_cross', '').strip()
                     if '金叉' in cross:
-                        entry_price = _fv(rows[j].get('raw_close', 0))
-                        exit_price = _fv(sub_rows[sub_exit_idx].get('raw_close', 0))
+                        entry_price = safe_float(rows[j].get('raw_close', 0))
+                        exit_price = safe_float(sub_rows[sub_exit_idx].get('raw_close', 0))
                         if entry_price > 0:
                             pct = (exit_price - entry_price) / entry_price * 100
                             buy_results.append({

@@ -16,8 +16,11 @@ v4.7: 移除 sync_cache 文件缓存机制，precheck 替代为唯一判断入�
 import os
 import sys
 import shutil
-from datetime import datetime, timedelta
 import struct
+import random
+from datetime import datetime, timedelta
+
+import pandas as pd
 # 导入配置
 import config
 
@@ -98,23 +101,29 @@ def read_min_file(filepath):
         return None
     return data
 
-def _safe_int(v):
-    """float → int，NaN→0，超uint32→四舍五入"""
+def _clamp_uint32(v):
+    """float → uint32，NaN→0，超限截断，四舍五入"""
     return max(0, min(0xFFFFFFFF, round(0 if v != v else v)))
+
+
+def _make_result(stock, market, data_type):
+    """统一的同步/合成结果模板"""
+    return {'stock': stock, 'market': market, 'type': data_type,
+            'status': 'success', 'new_bars': 0, 'message': ''}
 
 def _convert_single_bar(bar):
     """将一条通达信原始分钟线 bar (<HHfffffII>) 转换为存储格式 (8-tuple)"""
     date_int = tdx_ts_to_date_int(bar[0])   # YYYYMMDD
     time_int = tdx_ts_to_time_int(bar[1])   # HHMM
     return (
-        date_int,                        # [0] 日期 YYYYMMDD
-        _safe_int(bar[2] * MIN_PRICE_FACTOR),  # [1] open × 10000
-        _safe_int(bar[3] * MIN_PRICE_FACTOR),  # [2] high × 10000
-        _safe_int(bar[4] * MIN_PRICE_FACTOR),  # [3] low × 10000
-        _safe_int(bar[5] * MIN_PRICE_FACTOR),  # [4] close × 10000
-        _safe_int(bar[6]),                 # [5] amount
-        _safe_int(bar[7]),                 # [6] volume
-        time_int,                         # [7] HHMM
+        date_int,                                    # [0] 日期 YYYYMMDD
+        _clamp_uint32(bar[2] * MIN_PRICE_FACTOR),    # [1] open × 10000
+        _clamp_uint32(bar[3] * MIN_PRICE_FACTOR),    # [2] high × 10000
+        _clamp_uint32(bar[4] * MIN_PRICE_FACTOR),    # [3] low × 10000
+        _clamp_uint32(bar[5] * MIN_PRICE_FACTOR),    # [4] close × 10000
+        _clamp_uint32(bar[6]),                       # [5] amount
+        _clamp_uint32(bar[7]),                       # [6] volume
+        time_int,                                    # [7] HHMM
     )
 
 def _convert_min_bars(source_data_raw):
@@ -196,10 +205,8 @@ def _full_merge(source_data, merge_count, bar_offset=0):
         first_bar = chunk[0]
         last_bar = chunk[-1]
 
-        # NaN→0，超uint32→四舍五入（round 避免 float 截断精度丢失）
-        clamp = lambda v: max(0, min(0xFFFFFFFF, round(0 if v != v else v)))
-        total_amount = clamp(sum(0 if bar[6] != bar[6] else bar[6] for bar in chunk))
-        total_volume = clamp(sum(0 if bar[7] != bar[7] else bar[7] for bar in chunk))
+        total_amount = _clamp_uint32(sum(0 if bar[6] != bar[6] else bar[6] for bar in chunk))
+        total_volume = _clamp_uint32(sum(0 if bar[7] != bar[7] else bar[7] for bar in chunk))
         
         # 日期：从 bar[0] 日期编码解码
         date_int = tdx_ts_to_date_int(first_bar[0])
@@ -213,14 +220,12 @@ def _full_merge(source_data, merge_count, bar_offset=0):
             # 兜底：从 bar[1] 分钟数解码
             time_int = tdx_ts_to_time_int(first_bar[1])
         
-        # NaN→0，超uint32→四舍五入
-        clamp = lambda v: max(0, min(0xFFFFFFFF, round(0 if v != v else v)))
         merged_bar = (
-            date_int,                                  # [0] YYYYMMDD
-            clamp(first_bar[2] * MIN_PRICE_FACTOR),    # [1] open × 10000
-            clamp(max(bar[3] for bar in chunk) * MIN_PRICE_FACTOR),  # [2] high × 10000
-            clamp(min(bar[4] for bar in chunk) * MIN_PRICE_FACTOR),  # [3] low × 10000
-            clamp(last_bar[5] * MIN_PRICE_FACTOR),     # [4] close × 10000
+            date_int,                                                    # [0] YYYYMMDD
+            _clamp_uint32(first_bar[2] * MIN_PRICE_FACTOR),             # [1] open
+            _clamp_uint32(max(bar[3] for bar in chunk) * MIN_PRICE_FACTOR),  # [2] high
+            _clamp_uint32(min(bar[4] for bar in chunk) * MIN_PRICE_FACTOR),  # [3] low
+            _clamp_uint32(last_bar[5] * MIN_PRICE_FACTOR),              # [4] close
             total_amount,                              # [5] amount
             total_volume,                              # [6] volume
             time_int,                                  # [7] HHMM
@@ -279,14 +284,7 @@ def sync_stock_data(stock_code, data_type, market, logger, force_rewrite=False):
     """同步单个股票的数据（支持指定市场）
     force_rewrite: 强制覆盖写入（rebuild模式使用，忽略日期比较）
     """
-    result = {
-        'stock': stock_code,
-        'market': market,
-        'type': data_type,
-        'status': 'success',
-        'new_bars': 0,
-        'message': ''
-    }
+    result = _make_result(stock_code, market, data_type)
     
     # 源文件路径
     source_dir = config.TDX_SOURCE[market][data_type]
@@ -361,6 +359,9 @@ def sync_stock_data(stock_code, data_type, market, logger, force_rewrite=False):
                             f.write(struct.pack('<8I', *bar))
                     result['new_bars'] = len(bars_to_append)
                     result['message'] = f'增量追加 ({len(bars_to_append)} 条新K线)'
+
+            # 把已读数据挂结果上，供调用方合成多周期时复用（省一次读盘）
+            result['_source_data'] = source_data
 
             if config.VERBOSE:
                 logger.log(f"[{market}] {stock_code} [{data_type}]: OK")
@@ -438,14 +439,7 @@ def sync_gbbq(logger):
 
 def merge_min_data_from_source(stock_code, target_type, market, logger, source_data):
     """从已读取的 source_data 合成多周期数据（避免重复读取文件）"""
-    result = {
-        'stock': stock_code,
-        'market': market,
-        'type': target_type,
-        'status': 'success',
-        'new_bars': 0,
-        'message': ''
-    }
+    result = _make_result(stock_code, market, target_type)
     
     merge_count = config.MERGE_CONFIG.get(target_type)
     if merge_count is None:
@@ -471,14 +465,7 @@ def merge_min_data(stock_code, target_type, market, logger, rebuild=False):
     输出格式: field[0]=YYYYMMDD, field[7]=HHMM, 价格=price×10000
     增量模式: 通过目标文件大小(条数)推算已消耗的lc5位置
     """
-    result = {
-        'stock': stock_code,
-        'market': market,
-        'type': target_type,
-        'status': 'success',
-        'new_bars': 0,
-        'message': ''
-    }
+    result = _make_result(stock_code, market, target_type)
     
     merge_count = config.MERGE_CONFIG.get(target_type)
     if merge_count is None:
@@ -509,14 +496,7 @@ def merge_min_data(stock_code, target_type, market, logger, rebuild=False):
 
 
 def _do_merge(stock_code, target_type, market, logger, source_data, target_file, merge_count, rebuild=False):
-    result = {
-        'stock': stock_code,
-        'market': market,
-        'type': target_type,
-        'status': 'success',
-        'new_bars': 0,
-        'message': ''
-    }
+    result = _make_result(stock_code, market, target_type)
     target_dir = os.path.dirname(target_file)
     
     # 全量合成（rebuild=True 或 无目标文件）
@@ -532,8 +512,7 @@ def _do_merge(stock_code, target_type, market, logger, source_data, target_file,
         try:
             with open(target_file, 'wb') as f:
                 for bar in merged_data:
-                    for value in bar:
-                        f.write(int(value).to_bytes(4, 'little'))
+                    f.write(struct.pack('<8I', *bar))
             result['new_bars'] = len(merged_data)
             result['message'] = f'{tag} 全量合成 {len(merged_data)} 条'
             if config.VERBOSE:
@@ -573,23 +552,14 @@ def _do_merge(stock_code, target_type, market, logger, source_data, target_file,
             result['message'] = '无新数据'
             return result
         
-        # 追加写入: 读取已有数据 + 新数据
+        # 直接追加新合成 bar（bar_offset 保证时间槽正确）
         try:
-            existing_data = []
-            with open(target_file, 'rb') as f:
-                content = f.read()
-            bar_count = len(content) // 32
-            for i in range(bar_count):
-                existing_data.append(struct.unpack('<8I', content[i*32:(i+1)*32]))
-            
-            all_data = list(existing_data) + list(merged_data)
             os.makedirs(target_dir, exist_ok=True)
-            with open(target_file, 'wb') as f:
-                for bar in all_data:
-                    for value in bar:
-                        f.write(int(value).to_bytes(4, 'little'))
+            with open(target_file, 'ab') as f:
+                for bar in merged_data:
+                    f.write(struct.pack('<8I', *bar))
             result['new_bars'] = len(merged_data)
-            result['message'] = f'增量合成 {len(merged_data)} 条（总计{len(all_data)}）'
+            result['message'] = f'增量合成 {len(merged_data)} 条（总计{existing_count + len(merged_data)}）'
             if config.VERBOSE:
                 logger.log(f"[{market}] {stock_code} [{target_type}]: OK {result['message']}")
         except Exception as e:
@@ -601,14 +571,7 @@ def _do_merge(stock_code, target_type, market, logger, source_data, target_file,
 
 def merge_daily_to_period(stock_code, target_type, market, logger):
     """从日线合成周线/月线数据（支持指定市场）"""
-    result = {
-        'stock': stock_code,
-        'market': market,
-        'type': target_type,
-        'status': 'success',
-        'new_bars': 0,
-        'message': ''
-    }
+    result = _make_result(stock_code, market, target_type)
     
     source_dir = config.TARGET_DIR[market]['lday']
     source_file = os.path.join(source_dir, f"{stock_code}.day")
@@ -637,9 +600,7 @@ def merge_daily_to_period(stock_code, target_type, market, logger):
         result['status'] = 'skip'
         result['message'] = '已是最新'
         return result
-    
-    import pandas as pd
-    
+
     PRICE_FACTOR = 1000.0
 
     # 读取现有目标文件（用于后续追加）
@@ -774,8 +735,6 @@ def scan_stocks(market, data_type):
 
 # ========== 下载后随机抽查 ==========
 
-import random
-
 # 确保能导入 tdx_fetch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'tools'))
 
@@ -882,54 +841,56 @@ def process_market(market, stock_list, logger, rebuild=False):
     
     market_name = '深圳' if market == 'sz' else '上海'
 
-    def count_result(result):
+    def _tally(r):
         stats['total'] += 1
-        if result['status'] == 'success':
+        if r['status'] == 'success':
             stats['success'] += 1
-            stats['new_bars'] += result['new_bars']
-        elif result['status'] == 'skip':
+            stats['new_bars'] += r['new_bars']
+        elif r['status'] == 'skip':
             stats['skip'] += 1
         else:
             stats['error'] += 1
-    
+
     # v4.7: precheck 已确认通达信有新数据，全部股票走增量
     logger.log(f"  [{market_name}] 全量扫描 {len(stock_list)} 只（增量追加模式）")
-    
+
     # 1. 同步日线（全部股票走增量）
     logger.log(f"  [{market_name}] 1/6 同步日线 (lday) {len(stock_list)} 只")
     for code in stock_list:
-        count_result(sync_stock_data(code, 'lday', market, logger))
-    
+        _tally(sync_stock_data(code, 'lday', market, logger))
+
     # 2. 同步1分钟（全部股票走增量）
     logger.log(f"  [{market_name}] 2/6 同步1分钟 (lc1) {len(stock_list)} 只{' [FORCE]' if rebuild else ''}")
     for code in stock_list:
-        count_result(sync_stock_data(code, 'lc1', market, logger, force_rewrite=rebuild))
-    
-    # 3. 同步5分钟 + 同步合成15/30/60分钟
+        _tally(sync_stock_data(code, 'lc1', market, logger, force_rewrite=rebuild))
+
+    # 3. 同步5分钟 + 同步合成15/30/60分钟（复用 sync 返回的 source_data，不再重读文件）
     logger.log(f"  [{market_name}] 3/6 同步5分钟并合成15/30/60分钟 {len(stock_list)} 只")
     for code in stock_list:
         r = sync_stock_data(code, 'lc5', market, logger, force_rewrite=rebuild)
-        count_result(r)
+        _tally(r)
 
         if r['status'] == 'success' and not rebuild:
-            source_file = os.path.join(config.TDX_SOURCE[market]['lc5'], f"{code}.lc5")
-            source_data = read_min_file(source_file)
+            source_data = r.get('_source_data')
             if source_data:
                 for target_type in ['lc15', 'lc30', 'lc60']:
-                    count_result(merge_min_data_from_source(code, target_type, market, logger, source_data))
+                    _tally(merge_min_data_from_source(code, target_type, market, logger, source_data))
+            else:
+                for target_type in ['lc15', 'lc30', 'lc60']:
+                    _tally(merge_min_data(code, target_type, market, logger, rebuild=rebuild))
         else:
             for target_type in ['lc15', 'lc30', 'lc60']:
-                count_result(merge_min_data(code, target_type, market, logger, rebuild=rebuild))
-    
+                _tally(merge_min_data(code, target_type, market, logger, rebuild=rebuild))
+
     # 4. 合成周线
     logger.log(f"  [{market_name}] 4/6 合成周线 (week) {len(stock_list)} 只")
     for code in stock_list:
-        count_result(merge_daily_to_period(code, 'week', market, logger))
-    
+        _tally(merge_daily_to_period(code, 'week', market, logger))
+
     # 5. 合成月线
     logger.log(f"  [{market_name}] 5/6 合成月线 (month) {len(stock_list)} 只")
     for code in stock_list:
-        count_result(merge_daily_to_period(code, 'month', market, logger))
+        _tally(merge_daily_to_period(code, 'month', market, logger))
     
     logger.log(f"  [{market_name}] 完成: 成功={stats['success']}, 跳过={stats['skip']}, 失败={stats['error']}")
     
@@ -948,7 +909,6 @@ def precheck_tdx_data(logger):
     """
     from pytdx.reader import TdxDailyBarReader, TdxMinBarReader
     from datetime import date
-    import struct
 
     # 取本地项目跟踪标的的最后日期
     # 注意：本地 lc1/lc5 文件已经转换为 <8I> 格式（bar[0]=YYYYMMDD），

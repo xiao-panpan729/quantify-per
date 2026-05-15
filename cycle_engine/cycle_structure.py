@@ -3,12 +3,77 @@
 cycle_engine 结构与循环层 — 循环模式 / 波峰 / 主导量级 / 量能 / 波浪结构 / RS密度
 """
 import math
-from .utils import safe_float, read_csv, SNAPSHOT_DIR
+from .utils import safe_float, read_csv, SNAPSHOT_DIR, PERIODS
+
+
+# ============================================================
+# 通用工具：局部极值检测 + 波峰波谷事件提取
+# ============================================================
+
+def _find_local_extremes(values, window=2, find_peaks=True):
+    """找局部高点(peaks)或低点(valleys)，用于缠论分型识别和波浪结构"""
+    if len(values) < window * 2 + 1:
+        return []
+    extremes = []
+    for i in range(window, len(values) - window):
+        if find_peaks:
+            if all(values[i] >= values[i - j] for j in range(1, window + 1)) \
+               and all(values[i] >= values[i + j] for j in range(1, window + 1)):
+                extremes.append({'idx': i, 'value': values[i]})
+        else:
+            if all(values[i] <= values[i - j] for j in range(1, window + 1)) \
+               and all(values[i] <= values[i + j] for j in range(1, window + 1)):
+                extremes.append({'idx': i, 'value': values[i]})
+    if len(extremes) < 2:
+        return extremes
+    filtered = [extremes[0]]
+    for e in extremes[1:]:
+        if e['idx'] - filtered[-1]['idx'] <= window:
+            if find_peaks and e['value'] > filtered[-1]['value']:
+                filtered[-1] = e
+            elif not find_peaks and e['value'] < filtered[-1]['value']:
+                filtered[-1] = e
+        else:
+            filtered.append(e)
+    return filtered
+
+
+def _extract_wave_events(lines, min_wave_ratio=0.08):
+    """
+    从趋势线序列提取波峰/波谷事件，过滤微小波动。
+    返回: list of (idx, type, value) 按 idx 排序
+      type: 'peak' | 'valley'
+    """
+    if len(lines) < 20:
+        return []
+
+    peaks = _find_local_extremes(lines, window=2, find_peaks=True)
+    valleys = _find_local_extremes(lines, window=2, find_peaks=False)
+
+    events = [(e['idx'], 'peak', e['value']) for e in peaks] + \
+             [(e['idx'], 'valley', e['value']) for e in valleys]
+    events.sort(key=lambda x: x[0])
+
+    if len(events) < 2:
+        return events
+
+    min_wave = (max(lines) - min(lines)) * min_wave_ratio
+    filtered = [events[0]]
+    for i in range(1, len(events)):
+        if abs(events[i][2] - filtered[-1][2]) >= min_wave:
+            filtered.append(events[i])
+
+    return filtered
+
+
+# ============================================================
+# 循环模式分析
+# ============================================================
 
 def cycle_pattern(anchors):
     """
     分析 ★买/★卖 排列模式
-    
+
     只看最近 10 个锚点，判断当前是:
       - alternating: 买卖交替，标准循环
       - buy_dominant: 买多卖少，多头排列
@@ -24,11 +89,9 @@ def cycle_pattern(anchors):
     buy_count = types.count('buy')
     sell_count = types.count('sell')
 
-    # 交替次数
-    alternations = sum(1 for i in range(1, n) if types[i] != types[i-1])
+    alternations = sum(1 for i in range(1, n) if types[i] != types[i - 1])
     alt_ratio = alternations / (n - 1) if n > 1 else 0
 
-    # 模式判断
     if buy_count >= n * 0.7:
         pattern = 'buy_dominant'
         label = f'多头排列({buy_count}买/{sell_count}卖)'
@@ -46,7 +109,6 @@ def cycle_pattern(anchors):
         label = f'混合排列(交替率{alt_ratio:.0%})'
         score_base = 2.5
 
-    # 闭环加分
     ema_matched = sum(1 for a in recent if a['has_ema'])
     ext_matched = sum(1 for a in recent if a['has_ext'] or a['has_div'])
     closure_bonus = min(1.0, ema_matched / n * 1.5 + ext_matched / n * 1.0)
@@ -64,50 +126,10 @@ def cycle_pattern(anchors):
 
 
 # ============================================================
-# 第四层扩展: 波峰间距法 — 主导循环量级检测
+# 主导循环量级检测
 # ============================================================
 
-
-def _wave_peaks(values):
-    """
-    找趋势线的波峰位置
-
-    波峰定义: 比前后各2个点都高的局部高点
-    返回: 波峰在 values 中的索引列表
-    """
-    if len(values) < 5:
-        return []
-
-    window = 2
-    peaks = []
-    for i in range(window, len(values) - window):
-        if all(values[i] >= values[i - j] for j in range(1, window + 1)) \
-           and all(values[i] >= values[i + j] for j in range(1, window + 1)):
-            peaks.append(i)
-
-    # 去重: 连续满足的只取最高的那根
-    if len(peaks) < 2:
-        return peaks
-    filtered = [peaks[0]]
-    for p in peaks[1:]:
-        if p - filtered[-1] <= window:
-            if values[p] > values[filtered[-1]]:
-                filtered[-1] = p
-        else:
-            filtered.append(p)
-    return filtered
-
-
-
-def _peak_intervals(peaks):
-    """计算连续波峰之间的间距（K线根数）"""
-    if len(peaks) < 2:
-        return []
-    return [peaks[i+1] - peaks[i] for i in range(len(peaks) - 1)]
-
-
-
-def detect_dominant_cycle(code, period_results):
+def detect_dominant_cycle(code, period_results, _cached_rows=None):
     """
     波峰间距法 — 检测当前主导循环量级
 
@@ -130,22 +152,26 @@ def detect_dominant_cycle(code, period_results):
     stretched = []
 
     for p in periods_to_check:
-        rows = read_csv(code, p)
+        rows = (_cached_rows.get(p) if _cached_rows
+                else read_csv(code, p))
         if not rows:
             all_details.append(f'{p_labels[p]}:无数据')
             continue
 
-        values = [safe_float(r.get('trend_line', 0)) for r in rows if safe_float(r.get('trend_line', 0)) > 0]
+        values = [safe_float(r.get('trend_line', 0)) for r in rows
+                  if safe_float(r.get('trend_line', 0)) > 0]
         if len(values) < 30:
             all_details.append(f'{p_labels[p]}:数据不足({len(values)})')
             continue
 
-        peaks = _wave_peaks(values)
-        if len(peaks) < 3:
-            all_details.append(f'{p_labels[p]}:波峰不足({len(peaks)})')
+        peak_dicts = _find_local_extremes(values, window=2, find_peaks=True)
+        if len(peak_dicts) < 3:
+            all_details.append(f'{p_labels[p]}:波峰不足({len(peak_dicts)})')
             continue
 
-        intervals = _peak_intervals(peaks)
+        peak_indices = [e['idx'] for e in peak_dicts]
+        intervals = [peak_indices[i + 1] - peak_indices[i]
+                     for i in range(len(peak_indices) - 1)]
         if len(intervals) < 2:
             all_details.append(f'{p_labels[p]}:间距不足')
             continue
@@ -155,7 +181,8 @@ def detect_dominant_cycle(code, period_results):
         avg_base = sum(baseline) / len(baseline) if baseline else current
 
         stretch = current / avg_base if avg_base > 0 else 1.0
-        all_details.append(f'{p_labels[p]}间距{current:.0f}/{avg_base:.0f}({stretch:.1f}倍)')
+        all_details.append(
+            f'{p_labels[p]}间距{current:.0f}/{avg_base:.0f}({stretch:.1f}倍)')
 
         if stretch < 1.5:
             return {
@@ -167,7 +194,6 @@ def detect_dominant_cycle(code, period_results):
         else:
             stretched.append(p)
 
-    # 全线拉长 → 日线默认
     return {
         'dominant_cycle': 'daily',
         'dominant_label': '日线',
@@ -177,9 +203,8 @@ def detect_dominant_cycle(code, period_results):
 
 
 # ============================================================
-# 第四层扩展: 量价阶段标注（仅日线级别）
+# 量价阶段标注
 # ============================================================
-
 
 def analyze_volume_regime(code, daily_rows, period_results):
     """
@@ -189,13 +214,6 @@ def analyze_volume_regime(code, daily_rows, period_results):
       1. 计算百日地量（最近100天最低成交量）
       2. 计算地量堆密度（最近20天在1.0~1.3倍地量的占比）
       3. 结合日线★买/★卖信号状态，判断量价阶段
-
-    量价阶段含义:
-      - 底部地量区: ★卖周期末端的地量堆 → 供应枯竭，等需求
-      - 缩量回调: ★买周期中的百日地量附近 → 上涨中继洗盘
-      - 初步缩量: 缩到地量附近但未形成地量堆 → 观察
-      - 正常放量: 量在1.3~2.0倍地量 → 正常交易
-      - 显著放量: 量超过2倍地量 → 放量异常
 
     Returns: dict
         phase: 量价阶段标签
@@ -211,21 +229,18 @@ def analyze_volume_regime(code, daily_rows, period_results):
     if len(volumes) < 30:
         return {'phase': '数据不足', 'detail': f'成交量数据{len(volumes)}条'}
 
-    # 百日地量（取5分位值，避免极端低值干扰）
     lookback = min(100, len(volumes))
     recent_v = volumes[-lookback:]
     sorted_v = sorted(recent_v)
-    min_v = sorted_v[int(len(sorted_v) * 0.05)]  # 5分位值作为地量水准
+    min_v = sorted_v[int(len(sorted_v) * 0.05)]
     cur_v = volumes[-1]
     vol_r = cur_v / min_v if min_v > 0 else 999
 
-    # 地量堆密度：最近20天在[地量, 地量×1.3]的天数占比
     win = min(20, len(recent_v))
     watch = recent_v[-win:]
     in_pile = sum(1 for v in watch if v <= min_v * 1.3)
     pile_density = in_pile / win if win > 0 else 0
 
-    # 日线最近的信号主导方向
     ds = period_results.get('daily') or {}
     sq = ds.get('signal_quality') if ds else None
     if sq:
@@ -235,10 +250,9 @@ def analyze_volume_regime(code, daily_rows, period_results):
         buy_lv = 0
         sell_lv = 0
 
-    # ---- 判断阶段 ----
     is_dilang = vol_r < 1.3
     is_pile = pile_density > 0.5
-    is_bearish = sell_lv > buy_lv * 1.2  # 卖侧显著占优
+    is_bearish = sell_lv > buy_lv * 1.2
 
     if is_dilang and is_pile and is_bearish:
         phase = '底部地量区'
@@ -250,7 +264,6 @@ def analyze_volume_regime(code, daily_rows, period_results):
         phase = '初步缩量'
         detail = f'缩量到百日地量附近(×{vol_r:.1f})，未形成地量堆({pile_density:.0%})，观察'
     else:
-        # 正常放量/显著放量不标注（不制造噪音）
         phase = '正常量能'
         detail = ''
 
@@ -262,8 +275,11 @@ def analyze_volume_regime(code, daily_rows, period_results):
     }
 
 
+# ============================================================
+# 波浪结构分析
+# ============================================================
 
-def judge_wave_structure(code, period_results, dominant_info):
+def judge_wave_structure(code, period_results, dominant_info, _cached_rows=None):
     """
     结构分析：一句话判断当前主导量级的结构状态
 
@@ -271,8 +287,6 @@ def judge_wave_structure(code, period_results, dominant_info):
     2. 次级别推动段 vs 修正段对比（涨跌段密度）
     3. 回调深度（最近一段回调占上涨比例）
     """
-    PERIODS = ['min5', 'min15', 'min30', 'min60', 'daily']
-
     dc = dominant_info.get('dominant_cycle', 'min15')
     if dc not in PERIODS:
         dc = 'min15'
@@ -296,9 +310,10 @@ def judge_wave_structure(code, period_results, dominant_info):
             mark = '✗ 卖闭环中'
         else:
             mark = '○ 方向不明'
-        return {'structure': f'{dc} {dc_dir} ({mark})', 'detail': '小级别主导，无次级别结构',
-                'dominant': dc, 'direction': dc_dir, 'sub_level': dc, 'verdict_mark': mark,
-                'retrace_pct': None}
+        return {'structure': f'{dc} {dc_dir} ({mark})',
+                'detail': '小级别主导，无次级别结构',
+                'dominant': dc, 'direction': dc_dir, 'sub_level': dc,
+                'verdict_mark': mark, 'retrace_pct': None}
 
     sub_idx = dc_idx - 1
     sub_p = PERIODS[sub_idx]
@@ -306,7 +321,8 @@ def judge_wave_structure(code, period_results, dominant_info):
     sub_buy = ss.get('buy_level', 0) or 0
     sub_sell = ss.get('sell_level', 0) or 0
 
-    sub_rows = read_csv(code, sub_p)
+    sub_rows = (_cached_rows.get(sub_p) if _cached_rows
+                else read_csv(code, sub_p))
     if not sub_rows:
         return {'structure': f'{dc} {dc_dir}', 'detail': '次级别数据不足',
                 'dominant': dc, 'direction': dc_dir, 'sub_level': sub_p}
@@ -317,44 +333,33 @@ def judge_wave_structure(code, period_results, dominant_info):
         return {'structure': f'{dc} {dc_dir}', 'detail': '次级趋势线不足',
                 'dominant': dc, 'direction': dc_dir, 'sub_level': sub_p}
 
-    peaks = _wave_peaks(lines)
-    neg = [-v for v in lines]
-    valley_idxs = _wave_peaks(neg)
-    events = [(p, 'peak', lines[p]) for p in peaks] + \
-             [(v, 'valley', lines[v]) for v in valley_idxs]
-    events.sort(key=lambda x: x[0])
-
-    MIN_WAVE = (max(lines) - min(lines)) * 0.08
-    filtered = [events[0]]
-    for i in range(1, len(events)):
-        if abs(events[i][2] - filtered[-1][2]) >= MIN_WAVE:
-            filtered.append(events[i])
+    events = _extract_wave_events(lines)
 
     rises, falls = [], []
-    for i in range(len(filtered) - 1):
-        if filtered[i][1] == 'valley' and filtered[i+1][1] == 'peak':
-            rises.append({'len': filtered[i+1][0] - filtered[i][0],
-                          'rng': filtered[i+1][2] - filtered[i][2]})
-        elif filtered[i][1] == 'peak' and filtered[i+1][1] == 'valley':
-            falls.append({'len': filtered[i+1][0] - filtered[i][0],
-                          'rng': filtered[i][2] - filtered[i+1][2]})
+    for i in range(len(events) - 1):
+        if events[i][1] == 'valley' and events[i + 1][1] == 'peak':
+            rises.append({'len': events[i + 1][0] - events[i][0],
+                          'rng': events[i + 1][2] - events[i][2]})
+        elif events[i][1] == 'peak' and events[i + 1][1] == 'valley':
+            falls.append({'len': events[i + 1][0] - events[i][0],
+                          'rng': events[i][2] - events[i + 1][2]})
 
     avg_rise_len = sum(s['len'] for s in rises) / len(rises) if rises else 0
     avg_fall_len = sum(s['len'] for s in falls) / len(falls) if falls else 0
     n_rises, n_falls = len(rises), len(falls)
 
     retrace_pct = None
-    if len(filtered) >= 4:
-        last, prev, pprev = filtered[-1], filtered[-2], filtered[-3]
+    if len(events) >= 4:
+        last, prev, pprev = events[-1], events[-2], events[-3]
         if last[1] == 'valley' and prev[1] == 'peak' and pprev[1] == 'valley':
             rise_rng = prev[2] - pprev[2]
             if rise_rng > 0:
                 retrace_pct = (prev[2] - last[2]) / rise_rng * 100
 
     last_dir = ''
-    if filtered[-1][1] == 'peak':
+    if events[-1][1] == 'peak':
         last_dir = '末段上涨中'
-    elif len(filtered) >= 3 and filtered[-1][1] == 'valley' and filtered[-2][1] == 'peak':
+    elif len(events) >= 3 and events[-1][1] == 'valley' and events[-2][1] == 'peak':
         last_dir = '末段回调中'
 
     if dc_dir == '买闭环':
@@ -403,8 +408,12 @@ def judge_wave_structure(code, period_results, dominant_info):
     }
 
 
+# ============================================================
+# 指数级行情条件检测
+# ============================================================
 
-def detect_exponential_readiness(code, daily_rows, period_results, dominant_info):
+def detect_exponential_readiness(code, daily_rows, period_results,
+                                  dominant_info, _cached_rows=None):
     """
     指数级行情条件检测：三维度评分 + 信号灯
 
@@ -414,7 +423,6 @@ def detect_exponential_readiness(code, daily_rows, period_results, dominant_info
 
     总分0-10 → 绿灯(>=7) 黄灯(4-6) 红灯(0-3)
     """
-    PERIODS = ['min5', 'min15', 'min30', 'min60', 'daily']
     sc = {'compression': 0, 'acceleration': 0, 'cycle_lock': 0}
     info = []
     persist = {'compress_days': 0, 'direction_align': '', 'total_days': 0}
@@ -444,7 +452,7 @@ def detect_exponential_readiness(code, daily_rows, period_results, dominant_info
             else:
                 info.append(f'压缩:带宽{pct:.0f}%分位')
 
-            median_w = sorted(widths)[len(widths)//2]
+            median_w = sorted(widths)[len(widths) // 2]
             compress_days = 0
             for w in reversed(widths):
                 if w <= median_w:
@@ -468,30 +476,21 @@ def detect_exponential_readiness(code, daily_rows, period_results, dominant_info
 
     # 2. 加速度
     sub_p = PERIODS[max(0, dc_idx - 1)]
-    sub_rows = read_csv(code, sub_p)
+    sub_rows = (_cached_rows.get(sub_p) if _cached_rows
+                else read_csv(code, sub_p))
     if sub_rows and len(sub_rows) >= 30:
         lines = [safe_float(r.get('trend_line', 0)) for r in sub_rows
                  if safe_float(r.get('trend_line', 0)) > 0]
         if len(lines) >= 30:
-            peaks = _wave_peaks(lines)
-            neg = [-v for v in lines]
-            valley_idxs = _wave_peaks(neg)
-            events = [(p, 'p', lines[p]) for p in peaks] + \
-                     [(v, 'v', lines[v]) for v in valley_idxs]
-            events.sort(key=lambda x: x[0])
-            min_wave = (max(lines) - min(lines)) * 0.08
-            filt = [events[0]]
-            for i in range(1, len(events)):
-                if abs(events[i][2] - filt[-1][2]) >= min_wave:
-                    filt.append(events[i])
+            events = _extract_wave_events(lines)
             rises, falls = [], []
-            for i in range(len(filt) - 1):
-                if filt[i][1] == 'v' and filt[i+1][1] == 'p':
-                    rises.append({'len': filt[i+1][0] - filt[i][0],
-                                  'h': filt[i+1][2] - filt[i][2]})
-                elif filt[i][1] == 'p' and filt[i+1][1] == 'v':
-                    falls.append({'len': filt[i+1][0] - filt[i][0],
-                                  'd': filt[i][2] - filt[i+1][2]})
+            for i in range(len(events) - 1):
+                if events[i][1] == 'valley' and events[i + 1][1] == 'peak':
+                    rises.append({'len': events[i + 1][0] - events[i][0],
+                                  'h': events[i + 1][2] - events[i][2]})
+                elif events[i][1] == 'peak' and events[i + 1][1] == 'valley':
+                    falls.append({'len': events[i + 1][0] - events[i][0],
+                                  'd': events[i][2] - events[i + 1][2]})
             if len(rises) >= 4 and len(falls) >= 3:
                 mid_r, mid_f = len(rises) // 2, len(falls) // 2
                 r_late, r_early = rises[mid_r:], rises[:mid_r]
@@ -502,20 +501,23 @@ def detect_exponential_readiness(code, daily_rows, period_results, dominant_info
                 avg_fe = sum(s['len'] for s in f_early) / len(f_early)
                 acc_items = 0
                 if avg_rl > avg_re * 1.2:
-                    sc['acceleration'] += 1; acc_items += 1
+                    sc['acceleration'] += 1
+                    acc_items += 1
                     info.append(f'加速:推幅↑({avg_re:.1f}→{avg_rl:.1f})')
                 if avg_fl < avg_fe * 0.8:
-                    sc['acceleration'] += 1; acc_items += 1
+                    sc['acceleration'] += 1
+                    acc_items += 1
                     info.append(f'加速:调时↓({avg_fe:.0f}→{avg_fl:.0f}K)')
                 depths = []
                 for i in range(min(len(falls), len(rises))):
                     if rises[i]['h'] > 0:
                         depths.append(falls[i]['d'] / rises[i]['h'] * 100)
                 if depths:
-                    early_d = sum(depths[:len(depths)//2]) / max(len(depths)//2, 1)
-                    late_d = sum(depths[len(depths)//2:]) / max(len(depths)-len(depths)//2, 1)
+                    early_d = sum(depths[:len(depths) // 2]) / max(len(depths) // 2, 1)
+                    late_d = sum(depths[len(depths) // 2:]) / max(len(depths) - len(depths) // 2, 1)
                     if late_d < early_d * 0.7:
-                        sc['acceleration'] += 1; acc_items += 1
+                        sc['acceleration'] += 1
+                        acc_items += 1
                         info.append(f'加速:回调深↓({early_d:.0f}%→{late_d:.0f}%)')
                 if acc_items == 0:
                     info.append(f'加速:平稳({len(rises)}涨{len(falls)}跌)')
@@ -529,7 +531,8 @@ def detect_exponential_readiness(code, daily_rows, period_results, dominant_info
         sq = (period_results.get(p) or {}).get('signal_quality') or {}
         if (sq.get('level', 0) or 0) >= 3:
             levels_ok += 1
-        rows = read_csv(code, p)
+        rows = (_cached_rows.get(p) if _cached_rows
+                else read_csv(code, p))
         if rows:
             difs = [safe_float(r.get('macd_dif', 0)) for r in rows[-5:]]
             avg_dif = sum(difs) / len(difs) if difs else 0
@@ -572,13 +575,13 @@ def detect_exponential_readiness(code, daily_rows, period_results, dominant_info
 
     total = sc['compression'] + sc['acceleration'] + sc['cycle_lock']
     if total >= 7:
-        light = '🟢 绿灯'
+        light = '\U0001f7e2 绿灯'
         conclusion = '指数级条件成熟'
     elif total >= 4:
-        light = '🟡 黄灯'
+        light = '\U0001f7e1 黄灯'
         conclusion = '部分条件具备'
     else:
-        light = '🔴 红灯'
+        light = '\U0001f534 红灯'
         conclusion = '条件不足'
 
     return {
@@ -592,39 +595,8 @@ def detect_exponential_readiness(code, daily_rows, period_results, dominant_info
 
 
 # ============================================================
-# 第四层扩展 v3.8: 缠论结构分析 + 大盘系数权重
+# 缠论结构分析 — 阻力/支撑密度检测
 # ============================================================
-
-
-
-def _find_local_extremes(values, window=2, find_peaks=True):
-    """找局部高点(peaks)或低点(valleys)，用于缠论分型识别"""
-    if len(values) < window * 2 + 1:
-        return []
-    extremes = []
-    for i in range(window, len(values) - window):
-        if find_peaks:
-            if all(values[i] >= values[i - j] for j in range(1, window + 1)) \
-               and all(values[i] >= values[i + j] for j in range(1, window + 1)):
-                extremes.append({'idx': i, 'value': values[i]})
-        else:
-            if all(values[i] <= values[i - j] for j in range(1, window + 1)) \
-               and all(values[i] <= values[i + j] for j in range(1, window + 1)):
-                extremes.append({'idx': i, 'value': values[i]})
-    if len(extremes) < 2:
-        return extremes
-    filtered = [extremes[0]]
-    for e in extremes[1:]:
-        if e['idx'] - filtered[-1]['idx'] <= window:
-            if find_peaks and e['value'] > filtered[-1]['value']:
-                filtered[-1] = e
-            elif not find_peaks and e['value'] < filtered[-1]['value']:
-                filtered[-1] = e
-        else:
-            filtered.append(e)
-    return filtered
-
-
 
 def detect_rs_density(code, daily_rows):
     """
@@ -756,6 +728,3 @@ def detect_rs_density(code, daily_rows):
             'n_valleys': len(valleys),
         },
     }
-
-
-

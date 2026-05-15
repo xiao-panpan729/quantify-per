@@ -1,28 +1,31 @@
 # -*- coding: utf-8 -*-
 """
-信号计算引擎 v1.1
+信号计算引擎 v1.2
 计算 EXPMA、MACD、分时出击趋势线、★买★卖信号
 支持日线和分钟线数据（通达信二进制格式）
 
 日线: 价格 = raw / 1000
 分钟线: 价格 = raw / 10000 (v4.4 升级，之前为 /100)
+
+v1.2: 抽取核心计算函数消除三函数重复、O(n²)→O(n)算法优化、合并冗余常量
 """
 
 import struct
 import os
 import csv
 import json
+from collections import deque
 from datetime import datetime
 
 # ========== 常量 ==========
 
-DAY_PRICE_FACTOR = 1000  # 日线价格编码: price * 1000
-MIN_PRICE_FACTOR = 10000 # 分钟线价格编码: price * 10000 (v4.4, 精度0.0001元)
+DAY_PRICE_FACTOR = 1000   # 日线价格编码: price * 1000
+MIN_PRICE_FACTOR = 10000  # 分钟线价格编码: price * 10000 (v4.4, 精度0.0001元)
 
 # 分时出击参数
-TREND_PERIOD_DAILY = 55   # 日线 LLV/HHV 周期
-TREND_PERIOD_MIN = 55     # 30-60分钟线 LLV/HHV 周期
-TREND_PERIOD_MIN_SHORT = 40  # 5-15分钟线 LLV/HHV 周期
+TREND_PERIOD_DAILY = 55       # 日线 LLV/HHV 周期
+TREND_PERIOD_MIN = 55         # 30-60分钟线 LLV/HHV 周期
+TREND_PERIOD_MIN_SHORT = 40   # 5-15分钟线 LLV/HHV 周期
 
 # SMA 参数 (通达信 SMA(X, N, M))
 SMA1_N, SMA1_M = 5, 1
@@ -41,12 +44,16 @@ MACD_SLOW = 26
 MACD_SIGNAL_PERIOD = 9
 
 # 牛熊红线参数
-BULL_BEAR_PERIOD = 221  # 年线周期
-BULL_BEAR_STD_MULT = 3  # 标准差倍数
+BULL_BEAR_PERIOD = 221   # 年线周期
+BULL_BEAR_STD_MULT = 3   # 标准差倍数
 
 # CCI 参数
-CCI_PERIOD = 14         # CCI 标准周期
+CCI_PERIOD = 14           # CCI 标准周期
 CCI_EXTREME_LEVELS = [200, 250, 300]  # 极限值等级(不同品种敏感度不同)
+
+# CCI 背驰检测阈值
+CCI_DIV_POS_THRESHOLD = 0.7   # 正背驰: CCI从高点回落至此比例以下
+CCI_DIV_NEG_THRESHOLD = 1.5   # 负背驰: CCI从低点回升至此比例以上
 
 
 # ========== 数据读取 ==========
@@ -75,12 +82,12 @@ def read_bars(filepath):
 def read_bars_lc1(filepath):
     """
     读取通达信1分钟线(.lc1)二进制文件
-    
+
     lc1格式: HHfffffII (不同于lc5的8I格式)
     - HH: 日期(ushort) + 分钟数(ushort)
     - fffff: open/high/low/close/amount (IEEE754 float)
     - II: volume(int) + reserved(int)
-    
+
     日期解码: year=num//2048+2004, month=(num%2048)//100, day=(num%2048)%100
     时间解码: hour=num//60, minute=num%60
     """
@@ -94,14 +101,12 @@ def read_bars_lc1(filepath):
                 break
             date_num, minutes, open_f, high_f, low_f, close_f, amount_f, volume, reserved = \
                 struct.unpack('<HHfffffII', raw)
-            # 解码日期和时间
             year = date_num // 2048 + 2004
             month = (date_num % 2048) // 100
             day = (date_num % 2048) % 100
             hour = minutes // 60
             minute = minutes % 60
             timestamp = year * 100000000 + month * 1000000 + day * 10000 + hour * 100 + minute
-            # 价格 × 10000 转为整数（与lc5信号格式对齐）
             bars.append((timestamp,
                          int(open_f * 10000),
                          int(high_f * 10000),
@@ -128,7 +133,7 @@ def calc_expma(values, period):
 
 
 def calc_ma(values, period):
-    """简单移动平均 MA(X, N): 最近N根K线收盘价之和/N"""
+    """简单移动平均 MA(X, N): O(n) 滑动窗口"""
     result = []
     total = 0.0
     for i, v in enumerate(values):
@@ -138,6 +143,36 @@ def calc_ma(values, period):
             result.append(round(total / period, 4))
         else:
             result.append(round(total / (i + 1), 4))
+    return result
+
+
+def _rolling_min(values, period):
+    """O(n) 滚动最小值，使用单调双端队列"""
+    n = len(values)
+    result = [0.0] * n
+    dq = deque()
+    for i in range(n):
+        while dq and dq[0] <= i - period:
+            dq.popleft()
+        while dq and values[dq[-1]] >= values[i]:
+            dq.pop()
+        dq.append(i)
+        result[i] = values[dq[0]]
+    return result
+
+
+def _rolling_max(values, period):
+    """O(n) 滚动最大值，使用单调双端队列"""
+    n = len(values)
+    result = [0.0] * n
+    dq = deque()
+    for i in range(n):
+        while dq and dq[0] <= i - period:
+            dq.popleft()
+        while dq and values[dq[-1]] <= values[i]:
+            dq.pop()
+        dq.append(i)
+        result[i] = values[dq[0]]
     return result
 
 
@@ -166,46 +201,44 @@ def calc_cci(highs, lows, closes, period=CCI_PERIOD):
     """
     CCI (Commodity Channel Index) 标准公式:
     TP = (H + L + C) / 3
-    MA_TP = SMA(TP, N)  (简单移动平均)
-    MD = mean(|TP_i - MA_tp| for i in window)  (平均绝对偏差)
     CCI = (TP - MA_TP) / (0.015 * MD)
-    
-    返回: cci 列表
+    O(n) 实现，使用滑动窗口累积和
     """
     n = len(closes)
     tp = [(h + l + c) / 3.0 for h, l, c in zip(highs, lows, closes)]
-    
-    # MA of TP (SMA)
-    ma_tp = []
+
+    # MA of TP — 滑动窗口累积和
+    ma_tp = [0.0] * n
+    tp_sum = 0.0
+    for i in range(n):
+        tp_sum += tp[i]
+        if i >= period:
+            tp_sum -= tp[i - period]
+            ma_tp[i] = tp_sum / period
+        else:
+            ma_tp[i] = tp_sum / (i + 1)
+
+    # Mean Deviation & CCI — 单次遍历
+    cci = [0.0] * n
     for i in range(n):
         start = max(0, i - period + 1)
-        ma_tp.append(sum(tp[start:i+1]) / (i + 1 - start))
-    
-    # Mean Deviation
-    md = []
-    for i in range(n):
-        start = max(0, i - period + 1)
-        if i < period - 1:
-            md.append(0.0)
+        cnt = i + 1 - start
+        dev_sum = 0.0
+        for j in range(start, i + 1):
+            dev_sum += abs(tp[j] - ma_tp[i])
+        md = dev_sum / cnt
+        if md == 0:
+            cci[i] = 0.0
         else:
-            deviations = [abs(tp[j] - ma_tp[i]) for j in range(start, i + 1)]
-            md.append(sum(deviations) / len(deviations))
-    
-    # CCI
-    cci = []
-    for i in range(n):
-        if md[i] == 0:
-            cci.append(0.0)
-        else:
-            cci.append((tp[i] - ma_tp[i]) / (0.015 * md[i]))
-    
+            cci[i] = (tp[i] - ma_tp[i]) / (0.015 * md)
+
     return cci
 
 
 def detect_cci_extreme(cci, levels=CCI_EXTREME_LEVELS):
     """
     CCI 极限值检测:
-    返回: dict, 每个bar记录极限值状态
+    返回: list[dict], 每个bar记录极限值状态
       'extreme_high': 达到的最高正极限等级 (200/250/300), 0=无
       'extreme_low':  达到的最低负极限等级 (-200/-250/-300), 0=无
       'from_extreme_high': 从正极限回落(前一天>=level, 当天<level)
@@ -215,8 +248,6 @@ def detect_cci_extreme(cci, levels=CCI_EXTREME_LEVELS):
     result = []
     for i in range(n):
         val = cci[i]
-        
-        # 当前达到的极限等级
         eh = 0
         el = 0
         for lvl in levels:
@@ -224,18 +255,17 @@ def detect_cci_extreme(cci, levels=CCI_EXTREME_LEVELS):
                 eh = lvl
             if val <= -lvl:
                 el = -lvl
-        
-        # 从极限值回撤检测 (右侧信号: 出了极限值之后再看分时出击)
-        fe_h = {}   # {level: bool} 从哪个级别回落
+
+        fe_h = {}
         fe_l = {}
         if i > 0:
-            prev = cci[i-1]
+            prev = cci[i - 1]
             for lvl in levels:
                 if prev >= lvl and val < lvl:
                     fe_h[lvl] = True
                 if prev <= -lvl and val > -lvl:
                     fe_l[lvl] = True
-        
+
         result.append({
             'extreme_high': eh,
             'extreme_low': el,
@@ -250,71 +280,65 @@ def detect_cci_divergence(cci, closes, lookback=5):
     CCI 背驰检测:
     正背驰: 价格新高但 CCI 高点降低 → 冲高回落风险大
     负背驰: 价格新低但 CCI 低点抬高 → 探底回升概率高
-    
-    简化版: 在最近 lookback 根 bar 内:
-    - 如果出现 CCI 极限值后, CCI 开始下降但价格继续涨 → 正背驰
-    - 如果出现 CCI 负极限值后, CCI 开始回升但价格继续跌 → 负背驰
-    
-    返回: list[dict], 每个bar一个dict
-      'pos_div': 正背驰(True/False) — 价格创新高, CCI走弱
-      'neg_div': 负背驰(True/False) — 价格创新低, CCI走强
+    返回: list[dict], 每个bar含 'pos_div'/'neg_div' bool
     """
     n = len(cci)
     result = [{'pos_div': False, 'neg_div': False} for _ in range(n)]
-    
+
     for i in range(lookback, n):
-        # 找最近的 CCI 极限高点
         recent_max_cci_idx = None
         recent_min_cci_idx = None
         for j in range(i - lookback, i + 1):
-            if abs(cci[j]) >= CCI_EXTREME_LEVELS[0]:  # 至少到过200
+            if abs(cci[j]) >= CCI_EXTREME_LEVELS[0]:
                 if cci[j] > 0 and (recent_max_cci_idx is None or cci[j] > cci[recent_max_cci_idx]):
                     recent_max_cci_idx = j
                 if cci[j] < 0 and (recent_min_cci_idx is None or cci[j] < cci[recent_min_cci_idx]):
                     recent_min_cci_idx = j
-        
-        # 正背驰检查: 有过CCI高点, 之后价格更高但CCI更低
+
         if recent_max_cci_idx is not None and recent_max_cci_idx < i:
             peak_price = closes[recent_max_cci_idx]
             peak_cci_val = cci[recent_max_cci_idx]
-            current_price = closes[i]
-            current_cci_val = cci[i]
-            
-            # 价格创了新高但CCI从高点明显回落
-            if current_price > peak_price and current_cci_val < peak_cci_val * 0.7:
+            if closes[i] > peak_price and cci[i] < peak_cci_val * CCI_DIV_POS_THRESHOLD:
                 result[i]['pos_div'] = True
-        
-        # 负背驰检查: 有过CCI低点, 之后价格更低但CCI走高
+
         if recent_min_cci_idx is not None and recent_min_cci_idx < i:
             trough_price = closes[recent_min_cci_idx]
             trough_cci_val = cci[recent_min_cci_idx]
-            current_price = closes[i]
-            current_cci_val = cci[i]
-            
-            if current_price < trough_price and current_cci_val > trough_cci_val * 1.5:
+            if closes[i] < trough_price and cci[i] > trough_cci_val * CCI_DIV_NEG_THRESHOLD:
                 result[i]['neg_div'] = True
-    
+
     return result
 
 
 def calc_bull_bear_line(closes, period=BULL_BEAR_PERIOD, std_mult=BULL_BEAR_STD_MULT):
     """
     牛熊红线 = MA(CLOSE, N) + M * STD(CLOSE, N)
-    通达信: M221:=MA(CLOSE,221); 牛熊红线:M221+3*STD(CLOSE,221)
-    本质: 价格过去N个bar的极端上边界（99.7%分位）
-    返回: (ma_line, red_line) 两个列表
+    O(n) 实现，使用前缀和避免每步重建窗口
     """
     n = len(closes)
-    ma_line = []
-    red_line = []
+    fcloses = [float(c) for c in closes]
+
+    # 前缀和 & 平方和
+    pref = [0.0]
+    pref2 = [0.0]
+    for c in fcloses:
+        pref.append(pref[-1] + c)
+        pref2.append(pref2[-1] + c * c)
+
+    ma_line = [0.0] * n
+    red_line = [0.0] * n
     for i in range(n):
         start = max(0, i - period + 1)
-        window = [float(closes[j]) for j in range(start, i + 1)]
-        m = sum(window) / len(window)
-        variance = sum((x - m) ** 2 for x in window) / len(window)
+        cnt = i + 1 - start
+        s = pref[i + 1] - pref[start]
+        m = s / cnt
+        variance = (pref2[i + 1] - pref2[start]) / cnt - m * m
+        if variance < 0:
+            variance = 0.0
         std = variance ** 0.5
-        ma_line.append(round(m, 4))
-        red_line.append(round(m + std_mult * std, 4))
+        ma_line[i] = round(m, 4)
+        red_line[i] = round(m + std_mult * std, 4)
+
     return ma_line, red_line
 
 
@@ -322,8 +346,6 @@ def detect_red_line_cross(closes, red_line):
     """
     检测价格穿越牛熊红线
     返回: (break_above_indices, break_below_indices)
-    break_above: 前一天收盘<=红线, 当天收盘>红线（向上穿越）
-    break_below: 前一天收盘>=红线, 当天收盘<红线（向下跌破）
     """
     up_indices = []
     down_indices = []
@@ -343,14 +365,14 @@ def calc_trend_line(highs, lows, closes, period):
     3. SMA2 = SMA(SMA1, 3, 1)
     4. V11 = 3*SMA1 - 2*SMA2
     5. Trend = EMA(V11, 3)
+    O(n) 实现，LLV/HHV 使用单调双端队列
     """
     n = len(closes)
-    llv = []
-    hhv = []
-    for i in range(n):
-        start = max(0, i - period + 1)
-        llv.append(float(min(lows[start:i + 1])))
-        hhv.append(float(max(highs[start:i + 1])))
+    fhighs = [float(h) for h in highs]
+    flows = [float(l) for l in lows]
+
+    llv = _rolling_min(flows, period)
+    hhv = _rolling_max(fhighs, period)
 
     rsv = []
     for i in range(n):
@@ -376,21 +398,18 @@ def detect_star_signals(trend_line):
     """
     buy_indices = []
     sell_indices = []
-    in_high_zone = False  # 是否已进入过高位区(>=90)
+    in_high_zone = False
 
     for i in range(1, len(trend_line)):
-        # ★买: 上穿 11
         if trend_line[i - 1] <= 11 < trend_line[i]:
             buy_indices.append(i)
 
-        # 高位区状态跟踪
         if trend_line[i] >= 90:
             in_high_zone = True
 
-        # ★卖: 下穿 90 (且之前到过90+)
         if in_high_zone and trend_line[i - 1] >= 90 > trend_line[i]:
             sell_indices.append(i)
-            in_high_zone = False  # 重置, 需要再次上穿90才能再触发
+            in_high_zone = False
 
     return buy_indices, sell_indices
 
@@ -407,93 +426,95 @@ def detect_expma_cross(e12, e50):
     return golden, death
 
 
-def count_signals_in_range(signal_indices, end_idx, lookback=50):
-    """统计 end_idx 前 lookback 根 bar 内的信号次数"""
-    start = max(0, end_idx - lookback)
-    return sum(1 for idx in signal_indices if start < idx <= end_idx)
+# ========== CCI 标签格式化 ==========
+
+def _format_cci_labels(cci_extreme_i, cci_div_i):
+    """CCI 状态文字化，供 _calc_signals_from_arrays 调用"""
+    eh = cci_extreme_i['extreme_high']
+    el = cci_extreme_i['extreme_low']
+    fe_h = cci_extreme_i['from_extreme_high']
+
+    if eh > 0:
+        ext_label = 'CCI+%d' % eh
+    elif el < 0:
+        ext_label = 'CCI%d' % el
+    else:
+        ext_label = ''
+
+    retreat_label = ''
+    if fe_h:
+        retreat_label = '回撤+%d' % max(fe_h.keys())
+
+    if cci_div_i['pos_div']:
+        div_label = '顶背驰'
+    elif cci_div_i['neg_div']:
+        div_label = '底背驰'
+    else:
+        div_label = ''
+
+    return ext_label, retreat_label, div_label
 
 
-# ========== 全量信号计算 ==========
+# ========== 核心信号计算（日线/分钟线共用） ==========
 
-def calc_daily_all(filepath):
+def _calc_signals_from_arrays(opens, highs, lows, closes, vols, amts,
+                               timestamps, trend_period):
     """
-    日线全量信号计算
-    返回: list[dict] 每根 bar 一行
+    核心信号计算 — 从已缩放的 OHLCV 数组计算全部指标和信号。
+
+    参数:
+      opens/highs/lows/closes: 价格序列（float，已缩放为实际价格或原始编码值）
+      vols/amts: 成交量/成交额序列（原始值）
+      timestamps: 时间戳序列（int，日线=YYYYMMDD，分钟线=YYYYMMDDHHMM）
+      trend_period: 分时出击趋势线周期
+
+    返回: list[dict]，每根 bar 一行，含全部 30 列基础字段（不含量能指标）
     """
-    bars = read_bars(filepath)
-    if not bars:
-        return []
+    n = len(closes)
 
-    n = len(bars)
-    dates = [bar[0] for bar in bars]
-    opens = [bar[1] for bar in bars]
-    highs = [bar[2] for bar in bars]
-    lows = [bar[3] for bar in bars]
-    closes = [bar[4] for bar in bars]
-    amts = [bar[5] for bar in bars]   # bar[5]=amount (pytdx <IIIIIfII)
-    vols = [bar[6] for bar in bars]   # bar[6]=volume (pytdx <IIIIIfII)
-
-    # 转实际价格
-    p_o = [o / DAY_PRICE_FACTOR for o in opens]
-    p_h = [h / DAY_PRICE_FACTOR for h in highs]
-    p_l = [l / DAY_PRICE_FACTOR for l in lows]
-    p_c = [c / DAY_PRICE_FACTOR for c in closes]
-
-    # 指标
-    e12 = calc_expma(p_c, EXPMA_FAST)
-    e50 = calc_expma(p_c, EXPMA_SLOW)
-    dif, dea, hist = calc_macd(p_c)
-    trend = calc_trend_line(highs, lows, closes, TREND_PERIOD_DAILY)
-    bb_ma, bb_red = calc_bull_bear_line(p_c)
-    cci_vals = calc_cci(p_h, p_l, p_c)
+    # ── 指标计算 ──
+    e12 = calc_expma(closes, EXPMA_FAST)
+    e50 = calc_expma(closes, EXPMA_SLOW)
+    dif, dea, hist = calc_macd(closes)
+    trend = calc_trend_line(highs, lows, closes, trend_period)
+    bb_ma, bb_red = calc_bull_bear_line(closes)
+    cci_vals = calc_cci(highs, lows, closes)
     cci_extreme = detect_cci_extreme(cci_vals)
-    cci_div = detect_cci_divergence(cci_vals, p_c)
+    cci_div = detect_cci_divergence(cci_vals, closes)
     buy_idx, sell_idx = detect_star_signals(trend)
     golden_idx, death_idx = detect_expma_cross(e12, e50)
-    red_up_idx, red_down_idx = detect_red_line_cross(p_c, bb_red)
+    red_up_idx, red_down_idx = detect_red_line_cross(closes, bb_red)
 
-    # 简单移动平均 (judge_trend + signal_quality 直接读取, 避免重复计算)
-    ma5 = calc_ma(p_c, 5)
-    ma10 = calc_ma(p_c, 10)
-    ma20 = calc_ma(p_c, 20)
-    ma60 = calc_ma(p_c, 60)
-    ma120 = calc_ma(p_c, 120)
-    ma250 = calc_ma(p_c, 250)
+    # ── 均线 ──
+    ma5 = calc_ma(closes, 5)
+    ma10 = calc_ma(closes, 10)
+    ma20 = calc_ma(closes, 20)
+    ma60 = calc_ma(closes, 60)
+    ma120 = calc_ma(closes, 120)
+    ma250 = calc_ma(closes, 250)
 
+    # ── 信号集合转 set，O(1) 查表 ──
+    buy_set = set(buy_idx)
+    sell_set = set(sell_idx)
+    golden_set = set(golden_idx)
+    death_set = set(death_idx)
+    red_up_set = set(red_up_idx)
+    red_down_set = set(red_down_idx)
+
+    # ── 逐行组装 ──
     results = []
     for i in range(n):
-        # CCI 极限值状态文字化
-        eh = cci_extreme[i]['extreme_high']
-        el = cci_extreme[i]['extreme_low']
-        fe_h = cci_extreme[i]['from_extreme_high']
-        fe_l = cci_extreme[i]['from_extreme_low']
+        ext_label, retreat_label, div_label = _format_cci_labels(
+            cci_extreme[i], cci_div[i])
 
-        ext_label = ''
-        if eh > 0:
-            ext_label = 'CCI+%d' % eh
-        elif el < 0:
-            ext_label = 'CCI%d' % el
-
-        # 从极限回撤
-        retreat_label = ''
-        max_retreat_lvl = max(fe_h.keys()) if fe_h else 0
-        if max_retreat_lvl > 0:
-            retreat_label = '回撤+%d' % max_retreat_lvl
-
-        # 背驰
-        div_label = ''
-        if cci_div[i]['pos_div']:
-            div_label = '顶背驰'
-        elif cci_div[i]['neg_div']:
-            div_label = '底背驰'
-
+        ts = timestamps[i]
         row = {
-            'timestamp': dates[i],
-            'date': dates[i],
-            'open': round(p_o[i], 4),
-            'high': round(p_h[i], 4),
-            'low': round(p_l[i], 4),
-            'close': round(p_c[i], 4),
+            'timestamp': ts,
+            'date': int(str(ts)[:8]) if len(str(ts)) >= 8 else ts,
+            'open': round(float(opens[i]), 4),
+            'high': round(float(highs[i]), 4),
+            'low': round(float(lows[i]), 4),
+            'close': round(float(closes[i]), 4),
             'expma12': round(e12[i], 4),
             'expma50': round(e50[i], 4),
             'macd_dif': round(dif[i], 6),
@@ -502,10 +523,11 @@ def calc_daily_all(filepath):
             'trend_line': round(trend[i], 2),
             'bb_ma221': bb_ma[i],
             'bb_red_line': bb_red[i],
-            'red_line_cross': '突破红线' if i in red_up_idx else ('跌破红线' if i in red_down_idx else ''),
-            'buy_signal': '★买' if i in buy_idx else '',
-            'sell_signal': '★卖' if i in sell_idx else '',
-            'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
+            'red_line_cross': ('突破红线' if i in red_up_set else
+                               ('跌破红线' if i in red_down_set else '')),
+            'buy_signal': '★买' if i in buy_set else '',
+            'sell_signal': '★卖' if i in sell_set else '',
+            'expma_cross': '金叉' if i in golden_set else ('死叉' if i in death_set else ''),
             'cci': round(cci_vals[i], 1),
             'cci_extreme': ext_label,
             'cci_retreat': retreat_label,
@@ -523,228 +545,93 @@ def calc_daily_all(filepath):
     return results
 
 
+# ========== 公开全量计算接口 ==========
+
+def calc_daily_all(filepath):
+    """日线全量信号计算（薄壳，核心逻辑在 _calc_signals_from_arrays）"""
+    bars = read_bars(filepath)
+    if not bars:
+        return []
+
+    p_o = [bar[1] / DAY_PRICE_FACTOR for bar in bars]
+    p_h = [bar[2] / DAY_PRICE_FACTOR for bar in bars]
+    p_l = [bar[3] / DAY_PRICE_FACTOR for bar in bars]
+    p_c = [bar[4] / DAY_PRICE_FACTOR for bar in bars]
+    vols = [bar[6] for bar in bars]
+    amts = [bar[5] for bar in bars]
+    timestamps = [bar[0] for bar in bars]
+
+    return _calc_signals_from_arrays(
+        p_o, p_h, p_l, p_c, vols, amts, timestamps, TREND_PERIOD_DAILY)
+
+
 def calc_min_all(filepath, period='min30', trend_period=None):
     """
-    分钟线全量信号计算（使用原始值）
-    返回: list[dict]
+    分钟线全量信号计算（lc5/lc15/lc30/lc60通用）
     period: 周期标识，用于选择趋势计算参数
     trend_period: 可选，覆盖自动选择
     """
     if trend_period is None:
         trend_period = TREND_PERIOD_MIN_SHORT if period in ('min1', 'min5', 'min15') else TREND_PERIOD_MIN
+
     bars = read_bars(filepath)
     if not bars:
         return []
 
-    n = len(bars)
-    # 分钟线: bar[0]=日期(YYYYMMDD), bar[7]=时间(HHMM, 如935=09:35)
-    # 合并为 YYYYMMDDHHMM 便于精确定位
-    timestamps = [int(str(bar[0]) + str(bar[7]).zfill(4)) for bar in bars]
-    opens = [float(bar[1]) for bar in bars]
-    highs = [float(bar[2]) for bar in bars]
-    lows = [float(bar[3]) for bar in bars]
-    closes = [float(bar[4]) for bar in bars]
-    vols = [bar[6] for bar in bars]   # bar[6]=volume (pytdx)
-    amts = [bar[5] for bar in bars]   # bar[5]=amount (pytdx)
-    e12 = calc_expma(closes, EXPMA_FAST)
-    e50 = calc_expma(closes, EXPMA_SLOW)
-    dif, dea, hist = calc_macd(closes)
-    trend = calc_trend_line(highs, lows, closes, trend_period)
-    cci_vals = calc_cci(highs, lows, closes)
-    cci_extreme = detect_cci_extreme(cci_vals)
-    cci_div = detect_cci_divergence(cci_vals, closes)
-    buy_idx, sell_idx = detect_star_signals(trend)
-    golden_idx, death_idx = detect_expma_cross(e12, e50)
-
-    # 短周期MA
-    ma5 = calc_ma(closes, 5)
-    ma10 = calc_ma(closes, 10)
-    ma20 = calc_ma(closes, 20)
-    ma60 = calc_ma(closes, 60)
-    ma120 = calc_ma(closes, 120)
-    ma250 = calc_ma(closes, 250)
-
-    # 布林带 / 牛熊红线
-    bb_ma, bb_red = calc_bull_bear_line(closes)
-    red_up_idx, red_down_idx = detect_red_line_cross(closes, bb_red)
-
-    results = []
-    for i in range(n):
-        # CCI 状态文字化
-        eh = cci_extreme[i]['extreme_high']
-        el = cci_extreme[i]['extreme_low']
-        fe_h = cci_extreme[i]['from_extreme_high']
-
-        ext_label = ''
-        if eh > 0:
-            ext_label = '+%d' % eh
-        elif el < 0:
-            ext_label = '%d' % el
-
-        retreat_label = ''
-        if fe_h:
-            max_retreat_lvl = max(fe_h.keys())
-            retreat_label = '回撤+%d' % max_retreat_lvl
-
-        div_label = ''
-        if cci_div[i]['pos_div']:
-            div_label = '顶背驰'
-        elif cci_div[i]['neg_div']:
-            div_label = '底背驰'
-
-        ts = timestamps[i]
-        row = {
-            'timestamp': ts,
-            'date': int(str(ts)[:8]) if len(str(ts)) >= 8 else ts,
-            'open': float(opens[i]),
-            'high': float(highs[i]),
-            'low': float(lows[i]),
-            'close': float(closes[i]),
-            'expma12': e12[i],
-            'expma50': e50[i],
-            'macd_dif': dif[i],
-            'macd_dea': dea[i],
-            'macd_hist': hist[i],
-            'trend_line': round(trend[i], 2),
-            'bb_ma221': bb_ma[i],
-            'bb_red_line': bb_red[i],
-            'red_line_cross': '突破红线' if i in red_up_idx else ('跌破红线' if i in red_down_idx else ''),
-            'buy_signal': '★买' if i in buy_idx else '',
-            'sell_signal': '★卖' if i in sell_idx else '',
-            'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
-            'cci': round(cci_vals[i], 1),
-            'cci_extreme': ext_label,
-            'cci_retreat': retreat_label,
-            'cci_divergence': div_label,
-            'ma5': ma5[i],
-            'ma10': ma10[i],
-            'ma20': ma20[i],
-            'ma60': ma60[i],
-            'ma120': ma120[i],
-            'ma250': ma250[i],
-            'volume': vols[i],
-            'amount': amts[i],
-        }
-        results.append(row)
-    return results
-
-
-def calc_min1_all(filepath, period='min1'):
-    """
-    1分钟线全量信号计算（使用 lc1 格式专用读取器）
-    返回: list[dict]
-    """
-    bars = read_bars_lc1(filepath)  # 使用 lc1 专用解析器
-    trend_period = TREND_PERIOD_MIN_SHORT  # min1 永远用短周期
-    if not bars:
-        return []
-
-    n = len(bars)
-    # lc1 数据已预处理: bar[0]=timestamp(YYYYMMDDHHMM), bar[1..4]=价格(×10000)
-    timestamps = [bar[0] for bar in bars]
     opens = [float(bar[1]) for bar in bars]
     highs = [float(bar[2]) for bar in bars]
     lows = [float(bar[3]) for bar in bars]
     closes = [float(bar[4]) for bar in bars]
     vols = [bar[6] for bar in bars]
     amts = [bar[5] for bar in bars]
-    
-    e12 = calc_expma(closes, EXPMA_FAST)
-    e50 = calc_expma(closes, EXPMA_SLOW)
-    dif, dea, hist = calc_macd(closes)
-    trend = calc_trend_line(highs, lows, closes, trend_period)
-    cci_vals = calc_cci(highs, lows, closes)
-    cci_extreme = detect_cci_extreme(cci_vals)
-    cci_div = detect_cci_divergence(cci_vals, closes)
-    buy_idx, sell_idx = detect_star_signals(trend)
-    golden_idx, death_idx = detect_expma_cross(e12, e50)
+    timestamps = [int(str(bar[0]) + str(bar[7]).zfill(4)) for bar in bars]
 
-    # MA 系列
-    ma5 = calc_ma(closes, 5)
-    ma10 = calc_ma(closes, 10)
-    ma20 = calc_ma(closes, 20)
-    ma60 = calc_ma(closes, 60)
-    ma120 = calc_ma(closes, 120)
-    ma250 = calc_ma(closes, 250)
+    return _calc_signals_from_arrays(
+        opens, highs, lows, closes, vols, amts, timestamps, trend_period)
 
-    # 布林带 / 牛熊红线
-    bb_ma, bb_red = calc_bull_bear_line(closes)
-    red_up_idx, red_down_idx = detect_red_line_cross(closes, bb_red)
 
-    results = []
-    for i in range(n):
-        eh = cci_extreme[i]['extreme_high']
-        el = cci_extreme[i]['extreme_low']
-        fe_h = cci_extreme[i]['from_extreme_high']
+def calc_min1_all(filepath, period='min1'):
+    """1分钟线全量信号计算（使用 lc1 格式专用读取器）"""
+    bars = read_bars_lc1(filepath)
+    if not bars:
+        return []
 
-        ext_label = ''
-        if eh > 0:
-            ext_label = '+%d' % eh
-        elif el < 0:
-            ext_label = '%d' % el
+    opens = [float(bar[1]) for bar in bars]
+    highs = [float(bar[2]) for bar in bars]
+    lows = [float(bar[3]) for bar in bars]
+    closes = [float(bar[4]) for bar in bars]
+    vols = [bar[6] for bar in bars]
+    amts = [bar[5] for bar in bars]
+    timestamps = [bar[0] for bar in bars]
 
-        retreat_label = ''
-        if fe_h:
-            max_retreat_lvl = max(fe_h.keys())
-            retreat_label = '回撤+%d' % max_retreat_lvl
-
-        div_label = ''
-        if cci_div[i]['pos_div']:
-            div_label = '顶背驰'
-        elif cci_div[i]['neg_div']:
-            div_label = '底背驰'
-
-        ts = timestamps[i]
-        row = {
-            'timestamp': ts,
-            'date': int(str(ts)[:8]) if len(str(ts)) >= 8 else ts,
-            'open': float(opens[i]),
-            'high': float(highs[i]),
-            'low': float(lows[i]),
-            'close': float(closes[i]),
-            'expma12': e12[i],
-            'expma50': e50[i],
-            'macd_dif': dif[i],
-            'macd_dea': dea[i],
-            'macd_hist': hist[i],
-            'trend_line': round(trend[i], 2),
-            'bb_ma221': bb_ma[i],
-            'bb_red_line': bb_red[i],
-            'red_line_cross': '突破红线' if i in red_up_idx else ('跌破红线' if i in red_down_idx else ''),
-            'buy_signal': '★买' if i in buy_idx else '',
-            'sell_signal': '★卖' if i in sell_idx else '',
-            'expma_cross': '金叉' if i in golden_idx else ('死叉' if i in death_idx else ''),
-            'cci': round(cci_vals[i], 1),
-            'cci_extreme': ext_label,
-            'cci_retreat': retreat_label,
-            'cci_divergence': div_label,
-            'ma5': ma5[i],
-            'ma10': ma10[i],
-            'ma20': ma20[i],
-            'ma60': ma60[i],
-            'ma120': ma120[i],
-            'ma250': ma250[i],
-            'volume': vols[i],
-            'amount': amts[i],
-        }
-        results.append(row)
-    return results
+    return _calc_signals_from_arrays(
+        opens, highs, lows, closes, vols, amts, timestamps, TREND_PERIOD_MIN_SHORT)
 
 
 # ========== 量能指标后处理 ==========
 
-def _to_float(v, default=0.0):
-    if v is None:
-        return default
-    try:
-        return float(v)
-    except (ValueError, TypeError):
-        return default
+def _rolling_min_mask(values, window):
+    """
+    O(n) 滚动窗口最小值检测。
+    返回 bool 数组: values[i] 是 values[i-window+1:i+1] 中的最小值时为 True。
+    """
+    n = len(values)
+    result = [False] * n
+    dq = deque()
+    for i in range(n):
+        while dq and dq[0] <= i - window:
+            dq.popleft()
+        while dq and values[dq[-1]] >= values[i]:
+            dq.pop()
+        dq.append(i)
+        if dq[0] == i:
+            result[i] = True
+    return result
 
 
 def calc_volume_indicators(rows):
     """
-    量能指标后处理 — 在基础信号计算之后执行
+    量能指标后处理 — 在基础信号计算之后执行。
 
     每行新增 11 列量能指标:
       vol_ma5 / vol_ma60  — 均量线
@@ -760,7 +647,7 @@ def calc_volume_indicators(rows):
     if n == 0:
         return rows
 
-    vols = [_to_float(r.get('volume', 0)) for r in rows]
+    vols = [float(r.get('volume', 0) or 0) for r in rows]
 
     # 均量线
     vol_ma5_list = calc_ma(vols, 5)
@@ -776,29 +663,32 @@ def calc_volume_indicators(rows):
         rows[i]['vr5'] = round(v / ma5, 2) if ma5 > 0 else 1.0
         rows[i]['vr60'] = round(v / ma60, 2) if ma60 > 0 else 1.0
 
-    # 百日地量 LLV(100)：近5根内是否出现过百日量低点
+    # 百日地量 / 十日地量 — O(n) 预计算 + O(1) 查表
+    is_llv100 = _rolling_min_mask(vols, 100)
+    is_llv10 = _rolling_min_mask(vols, 10)
+
     for i in range(n):
         if vols[i] <= 0:
             rows[i]['vol_llv100'] = 0
             rows[i]['vol_llv10'] = 0
             continue
-        near_llv100 = False
-        for j in range(max(0, i - 4), i + 1):
-            lk = vols[max(0, j - 99):j + 1]
-            if lk and vols[j] <= min(lk) and vols[j] > 0:
-                near_llv100 = True
-                break
-        rows[i]['vol_llv100'] = 1 if near_llv100 else 0
 
-        near_llv10 = False
+        # 近5根内是否有百日低点
+        llv100_flag = 0
         for j in range(max(0, i - 4), i + 1):
-            lk = vols[max(0, j - 9):j + 1]
-            if lk and vols[j] <= min(lk) and vols[j] > 0:
-                near_llv10 = True
+            if is_llv100[j] and vols[j] > 0:
+                llv100_flag = 1
                 break
-        rows[i]['vol_llv10'] = 1 if near_llv10 else 0
+        rows[i]['vol_llv100'] = llv100_flag
 
-    # 地量堆: 近5根中十日地量 >= 3 次
+        llv10_flag = 0
+        for j in range(max(0, i - 4), i + 1):
+            if is_llv10[j] and vols[j] > 0:
+                llv10_flag = 1
+                break
+        rows[i]['vol_llv10'] = llv10_flag
+
+    # 地量堆: 含当前位置的后6根中十日地量 >= 3 次
     for i in range(n):
         end = min(n, i + 6)
         cnt = sum(1 for j in range(i, end) if rows[j].get('vol_llv10', 0) == 1)
@@ -806,16 +696,17 @@ def calc_volume_indicators(rows):
 
     # 缩量过半
     for i in range(n):
-        rows[i]['vol_缩50'] = 1 if _to_float(rows[i].get('vr5', 1.0)) < 0.5 else 0
+        vr5 = rows[i].get('vr5', 1.0)
+        rows[i]['vol_缩50'] = 1 if (vr5 is not None and float(vr5) < 0.5) else 0
 
     # 放量突破: C > 前5根最高 + vr5 > 1.5
     for i in range(n):
         if i < 5:
             rows[i]['vol_突放'] = 0
             continue
-        c_cur = _to_float(rows[i].get('close', 0))
-        h_prev = max(_to_float(rows[j].get('high', 0)) for j in range(i - 5, i))
-        vr5_val = _to_float(rows[i].get('vr5', 1.0))
+        c_cur = float(rows[i].get('close', 0) or 0)
+        h_prev = max(float(rows[j].get('high', 0) or 0) for j in range(i - 5, i))
+        vr5_val = float(rows[i].get('vr5', 1.0) or 1.0)
         rows[i]['vol_突放'] = 1 if c_cur > h_prev and vr5_val > 1.5 else 0
 
     # 梯度放量 / 梯度缩量（连续3根递增/递减）
@@ -832,7 +723,7 @@ def calc_volume_indicators(rows):
 
 # ========== CSV 读写 ==========
 
-DAILY_HEADERS = [
+SIGNAL_HEADERS = [
     'timestamp', 'date', 'open', 'high', 'low', 'close',
     'expma12', 'expma50', 'macd_dif', 'macd_dea', 'macd_hist',
     'trend_line', 'bb_ma221', 'bb_red_line', 'red_line_cross',
@@ -845,35 +736,24 @@ DAILY_HEADERS = [
     'vol_突放', 'vol_梯度升', 'vol_梯度降',
 ]
 
-MIN_HEADERS = [
-    'timestamp', 'date', 'open', 'high', 'low', 'close',
-    'expma12', 'expma50', 'macd_dif', 'macd_dea', 'macd_hist',
-    'trend_line', 'bb_ma221', 'bb_red_line', 'red_line_cross',
-    'buy_signal', 'sell_signal', 'expma_cross',
-    'cci', 'cci_extreme', 'cci_retreat', 'cci_divergence',
-    'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'ma250',
-    'volume', 'amount',
-    'vol_ma5', 'vol_ma60', 'vr5', 'vr60',
-    'vol_llv100', 'vol_llv10', 'vol_堆', 'vol_缩50',
-    'vol_突放', 'vol_梯度升', 'vol_梯度降',
-]
+# 向后兼容别名
+DAILY_HEADERS = SIGNAL_HEADERS
+MIN_HEADERS = SIGNAL_HEADERS
 
 
-def write_csv(filepath, rows, headers):
-    """写入 CSV（覆盖）"""
+def write_csv(filepath, rows, headers, mode='w'):
+    """写入 CSV。mode='w' 覆盖，mode='a' 追加（不写表头）"""
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    with open(filepath, 'w', newline='', encoding='utf-8') as f:
+    with open(filepath, mode, newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=headers)
-        writer.writeheader()
+        if mode == 'w':
+            writer.writeheader()
         writer.writerows(rows)
 
 
 def append_csv(filepath, rows, headers):
-    """追加 CSV"""
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    with open(filepath, 'a', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
-        writer.writerows(rows)
+    """追加 CSV（兼容旧接口，内部调 write_csv）"""
+    write_csv(filepath, rows, headers, mode='a')
 
 
 def read_csv(filepath):
@@ -892,12 +772,10 @@ def build_snapshot(code, market, periods_data, name=None):
     构建最新状态快照
     code: 股票代码
     market: 市场
-    periods_data: dict, key=period('daily'/'min30'/'min60'), value=list[dict]信号数据
+    periods_data: dict, key=period, value=list[dict]信号数据
     name: 中文名称（可选），来自 config.NAME_MAP
     """
-    snapshot = {
-        'name': name or '',
-    }
+    snapshot = {'name': name or ''}
 
     for period, rows in periods_data.items():
         if not rows:
@@ -905,43 +783,42 @@ def build_snapshot(code, market, periods_data, name=None):
             continue
 
         last = rows[-1]
-        info = {}
+        # 一次性类型标准化，避免后续到处 float()
+        c = float(last.get('close', 0) or 0)
+        e12 = float(last.get('expma12', 0) or 0)
+        e50 = float(last.get('expma50', 0) or 0)
+        dif_v = float(last.get('macd_dif', 0) or 0)
+        dea_v = float(last.get('macd_dea', 0) or 0)
+        bb_red = float(last.get('bb_red_line', 0) or 0)
+
+        info = {
+            'expma12': round(e12, 2),
+            'expma50': round(e50, 2),
+            'expma_status': '多头' if e12 > e50 else '空头',
+            'macd_dif': round(dif_v, 4),
+            'macd_dea': round(dea_v, 4),
+            'macd_status': '多头' if (dif_v > 0 and dea_v > 0) else '空头',
+            'trend_line': last.get('trend_line', ''),
+            'signal': (last.get('buy_signal') or last.get('sell_signal') or '无'),
+            'expma_cross': last.get('expma_cross', ''),
+        }
 
         if period == 'daily':
-            info['date'] = str(last['date'])
-            info['close'] = last['close']
-            info['expma12'] = last['expma12']
-            info['expma50'] = last['expma50']
-            info['expma_status'] = '多头' if float(last['expma12']) > float(last['expma50']) else '空头'
-            info['macd_dif'] = last['macd_dif']
-            info['macd_dea'] = last['macd_dea']
-            info['macd_status'] = '多头' if (float(last['macd_dif']) > 0 and float(last['macd_dea']) > 0) else '空头'
-            info['trend_line'] = last['trend_line']
-            info['bb_ma221'] = last['bb_ma221']
-            info['bb_red_line'] = last['bb_red_line']
-            info['red_line_distance'] = round((float(last['close']) - float(last['bb_red_line'])) / float(last['bb_red_line']) * 100, 2)
-            info['signal'] = last['buy_signal'] if last['buy_signal'] else (last['sell_signal'] if last['sell_signal'] else '无')
-            info['red_line_cross'] = last['red_line_cross']
-            info['expma_cross'] = last['expma_cross']
+            info['date'] = str(last.get('date', ''))
+            info['close'] = c
+            info['bb_ma221'] = last.get('bb_ma221', '')
+            info['bb_red_line'] = bb_red
+            info['red_line_distance'] = round(
+                (c - bb_red) / bb_red * 100, 2) if bb_red else 0
+            info['red_line_cross'] = last.get('red_line_cross', '')
         else:
-            # 分钟线
-            info['expma12'] = round(float(last['expma12']), 2)
-            info['expma50'] = round(float(last['expma50']), 2)
-            info['expma_status'] = '多头' if float(last['expma12']) > float(last['expma50']) else '空头'
-            info['macd_dif'] = round(float(last['macd_dif']), 4)
-            info['macd_dea'] = round(float(last['macd_dea']), 4)
-            info['macd_status'] = '多头' if (float(last['macd_dif']) > 0 and float(last['macd_dea']) > 0) else '空头'
-            info['trend_line'] = last['trend_line']
-            info['signal'] = last['buy_signal'] if last['buy_signal'] else (last['sell_signal'] if last['sell_signal'] else '无')
-            info['expma_cross'] = last['expma_cross']
-
-            # 统计最近50根bar内的信号次数
-            n = len(rows)
-            lookback = min(50, n)
+            # 分钟线：附加近50根信号统计
+            lookback = min(50, len(rows))
             recent = rows[-lookback:]
-            info['buy_count_50'] = sum(1 for r in recent if r['buy_signal'])
-            info['sell_count_50'] = sum(1 for r in recent if r['sell_signal'])
-            info['death_cross_count_50'] = sum(1 for r in recent if r['expma_cross'] == '死叉')
+            info['buy_count_50'] = sum(1 for r in recent if r.get('buy_signal'))
+            info['sell_count_50'] = sum(1 for r in recent if r.get('sell_signal'))
+            info['death_cross_count_50'] = sum(
+                1 for r in recent if r.get('expma_cross') == '死叉')
 
         snapshot[period] = info
 
@@ -953,7 +830,7 @@ def save_snapshot(filepath, all_snapshots):
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     data = {
         'update_time': datetime.now().strftime('%Y-%m-%d %H:%M'),
-        'stocks': all_snapshots
+        'stocks': all_snapshots,
     }
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -965,20 +842,12 @@ def get_data_path(code, market, period):
     """获取数据文件路径"""
     base = r'D:\quantify-per'
     ext_map = {
-        'daily': '.day',
-        'min1': '.lc1',
-        'min5': '.lc5',
-        'min15': '.lc15',
-        'min30': '.lc30',
-        'min60': '.lc60',
+        'daily': '.day', 'min1': '.lc1', 'min5': '.lc5',
+        'min15': '.lc15', 'min30': '.lc30', 'min60': '.lc60',
     }
     dir_map = {
-        'daily': 'lday',
-        'min1': 'one',
-        'min5': 'five',
-        'min15': 'fifteen',
-        'min30': 'thirty',
-        'min60': 'sixty',
+        'daily': 'lday', 'min1': 'one', 'min5': 'five',
+        'min15': 'fifteen', 'min30': 'thirty', 'min60': 'sixty',
     }
     ext = ext_map.get(period, '.day')
     dir_name = dir_map.get(period, 'lday')
@@ -989,12 +858,9 @@ def get_signal_path(code, period, fmt='csv'):
     """获取信号输出文件路径"""
     base = r'D:\quantify-per\signals\tracking'
     period_file = {
-        'daily': 'daily_signals',
-        'min1': 'min1_signals',
-        'min5': 'min5_signals',
-        'min15': 'min15_signals',
-        'min30': 'min30_signals',
-        'min60': 'min60_signals',
+        'daily': 'daily_signals', 'min1': 'min1_signals',
+        'min5': 'min5_signals', 'min15': 'min15_signals',
+        'min30': 'min30_signals', 'min60': 'min60_signals',
     }
     fname = period_file.get(period, period) + '.' + fmt
     return os.path.join(base, code, fname)

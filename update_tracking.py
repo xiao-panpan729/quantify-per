@@ -12,6 +12,7 @@
 
 import sys
 import os
+import json
 import time
 
 # 确保能导入 signal_engine 和 tools
@@ -23,23 +24,18 @@ from config import NAME_MAP
 
 # ========== 配置 ==========
 
-# 跟踪列表从 config.NAME_MAP 自动生成（加/删/改名只需维护 config.py）
 def _get_market(code):
     """从代码自动推断市场（输入格式: sh000001 或 520600）"""
-    # 如果代码已带市场前缀(如 sh000001 上证指数), 直接使用
     if code.startswith('sh'):
         return 'sh'
     if code.startswith('sz'):
         return 'sz'
-    # 从数字代码首位推导: 6=上海主板, 5=上海ETF
     return 'sh' if code[0] in ('6', '5') else 'sz'
 
 TRACKING_STOCKS = [(code, _get_market(code)) for code in NAME_MAP.keys()]
 
-# 需要计算的周期
 PERIODS = ['daily', 'min1', 'min5', 'min15', 'min30', 'min60']
 
-# 周期 → pytdx 拉取周期映射（用于抽验）
 VERIFY_PERIOD_MAP = {
     'daily': ('day', 5),
     'min1': ('1m', 50),
@@ -49,18 +45,150 @@ VERIFY_PERIOD_MAP = {
     'min60': ('60m', 16),
 }
 
-# 是否执行 pytdx 抽验
 DO_VERIFY = '--verify' in sys.argv
 
 
 # ========== 增量更新逻辑 ==========
 
-def get_last_id(csv_path, id_field):
-    """从已有CSV中获取最后一条记录的ID（用于增量判断）"""
+def _last_id(csv_path, id_field):
+    """从已有CSV中获取最后一条记录的ID"""
     rows = se.read_csv(csv_path)
     if not rows:
         return None
     return rows[-1].get(id_field)
+
+
+def _compat_normalize_rows(rows):
+    """兼容旧CSV格式：raw_close → close"""
+    for r in rows:
+        if 'close' not in r and 'raw_close' in r:
+            r['close'] = r.pop('raw_close')
+    return rows
+
+
+def _check_format_mismatch(all_rows, last_ts):
+    """检测 rebuild 后 timestamp 格式变化导致增量失效"""
+    if not all_rows or not last_ts:
+        return False
+    try:
+        last_val = int(last_ts)
+        src_first_val = int(all_rows[0]['timestamp'])
+        if max(last_val, src_first_val) > min(last_val, src_first_val) * 10:
+            return True
+    except (ValueError, TypeError):
+        pass
+    return False
+
+
+def _update_period_daily(code, market, data_path, csv_path, force_full):
+    """更新日线周期，返回 (rows, new_rows, mode, elapsed, vol_elapsed)"""
+    t0 = time.time()
+
+    if force_full or not os.path.exists(csv_path):
+        mode = '全量'
+        rows = se.calc_daily_all(data_path)
+        if rows:
+            se.write_csv(csv_path, rows, se.SIGNAL_HEADERS)
+        new_rows = rows
+    else:
+        mode = '增量'
+        last_date = _last_id(csv_path, 'date')
+        all_rows = se.calc_daily_all(data_path)
+        if last_date:
+            last_date_int = int(last_date)
+            new_rows = [r for r in all_rows if r['date'] > last_date_int]
+        else:
+            new_rows = all_rows
+        if new_rows:
+            se.append_csv(csv_path, new_rows, se.SIGNAL_HEADERS)
+        # 直接用内存中的 all_rows，不重复读 CSV
+        rows = all_rows
+
+    elapsed = time.time() - t0
+
+    # 量能指标后处理
+    vol_elapsed = 0.0
+    if rows:
+        t_vol = time.time()
+        _compat_normalize_rows(rows)
+        rows = se.calc_volume_indicators(rows)
+        clean_rows = [{k: r[k] for k in se.SIGNAL_HEADERS if k in r} for r in rows]
+        se.write_csv(csv_path, clean_rows, se.SIGNAL_HEADERS)
+        rows = clean_rows
+        vol_elapsed = time.time() - t_vol
+
+    new_count = len(new_rows) if new_rows else 0
+    print(f"  [daily] {mode}计算完成: 共{len(rows)}条, "
+          f"新增{new_count}条, 量能={vol_elapsed:.1f}s, 总{elapsed + vol_elapsed:.1f}s")
+
+    return rows, new_rows, mode, elapsed, vol_elapsed
+
+
+def _update_period_min(code, market, data_path, csv_path, period, force_full):
+    """更新分钟线周期，返回 (rows, new_rows, mode, elapsed, vol_elapsed)"""
+    t0 = time.time()
+
+    # 选择计算函数和趋势周期
+    if period == 'min1':
+        calcer = lambda fp: se.calc_min1_all(fp, period=period)
+    else:
+        calcer = lambda fp: se.calc_min_all(fp, period=period)
+
+    if force_full or not os.path.exists(csv_path):
+        mode = '全量'
+        rows = calcer(data_path)
+        if rows:
+            se.write_csv(csv_path, rows, se.SIGNAL_HEADERS)
+        new_rows = rows
+    else:
+        mode = '增量'
+        last_ts = _last_id(csv_path, 'timestamp')
+        all_rows = calcer(data_path)
+
+        if _check_format_mismatch(all_rows, last_ts):
+            last_val = int(last_ts) if last_ts else 0
+            src_first_val = int(all_rows[0]['timestamp']) if all_rows else 0
+            print(f"  [{period}] ⚠️ 检测到时间戳格式不匹配! "
+                  f"CSV最后={last_val}, 源文件首条={src_first_val}, 强制全量重算")
+            mode = '全量(格式修复)'
+            if all_rows:
+                se.write_csv(csv_path, all_rows, se.SIGNAL_HEADERS)
+            new_rows = all_rows
+            rows = all_rows
+        elif last_ts:
+            last_ts_int = int(last_ts)
+            new_rows = [r for r in all_rows if r['timestamp'] > last_ts_int]
+            if new_rows:
+                se.append_csv(csv_path, new_rows, se.SIGNAL_HEADERS)
+            # 直接用内存中的 all_rows，不重复读 CSV
+            rows = all_rows
+        else:
+            new_rows = all_rows
+            if new_rows:
+                se.write_csv(csv_path, new_rows, se.SIGNAL_HEADERS)
+            rows = all_rows
+
+    elapsed = time.time() - t0
+
+    # 量能指标后处理
+    vol_elapsed = 0.0
+    if rows:
+        t_vol = time.time()
+        _compat_normalize_rows(rows)
+        rows = se.calc_volume_indicators(rows)
+        clean_rows = [{k: r[k] for k in se.SIGNAL_HEADERS if k in r} for r in rows]
+        se.write_csv(csv_path, clean_rows, se.SIGNAL_HEADERS)
+        rows = clean_rows
+        vol_elapsed = time.time() - t_vol
+
+    new_count = len(new_rows) if (new_rows and mode != '全量') else (len(rows) if mode == '全量' else 0)
+    if mode.startswith('全量'):
+        new_count = len(rows)
+
+    print(f"  [{period}] {mode}计算完成: 共{len(rows)}条, "
+          f"新增{new_count}条, 量能={vol_elapsed:.1f}s, 总{elapsed + vol_elapsed:.1f}s")
+
+    return rows, new_rows, mode, elapsed, vol_elapsed
 
 
 def update_stock(code, market, force_full=False):
@@ -79,115 +207,12 @@ def update_stock(code, market, force_full=False):
             print(f"  [{period}] 数据文件不存在: {data_path}")
             continue
 
-        # 判断是否全量还是增量
-        if force_full or not os.path.exists(csv_path):
-            mode = '全量'
-        else:
-            mode = '增量'
-
-        t0 = time.time()
-
         if period == 'daily':
-            if mode == '全量':
-                rows = se.calc_daily_all(data_path)
-                if rows:
-                    se.write_csv(csv_path, rows, se.DAILY_HEADERS)
-            else:
-                # 增量: 读取已有CSV, 从最后日期后开始算
-                last_date = get_last_id(csv_path, 'date')
-                all_rows = se.calc_daily_all(data_path)
-                if last_date:
-                    last_date_int = int(last_date)
-                    new_rows = [r for r in all_rows if r['date'] > last_date_int]
-                else:
-                    new_rows = all_rows
-                if new_rows:
-                    se.append_csv(csv_path, new_rows, se.DAILY_HEADERS)
-                else:
-                    new_rows = []
-                rows = se.read_csv(csv_path)
+            rows, _new, _mode, _elapsed, _vol = _update_period_daily(
+                code, market, data_path, csv_path, force_full)
         else:
-            # 分钟线
-            if period == 'min1':
-                calcer = lambda fp, p=period: se.calc_min1_all(fp, period=p)
-            else:
-                calcer = lambda fp, p=period: se.calc_min_all(fp, period=p)
-            if mode == '全量':
-                rows = calcer(data_path)
-                if rows:
-                    se.write_csv(csv_path, rows, se.MIN_HEADERS)
-            else:
-                last_ts = get_last_id(csv_path, 'timestamp')
-                all_rows = calcer(data_path)
-
-                # === 格式检测：防止 rebuild 后 timestamp 格式变化导致增量失效 ===
-                # 原因: rebuild 可能改变源文件的时间戳格式(如从编码数字改为YYYYMMDD),
-                #       旧CSV存的是旧格式的大数字, 新源文件是新格式的小数字,
-                #       导致 last_ts > src_ts, 系统误判"无新数据"
-                need_format_fix = False
-                if all_rows and last_ts:
-                    try:
-                        last_val = int(last_ts)
-                        src_first_val = int(all_rows[0]['timestamp'])
-                        # 如果数量级差超过10倍(或一个>1e9另一个<1e10), 判定为格式不匹配
-                        if max(last_val, src_first_val) > min(last_val, src_first_val) * 10:
-                            need_format_fix = True
-                            print(f"  [{period}] ⚠️ 检测到时间戳格式不匹配! "
-                                  f"CSV最后={last_val}, 源文件首条={src_first_val}, 强制全量重算")
-                    except (ValueError, TypeError):
-                        pass
-
-                if need_format_fix:
-                    mode = '全量(格式修复)'
-                    if all_rows:
-                        se.write_csv(csv_path, all_rows, se.MIN_HEADERS)
-                        new_rows = all_rows
-                    else:
-                        new_rows = []
-                    rows = se.read_csv(csv_path)
-                elif last_ts:
-                    last_ts_int = int(last_ts)
-                    new_rows = [r for r in all_rows if r['timestamp'] > last_ts_int]
-                    if new_rows:
-                        se.append_csv(csv_path, new_rows, se.MIN_HEADERS)
-                    else:
-                        pass  # 无新数据，保持原样
-                    rows = se.read_csv(csv_path)
-                else:
-                    new_rows = all_rows
-                    if new_rows:
-                        se.write_csv(csv_path, new_rows, se.MIN_HEADERS)
-                    rows = se.read_csv(csv_path)
-
-        elapsed = time.time() - t0
-
-        # 量能指标后处理（计算11列量能指标，写入CSV）
-        if rows:
-            t_vol = time.time()
-
-            # 兼容旧CSV格式：raw_close → close（分钟线旧格式）
-            for r in rows:
-                if 'close' not in r and 'raw_close' in r:
-                    r['close'] = r.pop('raw_close')
-
-            headers = se.DAILY_HEADERS if period == 'daily' else se.MIN_HEADERS
-
-            # 全量重算量能指标后写入（含旧行 + 新行）
-            rows = se.calc_volume_indicators(rows)
-
-            # 仅保留headers已有的字段（丢弃旧格式残余字段）
-            clean_rows = [{k: r[k] for k in headers if k in r} for r in rows]
-            se.write_csv(csv_path, clean_rows, headers)
-            rows = clean_rows
-
-            vol_elapsed = time.time() - t_vol
-        else:
-            vol_elapsed = 0
-
-        new_count = len(new_rows) if mode == '增量' else len(rows)
-
-        print(f"  [{period}] {mode}计算完成: 共{len(rows)}条, "
-              f"新增{new_count}条, 量能={vol_elapsed:.1f}s, 总{elapsed+vol_elapsed:.1f}s")
+            rows, _new, _mode, _elapsed, _vol = _update_period_min(
+                code, market, data_path, csv_path, period, force_full)
 
         periods_data[period] = rows
 
@@ -203,11 +228,10 @@ def verify_with_api(code, market, period, local_rows):
     """
     try:
         import tdx_fetch as tf
-        api_period, count = VERIFY_PERIOD_MAP.get(period)
+        api_period, count = VERIFY_PERIOD_MAP.get(period, (None, 0))
         if not api_period:
             return ('SKIP', 0, '不支持该周期的抽验')
 
-        # 拉取 API 数据（去掉市场前缀，pytdx 只认纯代码）
         pure_code = code.replace('sz', '').replace('sh', '')
         api_bars = tf.fetch_bars(pure_code, api_period, market, count=count)
         if not api_bars:
@@ -216,15 +240,15 @@ def verify_with_api(code, market, period, local_rows):
         if len(local_rows) < 8 or len(api_bars) < 8:
             return ('SKIP', 0, '数据不足8根，跳过抽验')
 
-        # 取最后 N 根做对比
         n = min(len(local_rows), len(api_bars))
-        max_diff = 0
-        diff_count = 0
-
-        # 本地价格缩放因子: 日线/1000, 分钟线/10000
         price_factor = 1000 if period == 'daily' else 10000
 
-        for i in range(1, n + 1):  # 从最新往前
+        # 单次循环同时算 max_diff 和 avg_diff
+        max_diff = 0.0
+        sum_diff = 0.0
+        compare_n = min(n, 16)  # 最多对比16根
+
+        for i in range(1, compare_n + 1):
             li = len(local_rows) - i
             ai = len(api_bars) - i
 
@@ -233,19 +257,15 @@ def verify_with_api(code, market, period, local_rows):
             api_close = api_bars[ai]['close']
             diff = abs(local_close - api_close)
 
+            sum_diff += diff
             if diff > max_diff:
                 max_diff = diff
-            diff_count += 1
 
-        avg_diff = sum(
-            abs(float(local_rows[len(local_rows)-i].get('close') or local_rows[len(local_rows)-i].get('raw_close', 0)) / price_factor
-                 - api_bars[len(api_bars)-i]['close'])
-            for i in range(1, min(n+1, 17))
-        ) / min(n, 16) if n >= 2 else 0
+        avg_diff = sum_diff / compare_n if compare_n > 0 else 0
 
         result = 'PASS' if max_diff < 0.01 else ('WARN' if max_diff < 0.05 else 'FAIL')
         return (result, round(max_diff, 6),
-                f'{diff_count}根, max_diff={max_diff:.4f}, avg={avg_diff:.4f}')
+                f'{compare_n}根, max_diff={max_diff:.4f}, avg={avg_diff:.4f}')
 
     except ImportError:
         return ('SKIP', 0, 'tdx_fetch 不可用')
@@ -262,32 +282,23 @@ def save_to_db(code, periods_data):
         db = TrackingDB()
 
         for period, rows in periods_data.items():
-            if not rows or len(rows) == 0:
+            if not rows:
                 continue
-            # 提取最后 N 根趋势线值（默认50根）
-            rows_list = list(rows) if hasattr(rows, '__iter__') else []
-            # 确保每个元素是 dict（兼容 CSV DictReader 和其他格式）
-            processed = []
-            for r in rows_list:
-                if isinstance(r, dict):
-                    processed.append(r)
-                elif hasattr(r, '__iter__') and not isinstance(r, str):
-                    # 可能是 list/tuple，跳过
-                    continue
-                else:
-                    continue
-            
-            snap_n = min(max(1, len(processed)), 50) if processed else 1
+            processed = [r for r in rows if isinstance(r, dict)]
+            if not processed:
+                continue
+
+            snap_n = min(max(1, len(processed)), 50)
             tail = processed[-snap_n:]
 
-            trend_vals = [float(r.get('trend_line', 0)) for r in tail]
-            close_vals = [float(r.get('close') or r.get('raw_close', 0)) for r in tail]
+            trend_vals = [float(r.get('trend_line', 0) or 0) for r in tail]
+            close_vals = [float(r.get('close') or r.get('raw_close', 0) or 0) for r in tail]
             bar_times = [str(r.get('date') or r.get('timestamp') or '') for r in tail]
 
             db.save_snapshot(code, period, trend_vals,
-                           bar_times=bar_times,
-                           close_prices=close_vals,
-                           n_bars=snap_n)
+                             bar_times=bar_times,
+                             close_prices=close_vals,
+                             n_bars=snap_n)
 
         db.close()
         print(f'[DB] 快照已保存到 SQLite ({len(periods_data)} 个周期)')
@@ -302,7 +313,6 @@ def save_to_db(code, periods_data):
 def main():
     t_start = time.time()
 
-    # 解析命令行参数（排除 --verify 等标志）
     target_code = None
     for arg in sys.argv[1:]:
         if arg == '--verify':
@@ -310,7 +320,6 @@ def main():
         target_code = arg
         break
 
-    # 确定更新范围
     if target_code:
         stocks = [(s, m) for s, m in TRACKING_STOCKS if s == target_code]
         if not stocks:
@@ -320,18 +329,16 @@ def main():
     else:
         stocks = TRACKING_STOCKS
 
-    # 逐个更新
     all_snapshots = {}
-    _raw_periods = {}  # 保存原始数据给SQLite用
+    _raw_periods = {}
 
     for code, market in stocks:
         periods_data = update_stock(code, market)
         if periods_data:
             name = NAME_MAP.get(code, '')
             all_snapshots[code] = se.build_snapshot(code, market, periods_data, name=name)
-            _raw_periods[code] = periods_data  # 原始行数据，供快照用
+            _raw_periods[code] = periods_data
 
-        # pytdx 抽验（如果启用）
         if DO_VERIFY and periods_data:
             print(f"\n  --- pytdx 抽验 {code} ---")
             try:
@@ -343,26 +350,29 @@ def main():
                 vresult = verify_with_api(code, market, period, rows)
                 if vresult:
                     res, md, note = vresult
-                    marker = {'PASS':'[OK]','FAIL':'[NG]','WARN':'[!]'}.get(res, '[-]')
+                    marker = {'PASS': '[OK]', 'FAIL': '[NG]', 'WARN': '[!]'}.get(res, '[-]')
                     print(f"    [{period}] {marker} {res}: {note}")
                     if db:
-                        db.log_verify(code, period, res,
-                                    max_diff=md, note=note)
+                        db.log_verify(code, period, res, max_diff=md, note=note)
             if db:
                 db.close()
 
-    # SQLite 存档（用原始数据，不是精简摘要）
     for code, periods_data in _raw_periods.items():
         save_to_db(code, periods_data)
 
-    # 生成 latest.json
-    snapshot_path = os.path.join(
-        r'D:\quantify-per\signals\tracking', 'latest.json'
-    )
+    # 保存 latest.json（单标模式：合并旧数据，不丢其他标的快照）
+    snapshot_path = os.path.join(r'D:\quantify-per\signals\tracking', 'latest.json')
+    if target_code and os.path.exists(snapshot_path):
+        try:
+            old = json.loads(open(snapshot_path, 'r', encoding='utf-8').read())
+            old_stocks = old.get('stocks', {})
+            old_stocks.update(all_snapshots)
+            all_snapshots = old_stocks
+        except Exception:
+            pass
     se.save_snapshot(snapshot_path, all_snapshots)
     print(f"\n快照已保存: {snapshot_path}")
 
-    # 打印摘要
     print(f"\n{'='*50}")
     print(f"最新信号状态")
     print(f"{'='*50}")

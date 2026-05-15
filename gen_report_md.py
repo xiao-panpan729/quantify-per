@@ -94,7 +94,7 @@ def load_score_history():
             pass
     return {'date': '无', 'scores': {}}
 
-def save_score_history():
+def save_score_history(date_str):
     """追加今日分数快照（保留历史用于跨日对比）"""
     raw = {}
     if os.path.exists(SCORE_HISTORY):
@@ -186,6 +186,24 @@ def dd_bar(dd_val, max_dd=35):
         return '%s%.1f%%' % (ch * width, abs(dd_val))
     except:
         return ''
+
+def _fmt_dominant_note(dominant_info, trend_dir):
+    """主导量级文字：返回 (label, note)。
+    label: '15分钟' 等, note: '小级卖信号暂不采信' 等, 无主导时返回 ('', '')"""
+    if not dominant_info or not dominant_info.get('dominant_cycle'):
+        return '', ''
+    label = dominant_info['dominant_label']
+    stretched = dominant_info.get('stretched_periods', [])
+    if not stretched:
+        return label, ''
+    if trend_dir in ('bullish', 'bullish_bias'):
+        note = '小级卖信号暂不采信'
+    elif trend_dir in ('bearish', 'bearish_bias', 'bearish'):
+        note = '小级买信号暂不采信'
+    else:
+        note = '小级反向暂不采信'
+    return label, note
+
 
 GRADE_ORDER = ['observe_strong', 'actionable', 'resonant_strong', 'neutral_strong', 'neutral_bias', 'neutral', 'neutral_weak', 'observe', 'avoid']
 GRADE_INFO = {
@@ -287,21 +305,9 @@ def build_report_lines():
                 summary += ' → ' + wc
     
             # 主导量级
-            dc = adv.get('dominant_cycle', {})
-            if dc and dc.get('dominant_cycle'):
-                dc_label = dc['dominant_label']
-                stretched = dc.get('stretched_periods', [])
-                if stretched:
-                    ignore = ','.join(p.replace('min','') for p in stretched)
-                    trend_d = t.get('direction', '')
-                    if trend_d in ('bullish', 'bullish_bias'):
-                        dc_str = f'{dc_label}主导(小级卖信号暂不采信)'
-                    elif trend_d in ('bearish', 'bearish_bias', 'bearish'):
-                        dc_str = f'{dc_label}主导(小级买信号暂不采信)'
-                    else:
-                        dc_str = f'{dc_label}主导(小级反向暂不采信)'
-                else:
-                    dc_str = dc_label
+            dc_label, dc_note = _fmt_dominant_note(adv.get('dominant_cycle', {}), t.get('direction', ''))
+            if dc_label:
+                dc_str = f'{dc_label}主导({dc_note})' if dc_note else dc_label
             else:
                 dc_str = '-'
     
@@ -343,6 +349,8 @@ def build_report_lines():
         reports = sorted([f.replace('_v3.md','') for f in os.listdir('reports/daily') if f.endswith('_v3.md')], reverse=True)
         if reports:
             yesterday_str = reports[0]
+
+    hht_data = _get_hht()  # HHT 分析数据，供报告各段使用
     
     lines.append('# 周期循环分析报告 (Cycle Engine v3.0)')
     lines.append('')
@@ -558,20 +566,11 @@ def build_report_lines():
         lines.append('- **信号**: %s' % ' | '.join(sig_parts))
     
         # ── 主导量级 + 建议 ──
-        dc = adv.get('dominant_cycle')
-        dc_str = ''
-        if dc and dc.get('dominant_cycle'):
-            dc_str = dc['dominant_label']
-            stretched = dc.get('stretched_periods', [])
-            if stretched:
-                ignore = ','.join(p.replace('min','') for p in stretched)
-                trend_d = t.get('direction', '')
-                if trend_d in ('bullish', 'bullish_bias'):
-                    dc_str += f'主导(小级卖信号暂不采信)'
-                elif trend_d in ('bearish', 'bearish_bias', 'bearish'):
-                    dc_str += f'主导(小级买信号暂不采信)'
-                else:
-                    dc_str += f'主导(小级反向暂不采信)'
+        dc_label, dc_note = _fmt_dominant_note(adv.get('dominant_cycle'), t.get('direction', ''))
+        if dc_label:
+            dc_str = f'{dc_label}主导({dc_note})' if dc_note else dc_label
+        else:
+            dc_str = ''
         lines.append('- **主导**: %s | **建议**: %s (置信度:%s)' % (dc_str or '-', advice_cn(action), conf))
     
         lines.append('')
@@ -883,7 +882,7 @@ def build_report_lines():
             lines.append(f'\n> **当前状态**: EXPMA={expma_status} | MACD={macd_status} | 收盘={cs} | 最佳={period_cn(best_p) if best_p else "-"} | {reason or advice_cn(action)}')
             lines.append('')
 
-    return lines
+    return lines, date_str
 
 def append_params_reference(lines):
     lines.append('')
@@ -974,7 +973,7 @@ def save_analysis_history(data, date_str):
     snapshot = {}
     for item in _get_data():
         code = item['code']
-        hht = hht_data.get(code, {})
+        hht = _get_hht().get(code, {})
         code_hht = {}
         for pk in ['daily','min60','min30','min15','min5']:
             hpd = hht.get('periods', {}).get(pk, {})
@@ -1013,14 +1012,14 @@ def save_analysis_history(data, date_str):
     print('[分析历史] 追加完成: 共 %d 条记录' % len(history['records']))
 
 if __name__ == "__main__":
-    lines = build_report_lines()
+    lines, date_str = build_report_lines()
     append_params_reference(lines)
     report = '\n'.join(lines)
     out_path = 'reports/daily/%s_v3.md' % date_str
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w', encoding='utf-8') as f:
         f.write(report)
-    save_score_history()
+    save_score_history(date_str)
     save_analysis_history(_get_data(), date_str)
     print('已生成: ' + out_path)
     import webbrowser

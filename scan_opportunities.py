@@ -46,6 +46,12 @@ def _get_tracking_codes():
 
 CODES = _get_tracking_codes()
 
+# 扫描周期（分钟级别，日线单独处理）
+SCAN_PERIODS = ['min30', 'min15', 'min5']
+
+# 趋势等级常量
+TREND_LABELS = {'A': 'A最强', 'B': 'B次强', 'C': 'C偏弱', 'D': 'D弱势'}
+
 # ==== 用户定性判断（可定期更新） ====
 QUALITATIVE_VIEWS = {
     'sh600438': {
@@ -238,9 +244,30 @@ def find_recent_signals(rows, max_n=5):
     return sigs[-max_n:]
 
 
-def analyze_period(code, period):
-    """分析某周期，返回结构化结果"""
-    rows = read_snapshots(code, period, 80)
+def _extract_events(rows):
+    """从 rows 中提取信号事件列表，统一 buy/sell/ema/div 格式"""
+    events = []
+    for r in rows:
+        buy = r.get('buy_signal', '').strip()
+        sell = r.get('sell_signal', '').strip()
+        ema = r.get('expma_cross', '').strip()
+        div = r.get('cci_divergence', '').strip()
+        if buy or sell or ema or div:
+            events.append({
+                'ts': r.get('timestamp', ''),
+                'buy': buy,
+                'sell': sell,
+                'ema': ema,
+                'div': div,
+                'cci': r.get('cci', '')[:8],
+                'close': r.get('raw_close', r.get('close', '')),
+            })
+    return events
+
+
+def analyze_period(code, period, _rows=None):
+    """分析某周期，返回结构化结果。_rows可选，传入则跳过读CSV"""
+    rows = _rows if _rows is not None else read_snapshots(code, period, 80)
     if not rows:
         return None
 
@@ -263,23 +290,7 @@ def analyze_period(code, period):
                 break
         if ext_idx is not None:
             # 从极值位置之后开始收集信号，不限制数量
-            post_rows = rows[ext_idx:]
-            sigs_from_ext = []
-            for r in post_rows:
-                buy = r.get('buy_signal', '').strip()
-                sell = r.get('sell_signal', '').strip()
-                ema = r.get('expma_cross', '').strip()
-                div = r.get('cci_divergence', '').strip()
-                if buy or sell or ema or div:
-                    sigs_from_ext.append({
-                        'ts': r.get('timestamp', ''),
-                        'buy': buy,
-                        'sell': sell,
-                        'ema': ema,
-                        'div': div,
-                        'cci': r.get('cci', '')[:8],
-                        'close': r.get('raw_close', r.get('close', '')),
-                    })
+            sigs_from_ext = _extract_events(rows[ext_idx:])
             if sigs_from_ext:
                 sigs = sigs_from_ext
 
@@ -298,23 +309,7 @@ def analyze_period(code, period):
                 break
         post_sigs = sigs
         if ext_idx is not None:
-            post_rows = rows[ext_idx:]
-            post_sigs = []
-            for r in post_rows:
-                buy = r.get('buy_signal', '').strip()
-                sell = r.get('sell_signal', '').strip()
-                ema = r.get('expma_cross', '').strip()
-                div = r.get('cci_divergence', '').strip()
-                if buy or sell or ema or div:
-                    post_sigs.append({
-                        'ts': r.get('timestamp', ''),
-                        'buy': buy,
-                        'sell': sell,
-                        'ema': ema,
-                        'div': div,
-                        'cci': r.get('cci', '')[:8],
-                        'close': r.get('raw_close', r.get('close', '')),
-                    })
+            post_sigs = _extract_events(rows[ext_idx:])
 
         has_buy = any(s['buy'] for s in post_sigs)
         has_sell = any(s['sell'] for s in post_sigs)
@@ -747,7 +742,7 @@ def save_closings_for_backtest(code, closings_data):
 
 def level_label(trend):
     """趋势等级转文本"""
-    return {'A': 'A最强', 'B': 'B次强', 'C': 'C偏弱', 'D': 'D弱势'}.get(trend, trend)
+    return TREND_LABELS.get(trend, trend)
 
 
 def focus_direction(trend):
@@ -1068,6 +1063,78 @@ def generate_level_report_text(analysis_result):
 # 报告生成
 # ============================================================
 
+def get_status_narrative(r):
+    """生成标的的一句话状态叙事（模块级，供报告和命令行共用）"""
+    daily = r['daily']
+    periods = r['periods']
+    max_level = r['max_level']
+
+    trend = daily.get('trend_strength', 'D') if daily else 'D'
+
+    # 找最近的关键信号（按时间倒序）
+    recent_events = []
+    for p in ['min5', 'min15', 'min30']:
+        ana = periods.get(p)
+        if not ana or not ana['signals']:
+            continue
+        for s in ana['signals']:
+            event = []
+            if s['buy']: event.append(f"{p}★买")
+            if s['sell']: event.append(f"{p}★卖")
+            if s['ema']: event.append(s['ema'])
+            if event:
+                recent_events.append((s['ts'], ' | '.join(event)))
+
+    recent_events.sort(key=lambda x: x[0], reverse=True)
+    last_event = recent_events[0][1] if recent_events else '近期无关键信号'
+
+    # 状态分类
+    if max_level == 3:
+        status = '🔴 可操作'
+        action = '闭环信号出现，关注入场'
+    elif max_level == 2:
+        status = '🟡 接近闭环'
+        action = '接近信号，继续观察'
+    elif trend in ('A', 'B') and any('金叉' in p.get('opportunity', '') for p in periods.values()):
+        status = '🟢 强势延续'
+        action = '趋势健康，持仓或等回调'
+    elif trend == 'C':
+        status = '🔶 偏弱震荡'
+        action = '偏弱整理，等更强信号'
+    elif trend == 'D':
+        if any('★卖' in p.get('opportunity', '') for p in periods.values()):
+            status = '⚫ 调整中'
+            action = '空头趋势，回避或等底部结构'
+        else:
+            status = '⚫ 弱势'
+            action = '弱势整理，暂无机会'
+    else:
+        status = '⚪ 平淡'
+        action = '暂无明确方向'
+
+    return status, action, last_event, trend
+
+
+def format_timeline(r, days=5):
+    """生成最近N日的信号时间线（模块级）"""
+    events = []
+    for p in ['min5', 'min15', 'min30']:
+        ana = r['periods'].get(p)
+        if not ana or not ana['signals']:
+            continue
+        for s in ana['signals']:
+            ts = s['ts']
+            parts = []
+            if s['buy']: parts.append('★买')
+            if s['sell']: parts.append('★卖')
+            if s['ema']: parts.append(s['ema'])
+            if s['div']: parts.append(s['div'])
+            if parts:
+                events.append((ts, p, ' | '.join(parts)))
+    events.sort(key=lambda x: x[0], reverse=True)
+    return events[:15]
+
+
 def generate_report(date_str=None):
     """生成每日判断报告 Markdown"""
     if date_str is None:
@@ -1081,18 +1148,18 @@ def generate_report(date_str=None):
     for code, name in CODES:
         daily = get_daily_env(code)
         periods = {}
-        for p in ['min30', 'min15', 'min5']:
-            ana = analyze_period(code, p)
+        rows_dict = {}
+
+        for p in SCAN_PERIODS:
+            all_rows = read_snapshots(code, p, 300)
+            rows_dict[p] = all_rows
+            # analyze_period 只需要后80行，复用已读数据
+            ana = analyze_period(code, p, _rows=all_rows[-80:] if len(all_rows) > 80 else all_rows)
             if ana:
                 periods[p] = ana
 
         # 找最高机会级别
         max_level = max((periods[p]['opp_level'] for p in periods), default=0)
-
-        # 读取完整快照供闭环检测
-        rows_dict = {}
-        for p in ['min30', 'min15', 'min5']:
-            rows_dict[p] = read_snapshots(code, p, 300)
 
         # 运行闭环检测引擎
         trend_strength = daily['trend_strength'] if daily else 'D'
@@ -1107,82 +1174,6 @@ def generate_report(date_str=None):
             'max_level': max_level,
             'closings': closing_data,
         })
-
-    # ========== 辅助函数：生成标的叙事状态 ==========
-    def get_status_narrative(r):
-        """生成标的的一句话状态叙事"""
-        code = r['code']
-        name = r['name']
-        daily = r['daily']
-        periods = r['periods']
-        max_level = r['max_level']
-
-        # 日线环境
-        trend = daily.get('trend_strength', 'D') if daily else 'D'
-        env = daily.get('env_short', '—') if daily else '—'
-
-        # 找最近的关键信号（按时间倒序）
-        recent_events = []
-        for p in ['min5', 'min15', 'min30']:
-            ana = periods.get(p)
-            if not ana or not ana['signals']:
-                continue
-            for s in ana['signals']:
-                event = []
-                if s['buy']: event.append(f"{p}★买")
-                if s['sell']: event.append(f"{p}★卖")
-                if s['ema']: event.append(s['ema'])
-                if event:
-                    recent_events.append((s['ts'], ' | '.join(event)))
-
-        recent_events.sort(key=lambda x: x[0], reverse=True)
-        last_event = recent_events[0][1] if recent_events else '近期无关键信号'
-
-        # 状态分类
-        if max_level == 3:
-            status = '🔴 可操作'
-            action = '闭环信号出现，关注入场'
-        elif max_level == 2:
-            status = '🟡 接近闭环'
-            action = '接近信号，继续观察'
-        elif trend in ('A', 'B') and any('金叉' in p.get('opportunity', '') for p in periods.values()):
-            status = '🟢 强势延续'
-            action = '趋势健康，持仓或等回调'
-        elif trend == 'C':
-            status = '🔶 偏弱震荡'
-            action = '偏弱整理，等更强信号'
-        elif trend == 'D':
-            if any('★卖' in p.get('opportunity', '') for p in periods.values()):
-                status = '⚫ 调整中'
-                action = '空头趋势，回避或等底部结构'
-            else:
-                status = '⚫ 弱势'
-                action = '弱势整理，暂无机会'
-        else:
-            status = '⚪ 平淡'
-            action = '暂无明确方向'
-
-        return status, action, last_event, trend
-
-    def format_timeline(r, days=5):
-        """生成最近N日的信号时间线"""
-        events = []
-        for p in ['min5', 'min15', 'min30']:
-            ana = r['periods'].get(p)
-            if not ana or not ana['signals']:
-                continue
-            for s in ana['signals']:
-                ts = s['ts']
-                parts = []
-                if s['buy']: parts.append('★买')
-                if s['sell']: parts.append('★卖')
-                if s['ema']: parts.append(s['ema'])
-                if s['div']: parts.append(s['div'])
-                if parts:
-                    events.append((ts, p, ' | '.join(parts)))
-        events.sort(key=lambda x: x[0], reverse=True)
-        # 只保留最近几天的
-        return events[:15]  # 最多15条
 
     # 生成 Markdown
     lines = []
@@ -1224,7 +1215,7 @@ def generate_report(date_str=None):
         lines.append('|------|----------|-------------|----------|')
         for item in items:
             r = item['r']
-            trend_label = {'A': 'A最强', 'B': 'B次强', 'C': 'C偏弱', 'D': 'D弱势'}.get(item['trend'], '—')
+            trend_label = TREND_LABELS.get(item['trend'], '—')
             lines.append(f"| {r['code']} {r['name']} | {trend_label} | {item['last_event']} | {item['action']} |")
         lines.append('')
 
@@ -1247,7 +1238,7 @@ def generate_report(date_str=None):
 
     for r in key_results:
         status, action, last_event, trend = get_status_narrative(r)
-        trend_label = {'A': 'A最强', 'B': 'B次强', 'C': 'C偏弱', 'D': 'D弱势'}.get(trend, '—')
+        trend_label = TREND_LABELS.get(trend, '—')
 
         lines.append(f"### {r['code']} {r['name']} — {status}")
         lines.append('')
@@ -1255,7 +1246,7 @@ def generate_report(date_str=None):
         lines.append(f"- **当前建议**: {action}")
 
         # 各周期信号摘要
-        for p in ['min30', 'min15', 'min5']:
+        for p in SCAN_PERIODS:
             ana = r['periods'].get(p)
             if ana:
                 lines.append(f"- **{p}**: {ana['opportunity']}")
@@ -1299,7 +1290,7 @@ def generate_report(date_str=None):
             if not r:
                 continue
             trend = r['daily'].get('trend_strength', 'D') if r['daily'] else 'D'
-            trend_label = {'A': 'A最强', 'B': 'B次强', 'C': 'C偏弱', 'D': 'D弱势'}.get(trend, 'D弱势')
+            trend_label = TREND_LABELS.get(trend, 'D弱势')
             p5 = r['periods'].get('min5', {})
             p15 = r['periods'].get('min15', {})
             p5_sig = p5.get('opportunity', '—') if p5 else '—'
@@ -1381,7 +1372,7 @@ def generate_report(date_str=None):
         lines.append('')
 
         trend = r['daily'].get('trend_strength', 'D') if r['daily'] else 'D'
-        trend_label = {'A': 'A最强', 'B': 'B次强', 'C': 'C偏弱', 'D': 'D弱势'}.get(trend, '—')
+        trend_label = TREND_LABELS.get(trend, '—')
         focus = '主看卖闭环 + 回调买闭环' if trend in ('A', 'B') else '主看买闭环 + 反向观测卖信号'
         lines.append(f'- 趋势: {trend_label} | 关注方向: {focus}')
 
@@ -1431,7 +1422,7 @@ def generate_report(date_str=None):
         if r['max_level'] >= 1 or r['code'] in QUALITATIVE_VIEWS:
             lines.append(f"### {r['code']} {r['name']}")
             lines.append('')
-            for p in ['min30', 'min15', 'min5']:
+            for p in SCAN_PERIODS:
                 ana = r['periods'].get(p)
                 if not ana:
                     continue
@@ -1553,7 +1544,7 @@ def print_console_summary():
     for code, name in CODES:
         daily = get_daily_env(code)
         periods = {}
-        for p in ['min30', 'min15', 'min5']:
+        for p in SCAN_PERIODS:
             ana = analyze_period(code, p)
             if ana:
                 periods[p] = ana
@@ -1564,7 +1555,7 @@ def print_console_summary():
         daily_str = daily['env_short'] if daily else 'N/A'
         print(f"\n🔹 {code} {name}  [日线: {daily_str}]")
 
-        for p in ['min30', 'min15', 'min5']:
+        for p in SCAN_PERIODS:
             ana = periods.get(p)
             if not ana:
                 continue
@@ -1585,7 +1576,7 @@ def print_console_summary():
     print('\n' + '=' * 90)
 
 
-def print_single_code(code, periods=['min30', 'min15', 'min5']):
+def print_single_code(code, periods=SCAN_PERIODS):
     """输出单个标的的详细多周期对比"""
     name = next(n for c, n in CODES if c == code)
     print(f'\n🔍 {code} {name}')
@@ -1629,12 +1620,7 @@ def backtest_closings(code='sz159740'):
     输入：closes.json（买入/卖出闭环列表）
     数据源：对应级别的信号 CSV
     """
-    import json
-    import csv
-    import os
-    from datetime import datetime
-
-    tracking = r'D:\quantify-per\signals\tracking'
+    tracking = str(SNAPSHOT_DIR)
     closes_path = os.path.join(tracking, code, 'closes.json')
 
     if not os.path.exists(closes_path):

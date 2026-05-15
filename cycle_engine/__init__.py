@@ -16,17 +16,17 @@ from .indicators import (
     price_effectiveness, signal_quality,
 )
 from .cycle_structure import (
-    cycle_pattern, _wave_peaks, _peak_intervals,
+    cycle_pattern, _find_local_extremes, _extract_wave_events,
     detect_dominant_cycle, analyze_volume_regime,
     judge_wave_structure, detect_exponential_readiness,
-    _find_local_extremes, detect_rs_density,
+    detect_rs_density,
 )
 from .engine import (
     get_market_coefficient, analyze_period, analyze, analyze_all,
 )
 from .grading import (
     _grade_trend_signal, _grade_output, best_period_label,
-    _generate_advice, _actions,
+    _generate_advice,
 )
 from .reporting import (
     _fmt_price_eff, _fmt_signal_icon, _fmt_periods_detail,
