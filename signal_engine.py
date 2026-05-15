@@ -731,6 +731,105 @@ def calc_min1_all(filepath, period='min1'):
     return results
 
 
+# ========== 量能指标后处理 ==========
+
+def _to_float(v, default=0.0):
+    if v is None:
+        return default
+    try:
+        return float(v)
+    except (ValueError, TypeError):
+        return default
+
+
+def calc_volume_indicators(rows):
+    """
+    量能指标后处理 — 在基础信号计算之后执行
+
+    每行新增 11 列量能指标:
+      vol_ma5 / vol_ma60  — 均量线
+      vr5 / vr60           — 量比（当前量/均量）
+      vol_llv100           — 百日地量标志（近5根内出现LLV100）
+      vol_llv10            — 十日地量标志
+      vol_堆               — 地量堆（近5根中十日地量>=3次）
+      vol_缩50             — 缩量过半（vr5<0.5）
+      vol_突放             — 放量突破（C>前高 + vr5>1.5）
+      vol_梯度升/梯度降    — 成交量连续3日递增/递减
+    """
+    n = len(rows)
+    if n == 0:
+        return rows
+
+    vols = [_to_float(r.get('volume', 0)) for r in rows]
+
+    # 均量线
+    vol_ma5_list = calc_ma(vols, 5)
+    vol_ma60_list = calc_ma(vols, 60)
+
+    # 量比
+    for i in range(n):
+        rows[i]['vol_ma5'] = round(vol_ma5_list[i], 0)
+        rows[i]['vol_ma60'] = round(vol_ma60_list[i], 0)
+        v = vols[i]
+        ma5 = vol_ma5_list[i]
+        ma60 = vol_ma60_list[i]
+        rows[i]['vr5'] = round(v / ma5, 2) if ma5 > 0 else 1.0
+        rows[i]['vr60'] = round(v / ma60, 2) if ma60 > 0 else 1.0
+
+    # 百日地量 LLV(100)：近5根内是否出现过百日量低点
+    for i in range(n):
+        if vols[i] <= 0:
+            rows[i]['vol_llv100'] = 0
+            rows[i]['vol_llv10'] = 0
+            continue
+        near_llv100 = False
+        for j in range(max(0, i - 4), i + 1):
+            lk = vols[max(0, j - 99):j + 1]
+            if lk and vols[j] <= min(lk) and vols[j] > 0:
+                near_llv100 = True
+                break
+        rows[i]['vol_llv100'] = 1 if near_llv100 else 0
+
+        near_llv10 = False
+        for j in range(max(0, i - 4), i + 1):
+            lk = vols[max(0, j - 9):j + 1]
+            if lk and vols[j] <= min(lk) and vols[j] > 0:
+                near_llv10 = True
+                break
+        rows[i]['vol_llv10'] = 1 if near_llv10 else 0
+
+    # 地量堆: 近5根中十日地量 >= 3 次
+    for i in range(n):
+        end = min(n, i + 6)
+        cnt = sum(1 for j in range(i, end) if rows[j].get('vol_llv10', 0) == 1)
+        rows[i]['vol_堆'] = 1 if cnt >= 3 else 0
+
+    # 缩量过半
+    for i in range(n):
+        rows[i]['vol_缩50'] = 1 if _to_float(rows[i].get('vr5', 1.0)) < 0.5 else 0
+
+    # 放量突破: C > 前5根最高 + vr5 > 1.5
+    for i in range(n):
+        if i < 5:
+            rows[i]['vol_突放'] = 0
+            continue
+        c_cur = _to_float(rows[i].get('close', 0))
+        h_prev = max(_to_float(rows[j].get('high', 0)) for j in range(i - 5, i))
+        vr5_val = _to_float(rows[i].get('vr5', 1.0))
+        rows[i]['vol_突放'] = 1 if c_cur > h_prev and vr5_val > 1.5 else 0
+
+    # 梯度放量 / 梯度缩量（连续3根递增/递减）
+    for i in range(2, n):
+        v0, v1, v2 = vols[i - 2], vols[i - 1], vols[i]
+        rows[i]['vol_梯度升'] = 1 if v0 < v1 < v2 else 0
+        rows[i]['vol_梯度降'] = 1 if v0 > v1 > v2 else 0
+    for i in range(min(2, n)):
+        rows[i]['vol_梯度升'] = 0
+        rows[i]['vol_梯度降'] = 0
+
+    return rows
+
+
 # ========== CSV 读写 ==========
 
 DAILY_HEADERS = [
@@ -740,7 +839,10 @@ DAILY_HEADERS = [
     'buy_signal', 'sell_signal', 'expma_cross',
     'cci', 'cci_extreme', 'cci_retreat', 'cci_divergence',
     'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'ma250',
-    'volume', 'amount'
+    'volume', 'amount',
+    'vol_ma5', 'vol_ma60', 'vr5', 'vr60',
+    'vol_llv100', 'vol_llv10', 'vol_堆', 'vol_缩50',
+    'vol_突放', 'vol_梯度升', 'vol_梯度降',
 ]
 
 MIN_HEADERS = [
@@ -750,7 +852,10 @@ MIN_HEADERS = [
     'buy_signal', 'sell_signal', 'expma_cross',
     'cci', 'cci_extreme', 'cci_retreat', 'cci_divergence',
     'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'ma250',
-    'volume', 'amount'
+    'volume', 'amount',
+    'vol_ma5', 'vol_ma60', 'vr5', 'vr60',
+    'vol_llv100', 'vol_llv10', 'vol_堆', 'vol_缩50',
+    'vol_突放', 'vol_梯度升', 'vol_梯度降',
 ]
 
 

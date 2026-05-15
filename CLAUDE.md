@@ -1,14 +1,23 @@
 # CLAUDE.md — quantify-per 量化交易信号系统
 
-**代码行数统计**: ~12,400 行 Python  (2026-05-14)
+**代码行数统计**: ~13,500 行 Python  (2026-05-15)
 **当前跟踪**: 14 只标的 (2 指数 + 12 只 ETF/个股)
 **文档目录**: [docs/](docs/) 含 architecture.md / integration-guide.md / operator-runbook.md / evolution_timeline.md
 
 ## 一、常用命令
 
 ```bash
-# ─── 完整盘后流水线 ───
-run_daily.bat
+# ─── ★新会话启动：先读系统状态，再查原始数据★ ───
+python operation_tracker.py --status   # 战役状态
+python -c "import json;d=json.load(open('signals/tracking/latest.json','r',encoding='utf-8'));[print(f'{k} {v[\"name\"]}: dailyCCI={v[\"daily\"][\"indicators\"].get(\"cci\",\"?\")} ★买={sum(1 for s in v[\"daily\"][\"signals\"].values() if s.get(\"buy_signal\"))}') for k,v in d['stocks'].items()]"
+python -c "import json;d=json.load(open('signals/tracking/cycle_report.json','r',encoding='utf-8'));[print(f'{i[\"code\"]} {i[\"name\"]}: {i[\"trend\"][\"score\"]}分 {i[\"trend\"][\"direction\"]} → {i[\"advice\"]}') for i in d]"
+# 最新报告: dir reports/daily/*_v3.md | 最近一个
+# 记忆: 读 ~/.claude/projects/d--quantify-per/memory/case-*.md（近期案例）
+
+# ─── 完整盘后流水线（按需选择） ───
+run_daily.bat               # 全量: 数据同步 → 信号计算 → 三层分析 → 回测 → 报告
+run_daily_timed.bat         # 快速: 数据同步 → 信号计算 → 机会扫描+报告（含耗时统计）
+run_update.bat              # 仅数据: 数据同步 → 信号计算（不含分析/报告）
 
 # ─── 分步执行（单向依赖） ───
 python update_from_tdx.py              # 步骤1: 通达信→量化库（日线增量+分钟线+合成周期）
@@ -16,7 +25,7 @@ python update_tracking.py               # 步骤2: 信号计算 → CSV + latest
 python cycle_engine.py --save           # 步骤3: 三层架构周期循环分析 → cycle_report.json
 python backtest_signals.py --save       # 步骤4: 信号回测 → backtest_report.json
 python gen_report_md.py                 # 步骤5: 可读 Markdown 报告
-python scan_opportunities.py --report   # 替代: 机会扫描报告
+python scan_opportunities.py --report   # 替代: 机会扫描报告（含AI分析）
 python operation_tracker.py --status    # 战役级操作追踪
 
 # ─── 单标的 / 单周期 ───
@@ -109,19 +118,26 @@ update_tracking.py              ← 14只标的全周期信号计算
 | 模块 | 行数 | 职责 |
 |------|------|------|
 | [config.py](config.py) | 168 | 路径自适应、`NAME_MAP` 统一管理跟踪列表、合成周期配置 |
-| [signal_engine.py](signal_engine.py) | 855 | 指标公式库：EXPMA/MACD/CCI/分时出击/★买★卖/牛熊红线 |
+| [signal_engine.py](signal_engine.py) | 982 | 指标公式库 + 量能指标(11列)：均量线/量比/地量/放量突破 |
 | [update_from_tdx.py](update_from_tdx.py) | 1137 | 通达信二进制读写、增量同步、15/30/60分钟合成 |
-| [update_tracking.py](update_tracking.py) | 374 | 信号计算调度，增量/全量模式 |
-| [cycle_engine.py](cycle_engine.py) | 2779 | 三层架构 + 0-16评分 + 信号质量 + 主导量级 + 结构分析 + 共振链 |
+| [update_tracking.py](update_tracking.py) | 378 | 信号计算调度，增量/全量模式，量能后处理 |
+| [cycle_engine.py](cycle_engine.py) | 54 | CLI 薄壳（实际逻辑在 cycle_engine/ 包） |
+| [cycle_engine/utils.py](cycle_engine/utils.py) | 66 | 常量、路径、CSV读取、NAME_MAP |
+| [cycle_engine/indicators.py](cycle_engine/indicators.py) | 1010 | 排列熵、趋势评分、位置/方向判断、信号质量(7维含量能) |
+| [cycle_engine/cycle_structure.py](cycle_engine/cycle_structure.py) | 761 | 主导量级、缠论结构、量价阶段、指数级行情 |
+| [cycle_engine/engine.py](cycle_engine/engine.py) | 259 | 大盘系数、单标分析、全量分析调度 |
+| [cycle_engine/grading.py](cycle_engine/grading.py) | 469 | 趋势分级、ABCD级别、操作建议生成 |
+| [cycle_engine/reporting.py](cycle_engine/reporting.py) | 238 | 报告格式化、JSON保存 |
 | [backtest_signals.py](backtest_signals.py) | 818 | 信号回测引擎（低点合并/50%合并/★信号独立） |
-| [hht_analyzer.py](hht_analyzer.py) | 519 | HHT 独立分析（EMD分解+瞬时频率+非预期解检测） |
-| [gen_report_md.py](gen_report_md.py) | 928 | Markdown 报告生成（含HHT/回撤可视化） |
+| [hht_analyzer.py](hht_analyzer.py) | 550 | HHT 独立分析（EMD分解+瞬时频率+非预期解检测+量能修正层） |
+| [gen_report_md.py](gen_report_md.py) | 1027 | Markdown 报告生成（含HHT/回撤可视化） |
 | [scan_opportunities.py](scan_opportunities.py) | 1785 | 机会扫描（AI分析接口 + 定性判断 + 闭环检测） |
 | [operation_tracker.py](operation_tracker.py) | 661 | 战役级操作追踪（开仓/持仓/平仓事件链） |
 | [jigou_jiancang.py](jigou_jiancang.py) | 495 | 机构建仓指标（基于真实筹码 WINNER 函数） |
 | [chip_loader.py](chip_loader.py) | 415 | 筹码分布数据加载器 |
 | [chip_extractor.py](chip_extractor.py) | 188 | 筹码峰 7z 批量解压 |
 | [chips_selector_v2.py](chips_selector_v2.py) | 373 | 关键K选股（倍量+涨幅+短上影+筹码锁定） |
+| [ai_analyzer.py](ai_analyzer.py) | 174 | AI 分析引擎（多API自动切换 + 交易框架注入） |
 | [qa_tool.py](qa_tool.py) | 144 | 终端盘后分析/胜率统计 |
 | [tools/tdx_fetch.py](tools/tdx_fetch.py) | 291 | pytdx API 封装（多服务器自动切换） |
 | [tools/tracking_db.py](tools/tracking_db.py) | 427 | SQLite 持久化 |
@@ -140,7 +156,7 @@ D:\quantify-per\
 │   └── chips/           ← 筹码分布数据 (yearly/ + daily/)
 ├── signals/tracking/
 │   ├── {code}/          ← 每标的的6个周期CSV
-│   │   └── {period}_signals.csv   (30列全量指标)
+│   │   └── {period}_signals.csv   (41列含11量能指标)
 │   ├── cycle_report.json          (14条, 含评分/主导量级/建议)
 │   ├── backtest_report.json
 │   ├── backtest_trades.db
@@ -150,10 +166,12 @@ D:\quantify-per\
 │   ├── operation_records.json     (战役级操作追踪)
 │   └── tracking_db.sqlite
 ├── reports/daily/       ← 每日报告 (YYYYMMDD_v3.md)
+├── reports/judgement_log.csv  ← 机会扫描判断日志（scan_opportunities.py 生成）
 ├── chips_picks/        ← 关键K选股结果
-├── gbbq/               ← 除权数据
+├── gbbq/               ← 除权数据（pytdx TdxDailyBarReader 自动读取）
 ├── prompts/
-│   ├── trading_persona.md  ← AI风格模板
+│   ├── trading_persona.md  ← AI风格模板（扫街/分时出击风格）
+│   ├── trading_analysis_framework.md  ← 战役级分析框架（ai_analyzer.py 使用）
 │   └── operation_tracker_prompt.md  ← 操作追踪提示词
 └── docs/
     ├── architecture.md
@@ -178,10 +196,20 @@ N_trend_min_short = 40     # 5-15分钟线LLV/HHV周期 (lc60用40，非55!)
 
 ## 五、数据格式
 
-### 信号 CSV（30 列）
+### 信号 CSV（41 列）
 
 每列含义按 [signal_engine.py:490-521](signal_engine.py#L490-L521) 生成：
 `timestamp, date, open, high, low, close, expma12, expma50, macd_dif, macd_dea, macd_hist, trend_line, bb_ma221, bb_red_line, red_line_cross, buy_signal, sell_signal, expma_cross, cci, cci_extreme, cci_retreat, cci_divergence, ma5, ma10, ma20, ma60, ma120, ma250, volume, amount`
+
+**量能指标列（后11列，[calc_volume_indicators](signal_engine.py) 后处理计算）**:
+`vol_ma5, vol_ma60, vr5, vr60, vol_llv100, vol_llv10, vol_堆, vol_缩50, vol_突放, vol_梯度升, vol_梯度降`
+
+- `vr5/vr60`：短期/中期量比（当前VOL / 5或60周期均量）
+- `vol_llv100`：百日地量（近5根内出现100期最低量）
+- `vol_llv10`：十日地量
+- `vol_堆`：地量堆（近5根中十日地量>=3次）
+- `vol_突放`：放量突破（C>前5根最高 + vr5>1.5）
+- `vol_梯度升/降`：成交量连续3根递增/递减
 
 关键字段：
 - `buy_signal`：`★买` 或空；`sell_signal`：`★卖` 或空；`expma_cross`：`金叉`/`死叉`/空
@@ -250,9 +278,16 @@ N_trend_min_short = 40     # 5-15分钟线LLV/HHV周期 (lc60用40，非55!)
 | C偏弱 | 黄线下但MACD>0 | 15分钟★买+2次金叉 |
 | D弱势 | MACD<0或死叉 | 不参与，等大级别底部 |
 
-### 信号质量递进（买侧5维）
+### 信号质量递进（买侧7维）
 
-1. ★买密集度(+0.5~1.5) → 2. EXPMA金叉跟随速度(+0.3~1.5) → 3. 底部抬升(+1.0) → 4. 闭环成对(+0.3~1.0) → 5. MA5/10金叉确认(+0.3~1.2)
+1. ★买密集度(+0.5~1.5) → 2. EXPMA金叉跟随速度(+0.3~1.5) → 3. 底部抬升(+1.0) → 4. 闭环成对(+0.3~1.0) → 5. MA5/10金叉确认(+0.3~1.2) → 6. 排列熵结构突破(+1.0~1.5) → **7. 量能确认(+0.3~1.5)**
+
+第7维量能确认：
+- 地量堆+★买 = +1.5（最强底部确认）
+- 百日地量+★买 = +1.0
+- 放量突破 = +1.0
+- 上涨回调缩量50%+ = +0.5
+- 梯度放量 = +0.3
 
 ### CCI 完整闭环流程
 
@@ -294,4 +329,4 @@ ETF：sz159740 恒生科技、sh520600 港股通汽车、sh513120 创新药、sz
 | cycle_engine.py 索引越界 | CSV 文件为空或格式异常 | 检查 signals/tracking/{code}/{period}_signals.csv |
 | 价格数值异常大 | 因子未除（日线/1000，分钟线/10000） | 确认使用 DAY_PRICE_FACTOR / MIN_PRICE_FACTOR |
 | GEN_REPORT 报告乱码 | 中文字符编码问题 | gen_report_md.py 已统一 utf-8，检查控制台编码 |
-| `cycle_engine.py` 运行极慢 | 2779 行全量扫描 | 指定单标的: `--code sz159740`，或只跑 `--quick` |
+| `cycle_engine.py` 运行极慢 | 全量扫描14只标的6周期 | 指定单标的: `--code sz159740`，或只跑 `--quick` |

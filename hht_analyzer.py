@@ -115,6 +115,26 @@ def read_close_price(code, period):
     return vals
 
 
+def read_volume_data(code, period):
+    """读取某标的某周期的成交量序列（用于量能修正层）"""
+    fpath = SNAPSHOT_DIR / code / f'{period}_signals.csv'
+    if not fpath.exists():
+        return []
+    with open(fpath, 'r', encoding='utf-8') as f:
+        rows = list(csv.DictReader(f))
+    vals = []
+    for r in rows:
+        cv = r.get('volume', '')
+        if cv != '':
+            try:
+                v = float(cv)
+                if v > 0:
+                    vals.append(v)
+            except ValueError:
+                pass
+    return vals
+
+
 def check_breakout_validity(close_vals, recent_window=30, hist_window=100):
     """检测突破是否有效（假突破检测）
 
@@ -229,10 +249,11 @@ def energy_surge_ratio(amp_current, amp_hist):
     return float(current_mean / hist_mean)
 
 
-def regime_label(freq_stability, energy_ratio, dir_up=None):
+def regime_label(freq_stability, energy_ratio, dir_up=None, volume_ratio=None):
     """
-    循环状态标签
+    循环状态标签（含量能修正层）
     dir_up: True=向上破位, False=向下破位, None=无方向
+    volume_ratio: 近30根/历史200根均量比，>1.5=放量, <0.8=缩量, <0.5=地量
     """
     dir_word = ''
     if dir_up == True:
@@ -241,20 +262,36 @@ def regime_label(freq_stability, energy_ratio, dir_up=None):
         dir_word = '↓'
 
     if energy_ratio > 2.0 and freq_stability < 0.7:
+        if volume_ratio and volume_ratio > 1.5:
+            return f'量价共振↑({dir_word}能量暴增+循环锁定)'
+        elif volume_ratio and volume_ratio < 0.8:
+            return f'量价背离{dir_word}(能量暴增+循环锁定,缩量)'
         return f'突破{dir_word}(能量暴增+循环锁定)'
     elif energy_ratio > 2.0:
+        if volume_ratio and volume_ratio > 1.5:
+            return f'量价共振{dir_word}(能量暴增)'
+        elif volume_ratio and volume_ratio < 0.8:
+            return f'量价背离{dir_word}(能量暴增,缩量)'
         return f'突破{dir_word}(能量暴增)'
     elif freq_stability > 1.8:
         return f'{dir_word}循环破位'
     elif freq_stability < 0.6:
+        if volume_ratio and volume_ratio > 2.0:
+            return f'蓄力放量{dir_word}'
         return '循环压缩(蓄力)'
     elif freq_stability > 1.5:
         return f'频率散乱{dir_word}(方向切换)'
     elif energy_ratio > 1.5:
+        if volume_ratio and volume_ratio > 1.5:
+            return f'量价齐升{dir_word}'
         return f'动能增强{dir_word}'
     elif energy_ratio < 0.5:
+        if volume_ratio and volume_ratio < 0.5:
+            return f'地量休眠{dir_word}'
         return '动能枯竭'
     else:
+        if volume_ratio and volume_ratio > 2.0:
+            return f'蓄力放量{dir_word}'
         return '循环正常'
 
 
@@ -267,6 +304,17 @@ def analyze_one(code, period):
     """
     trend_vals = read_trendline(code, period)
     close_vals = read_close_price(code, period)   # 用于假突破检测
+    vol_vals = read_volume_data(code, period)      # 用于量能修正层
+
+    # 量能比: 近30根均量 / 历史200根均量
+    volume_ratio = None
+    if len(vol_vals) >= RECENT_WINDOW + 10:
+        v_recent = np.mean(vol_vals[-RECENT_WINDOW:])
+        v_hist = np.mean(vol_vals[max(0, len(vol_vals)-RECENT_WINDOW-HIST_WINDOW):
+                                   len(vol_vals)-RECENT_WINDOW])
+        if v_hist > 0:
+            volume_ratio = float(v_recent / v_hist)
+
     n_total = len(trend_vals)
 
     if n_total < MIN_POINTS:
@@ -306,7 +354,7 @@ def analyze_one(code, period):
         fs = stability_score(freq_recent, freq_hist)
         es = energy_surge_ratio(amp_recent, amp_hist)
         category = imf_classify(i, n_imfs, freq_mean_all, amp_mean_all)
-        regime = regime_label(fs, es, dir_up=trend_dir_up)
+        regime = regime_label(fs, es, dir_up=trend_dir_up, volume_ratio=volume_ratio)
 
         imf_results.append({
             'idx': i,
@@ -351,6 +399,7 @@ def analyze_one(code, period):
         'compression_signal': has_compression,
         'false_breakout': false_breakout,
         'false_breakout_reason': fb_reason,
+        'volume_ratio': round(volume_ratio, 3) if volume_ratio else None,
     }
 
     return {

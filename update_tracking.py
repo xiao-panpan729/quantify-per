@@ -160,10 +160,34 @@ def update_stock(code, market, force_full=False):
                     rows = se.read_csv(csv_path)
 
         elapsed = time.time() - t0
+
+        # 量能指标后处理（计算11列量能指标，写入CSV）
+        if rows:
+            t_vol = time.time()
+
+            # 兼容旧CSV格式：raw_close → close（分钟线旧格式）
+            for r in rows:
+                if 'close' not in r and 'raw_close' in r:
+                    r['close'] = r.pop('raw_close')
+
+            headers = se.DAILY_HEADERS if period == 'daily' else se.MIN_HEADERS
+
+            # 全量重算量能指标后写入（含旧行 + 新行）
+            rows = se.calc_volume_indicators(rows)
+
+            # 仅保留headers已有的字段（丢弃旧格式残余字段）
+            clean_rows = [{k: r[k] for k in headers if k in r} for r in rows]
+            se.write_csv(csv_path, clean_rows, headers)
+            rows = clean_rows
+
+            vol_elapsed = time.time() - t_vol
+        else:
+            vol_elapsed = 0
+
         new_count = len(new_rows) if mode == '增量' else len(rows)
 
         print(f"  [{period}] {mode}计算完成: 共{len(rows)}条, "
-              f"新增{new_count}条, 耗时{elapsed:.1f}s")
+              f"新增{new_count}条, 量能={vol_elapsed:.1f}s, 总{elapsed+vol_elapsed:.1f}s")
 
         periods_data[period] = rows
 

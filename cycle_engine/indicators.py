@@ -793,6 +793,34 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
             # 加入 PE 原始数据用于输出
             buy_details.append(f'pe({trend_pe["pe_front"]:.2f}→{trend_pe["pe_back"]:.2f})')
 
+        # 7. 量能确认维度（买侧）
+        if recent_buy_anchors:
+            # 地量堆+★买 = 最强底部确认
+            has_堆 = any(safe_float(r.get('vol_堆', 0)) >= 1 for r in recent_rows)
+            if has_堆:
+                buy_level += 1.5
+                buy_details.append('地量堆+★买(底部确认)')
+            else:
+                has_百地 = any(safe_float(r.get('vol_llv100', 0)) >= 1 for r in recent_rows)
+                if has_百地:
+                    buy_level += 1.0
+                    buy_details.append('百日地量+★买(底部)')
+                else:
+                    has_突放 = any(safe_float(r.get('vol_突放', 0)) >= 1 for r in recent_rows)
+                    if has_突放 and direction in ('bullish', 'bullish_bias'):
+                        buy_level += 1.0
+                        buy_details.append('放量突破确认')
+                    else:
+                        shrinks = sum(1 for r in recent_rows if safe_float(r.get('vol_缩50', 0)) >= 1)
+                        if shrinks >= 2 and direction in ('bullish', 'bullish_bias'):
+                            buy_level += 0.5
+                            buy_details.append('回调缩量(调整健康)')
+                        else:
+                            grads = sum(1 for r in recent_rows if safe_float(r.get('vol_梯度升', 0)) >= 1)
+                            if grads >= 3:
+                                buy_level += 0.3
+                                buy_details.append('梯度放量')
+
     # --- 做空侧分析 ---
     sell_level = 0
     sell_details = []
@@ -902,6 +930,18 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
             elif trend_pe['pe_ratio'] > 1.15:
                 sell_details.append(f'震荡回归(pe={trend_pe["pe_back"]:.2f})')
             sell_details.append(f'pe({trend_pe["pe_front"]:.2f}→{trend_pe["pe_back"]:.2f})')
+
+        # 7. 量能确认维度（卖侧）
+        if recent_sell_anchors:
+            # 放量阴线（vr5>1.5 + 收盘<开盘）
+            has_放量阴 = any(
+                safe_float(r.get('vr5', 1.0)) > 1.5
+                and safe_float(r.get('close', 0)) < safe_float(r.get('open', 0))
+                for r in recent_rows
+            )
+            if has_放量阴 and direction in ('bearish', 'bearish_bias'):
+                sell_level += 0.8
+                sell_details.append('放量阴线(风险)')
 
     # --- 根据趋势方向选择主分析侧 ---
     direction = trend['direction']
