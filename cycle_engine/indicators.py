@@ -909,6 +909,8 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
                 sell_details.append(f'震荡回归(pe={trend_pe["pe_back"]:.2f})')
             sell_details.append(f'pe({trend_pe["pe_front"]:.2f}→{trend_pe["pe_back"]:.2f})')
 
+        direction = trend['direction']
+
         # 7. 量能确认维度（卖侧）
         if recent_sell_anchors:
             # 放量阴线（vr5>1.5 + 收盘<开盘）
@@ -922,7 +924,6 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
                 sell_details.append('放量阴线(风险)')
 
     # --- 根据趋势方向选择主分析侧 ---
-    direction = trend['direction']
     if direction in ('bullish', 'bullish_bias'):
         details = buy_details
         if buy_level >= 4.0:

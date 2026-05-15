@@ -118,20 +118,20 @@ update_tracking.py              ← 14只标的全周期信号计算
 | 模块 | 行数 | 职责 |
 |------|------|------|
 | [config.py](config.py) | 168 | 路径自适应、`NAME_MAP` 统一管理跟踪列表、合成周期配置 |
-| [signal_engine.py](signal_engine.py) | 982 | 指标公式库 + 量能指标(11列)：均量线/量比/地量/放量突破 |
-| [update_from_tdx.py](update_from_tdx.py) | 1137 | 通达信二进制读写、增量同步、15/30/60分钟合成 |
-| [update_tracking.py](update_tracking.py) | 378 | 信号计算调度，增量/全量模式，量能后处理 |
+| [signal_engine.py](signal_engine.py) | 866 | 指标公式库 + 量能指标(11列)：均量线/量比/地量/放量突破 |
+| [update_from_tdx.py](update_from_tdx.py) | 1097 | 通达信二进制读写、增量同步、15/30/60分钟合成 |
+| [update_tracking.py](update_tracking.py) | 408 | 信号计算调度，增量/全量模式，量能后处理 |
 | [cycle_engine.py](cycle_engine.py) | 54 | CLI 薄壳（实际逻辑在 cycle_engine/ 包） |
 | [cycle_engine/utils.py](cycle_engine/utils.py) | 66 | 常量、路径、CSV读取、NAME_MAP |
-| [cycle_engine/indicators.py](cycle_engine/indicators.py) | 1010 | 排列熵、趋势评分、位置/方向判断、信号质量(7维含量能) |
-| [cycle_engine/cycle_structure.py](cycle_engine/cycle_structure.py) | 761 | 主导量级、缠论结构、量价阶段、指数级行情 |
-| [cycle_engine/engine.py](cycle_engine/engine.py) | 259 | 大盘系数、单标分析、全量分析调度 |
-| [cycle_engine/grading.py](cycle_engine/grading.py) | 469 | 趋势分级、ABCD级别、操作建议生成 |
+| [cycle_engine/indicators.py](cycle_engine/indicators.py) | 1007 | 排列熵、趋势评分、位置/方向判断、信号质量(7维含量能) |
+| [cycle_engine/cycle_structure.py](cycle_engine/cycle_structure.py) | 730 | 主导量级、缠论结构、量价阶段、指数级行情 |
+| [cycle_engine/engine.py](cycle_engine/engine.py) | 294 | 大盘系数、单标分析、全量分析调度 |
+| [cycle_engine/grading.py](cycle_engine/grading.py) | 506 | 趋势分级、ABCD级别、操作建议生成 |
 | [cycle_engine/reporting.py](cycle_engine/reporting.py) | 238 | 报告格式化、JSON保存 |
-| [backtest_signals.py](backtest_signals.py) | 818 | 信号回测引擎（低点合并/50%合并/★信号独立） |
-| [hht_analyzer.py](hht_analyzer.py) | 550 | HHT 独立分析（EMD分解+瞬时频率+非预期解检测+量能修正层） |
-| [gen_report_md.py](gen_report_md.py) | 1027 | Markdown 报告生成（含HHT/回撤可视化） |
-| [scan_opportunities.py](scan_opportunities.py) | 1785 | 机会扫描（AI分析接口 + 定性判断 + 闭环检测） |
+| [backtest_signals.py](backtest_signals.py) | 817 | 信号回测引擎（低点合并/50%合并/★信号独立） |
+| [hht_analyzer.py](hht_analyzer.py) | 580 | HHT 独立分析（EMD分解+瞬时频率+非预期解检测+量能修正层） |
+| [gen_report_md.py](gen_report_md.py) | 1026 | Markdown 报告生成（含HHT/回撤可视化） |
+| [scan_opportunities.py](scan_opportunities.py) | 1771 | 机会扫描（AI分析接口 + 定性判断 + 闭环检测） |
 | [operation_tracker.py](operation_tracker.py) | 661 | 战役级操作追踪（开仓/持仓/平仓事件链） |
 | [jigou_jiancang.py](jigou_jiancang.py) | 495 | 机构建仓指标（基于真实筹码 WINNER 函数） |
 | [chip_loader.py](chip_loader.py) | 415 | 筹码分布数据加载器 |

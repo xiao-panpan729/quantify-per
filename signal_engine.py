@@ -58,24 +58,64 @@ CCI_DIV_NEG_THRESHOLD = 1.5   # 负背驰: CCI从低点回升至此比例以上
 
 # ========== 数据读取 ==========
 
+def _tdx_date_decode(date_code):
+    """通达信分钟线日期编码 → YYYYMMDD 整数 (pytdx <HHfffffII> 格式)"""
+    d = date_code & 0xFFFF
+    return (d // 2048 + 2004) * 10000 + ((d % 2048) // 100) * 100 + (d % 2048) % 100
+
+
+def _tdx_time_decode(minute_code):
+    """通达信分钟线时间编码 → HHMM 整数"""
+    m = minute_code & 0xFFFF
+    return (m // 60) * 100 + (m % 60)
+
+
+def _clamp_u32(v):
+    """float → uint32，NaN→0，超限截断"""
+    try:
+        return max(0, min(0xFFFFFFFF, round(v)))
+    except (ValueError, OverflowError):
+        return 0
+
+
 def read_bars(filepath):
     """
-    读取通达信二进制文件（日线/lc5/lc15/lc30/lc60通用）
-    每条 32 字节: 8 个 uint32
-    日线: (date_YYYYMMDD, open, high, low, close, amount, volume, reserved) 价格*1000
-    分钟线: (date_YYYYMMDD, open, high, low, close, amount, volume, time_HHMM)
-            注意: 分钟线前4字节是日期(YYYYMMDD), 最后4字节是时间(HHMM, 如935=09:35)
-            需合并为 YYYYMMDDHHMM 才能精确定位到具体分钟
+    读取通达信二进制文件（日线/lc1/lc5/lc15/lc30/lc60通用）
+    每条 32 字节:
+    - lc1/lc5 (TDX原生格式): <HHfffffII, 日期编码+分钟数+浮点价格(元)
+    - lday/lc15/lc30/lc60 (已转换格式): <8I, bar[0]=YYYYMMDD, 价格*因子
+    输出格式统一为 <8I 兼容: (YYYYMMDD, open, high, low, close, amount, volume, HHMM)
+    分钟线价格×10000, 日线价格×1000
     """
     bars = []
     if not os.path.exists(filepath):
         return bars
-    with open(filepath, 'rb') as f:
-        while True:
-            raw = f.read(32)
-            if len(raw) < 32:
-                break
-            bars.append(struct.unpack('<8I', raw))
+    ext = os.path.splitext(filepath)[1].lower()
+
+    if ext in ('.lc1', '.lc5'):
+        with open(filepath, 'rb') as f:
+            while True:
+                raw = f.read(32)
+                if len(raw) < 32:
+                    break
+                vals = struct.unpack('<HHfffffII', raw)
+                bars.append((
+                    _tdx_date_decode(vals[0]),                     # [0] YYYYMMDD
+                    _clamp_u32(vals[2] * 10000),                   # [1] open ×10000
+                    _clamp_u32(vals[3] * 10000),                   # [2] high ×10000
+                    _clamp_u32(vals[4] * 10000),                   # [3] low ×10000
+                    _clamp_u32(vals[5] * 10000),                   # [4] close ×10000
+                    _clamp_u32(vals[6]),                           # [5] amount
+                    _clamp_u32(vals[7]),                           # [6] volume
+                    _tdx_time_decode(vals[1]),                     # [7] HHMM
+                ))
+    else:
+        with open(filepath, 'rb') as f:
+            while True:
+                raw = f.read(32)
+                if len(raw) < 32:
+                    break
+                bars.append(struct.unpack('<8I', raw))
     return bars
 
 
