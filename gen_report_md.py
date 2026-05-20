@@ -148,10 +148,12 @@ def save_score_history(date_str):
 # ════════════════ 翻译函数 ════════════════
 
 def level_label(score):
-    if score >= 4.0: return '🔥🔥 加强闭环'
-    elif score >= 3.0: return '🔥 普通闭环'
-    elif score >= 2.0: return '⚡ 弱信号'
-    else: return '-- 无出击信号'
+    if score >= 6.0: return '🔥🔥 加强出击'
+    elif score >= 4.0: return '🔥 出击信号'
+    elif score >= 3.0: return '🔥 加强信号'
+    elif score >= 2.0: return '⚡ 普通信号'
+    elif score >= 1.0: return '⚡ 信号弱'
+    else: return '-- 无信号'
 
 def period_cn(p):
     M = {'daily':'日线','min60':'60分钟','min30':'30分钟','min15':'15分钟','min5':'5分钟','week':'周线'}
@@ -955,7 +957,7 @@ def append_params_reference(lines):
     lines.append('')
     lines.append('### 结构状态（排列熵）')
     lines.append('')
-    lines.append('> ⬇降熵 | 方向形成中 → 结构突破/顺向蓄力 → 蓄力压缩/趋势锁定 → 趋势延续')
+    lines.append('> ⬇降熵 | 方向形成中 → 结构上破/结构下破 → 顺向蓄力 → 蓄力压缩/趋势锁定 → 趋势延续')
     lines.append('> ⬆升熵 | 趋势松动 → 趋势衰减 → 无序放大（结构溃散过程）')
     lines.append('> ➖平稳 | 无序震荡 / 方向不明')
     lines.append('')

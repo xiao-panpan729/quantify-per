@@ -151,9 +151,9 @@ def _analyze_pe_from_trajectory(raw_rows, pe_series, lookback=60):
         trending = True
     elif falling and pe_level == 'mid' and abs_chg > 0.05:
         if tl_rising:
-            pe_phase = '结构突破'
+            pe_phase = '结构上破'
         else:
-            pe_phase = '逆向崩退'
+            pe_phase = '结构下破'
         trending = True
     elif falling and pe_level == 'mid':
         pe_phase = '顺向蓄力'

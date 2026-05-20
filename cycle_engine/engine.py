@@ -355,16 +355,18 @@ def analyze(code, name=''):
             lv = sl
         else:
             lv = max(bl, sl) if bl > 1.0 or sl > 1.0 else 0
-        if lv >= 4.0:
-            sq['label'] = '最强出击信号'
+        if lv >= 6.0:
+            sq['label'] = '加强出击'
+        elif lv >= 4.0:
+            sq['label'] = '出击信号'
         elif lv >= 3.0:
-            sq['label'] = '加强闭环'
+            sq['label'] = '加强信号'
         elif lv >= 2.0:
-            sq['label'] = '普通闭环'
+            sq['label'] = '普通信号'
         elif lv >= 1.0:
-            sq['label'] = '弱信号'
+            sq['label'] = '信号弱'
         else:
-            sq['label'] = '无出击信号'
+            sq['label'] = '无信号'
         sq['level'] = lv
 
     # 取高者: ABCD级别 vs 主导量级 → 实际最低操作级别
