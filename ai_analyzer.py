@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-AI 分析引擎 v2 — 多 API 自动切换 + 交易框架注入
+AI 分析引擎 v3 — 多 API 自动切换 + 交易框架注入
 
 加载 prompts/trading_persona.md（人格）+ prompts/trading_analysis_framework.md（分析框架）
 合并为系统提示词，指导 AI 按战役级框架输出分析。
 
-API 优先级: Cloudflare Workers AI → SiliconFlow → NVIDIA (英伟达)
-配置在 .env 文件中。
+API 优先级: NVIDIA V4 Flash(免费) → NVIDIA V4 Pro → 硅基流动V4 Flash(已充值) → DeepSeek官方V4(自有Key)
+Cloudflare 暂跳过。
 """
 
 import os
@@ -59,26 +59,53 @@ def _ssl_ctx():
 # ─────────────────────────────────────────
 
 PROVIDERS = [
+    # ─── 1. NVIDIA V4 Flash（免费层，薅羊毛首选） ───
     {
-        'name': 'cloudflare',
-        'type': 'cloudflare',
-        'api_key_env': 'CF_API_KEY',
-        'account_id_env': 'CF_ACCOUNT_ID',
-    },
-    {
-        'name': 'siliconflow',
+        'name': 'nvidia (v4 flash)',
         'type': 'openai',
-        'api_key_env': 'SF_API_KEY',
-        'model': 'deepseek-ai/DeepSeek-V3',
-        'base_url': 'https://api.siliconflow.cn/v1',
+        'api_key_env': 'NVIDIA_API_KEY',
+        'model': 'deepseek-ai/deepseek-v4-flash',
+        'base_url': 'https://integrate.api.nvidia.com/v1',
     },
+    # ─── 2. NVIDIA V4 Pro（免费额度用完前的兜底） ───
     {
-        'name': 'nvidia',
+        'name': 'nvidia (v4 pro)',
         'type': 'openai',
         'api_key_env': 'NVIDIA_API_KEY',
         'model': 'deepseek-ai/deepseek-v4-pro',
         'base_url': 'https://integrate.api.nvidia.com/v1',
     },
+    # ─── 3. 硅基流动 V4 Flash（已充值，先用完余额） ───
+    {
+        'name': '硅基流动 (v4 flash)',
+        'type': 'openai',
+        'api_key_env': 'SF_API_KEY',
+        'model': 'deepseek-ai/DeepSeek-V4-Flash',
+        'base_url': 'https://api.siliconflow.cn/v1',
+    },
+    # ─── 4. DeepSeek 官方 V4 Flash（自有 Key，终极兜底） ───
+    {
+        'name': 'deepseek (v4 flash)',
+        'type': 'openai',
+        'api_key_env': 'DEEPSEEK_API_KEY',
+        'model': 'deepseek-v4-flash',
+        'base_url': 'https://api.deepseek.com',
+    },
+    # ─── 5. DeepSeek 官方 V4 Pro（如果需要更强推理） ───
+    {
+        'name': 'deepseek (v4 pro)',
+        'type': 'openai',
+        'api_key_env': 'DEEPSEEK_API_KEY',
+        'model': 'deepseek-v4-pro',
+        'base_url': 'https://api.deepseek.com',
+    },
+    # ─── Cloudflare（暂跳过，以后再用） ───
+    # {
+    #     'name': 'cloudflare',
+    #     'type': 'cloudflare',
+    #     'api_key_env': 'CF_API_KEY',
+    #     'account_id_env': 'CF_ACCOUNT_ID',
+    # },
 ]
 
 # ─────────────────────────────────────────

@@ -400,7 +400,7 @@ def build_signal_matrix_html(item):
             </tr></thead>
             <tbody>{rows_html}</tbody>
         </table>
-        <div class="hint">⭐ 标记为最佳周期 | PE=排列熵 | 趋势=趋势线方向确认</div>
+        <div class="hint">⭐ 标记为最佳周期 | 排列熵 | 趋势=趋势线方向确认</div>
     </div>'''
 
 

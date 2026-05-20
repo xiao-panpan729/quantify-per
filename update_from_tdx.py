@@ -112,8 +112,13 @@ def _make_result(stock, market, data_type):
             'status': 'success', 'new_bars': 0, 'message': ''}
 
 def _convert_single_bar(bar):
-    """将一条通达信原始分钟线 bar (<HHfffffII>) 转换为存储格式 (8-tuple)"""
+    """将一条通达信原始分钟线 bar (<HHfffffII>) 转换为存储格式 (8-tuple)
+    v4.9: 日期合理性校验，防止异常数据污染本地文件导致增量断链"""
     date_int = tdx_ts_to_date_int(bar[0])   # YYYYMMDD
+    # v4.9: 日期必须在合理范围内，否则跳过
+    if date_int < 20200000 or date_int > 20990000:
+        print(f"  [WARN] 跳过异常bar: 日期={date_int}, 原编码={bar[0]}")
+        return None
     time_int = tdx_ts_to_time_int(bar[1])   # HHMM
     return (
         date_int,                                    # [0] 日期 YYYYMMDD
@@ -127,8 +132,8 @@ def _convert_single_bar(bar):
     )
 
 def _convert_min_bars(source_data_raw):
-    """批量转换通达信原始分钟线数据为存储格式列表"""
-    return [_convert_single_bar(bar) for bar in source_data_raw]
+    """批量转换通达信原始分钟线数据为存储格式列表（v4.9: 自动过滤异常bar）"""
+    return [b for b in (_convert_single_bar(b) for b in source_data_raw) if b is not None]
 
 def get_last_date_from_data(data, data_type):
     """从数据中获取最后一条的日期（YYYYMMDD）"""
@@ -348,7 +353,9 @@ def sync_stock_data(stock_code, data_type, market, logger, force_rewrite=False):
                 for bar in source_data:  # 复用前面已读的 source_data
                     bar_date = tdx_ts_to_date_int(bar[0])
                     if bar_date > target_last_date:
-                        bars_to_append.append(_convert_single_bar(bar))
+                        converted = _convert_single_bar(bar)
+                        if converted is not None:  # v4.9: 防御，跳过异常bar
+                            bars_to_append.append(converted)
 
                 if len(bars_to_append) == 0:
                     result['status'] = 'skip'
@@ -975,11 +982,38 @@ def precheck_tdx_data(logger):
             except Exception as e:
                 logger.log(f"分钟线读取失败: {code} ({e})", level='WARN')
 
+    # v4.9: 本地数据健康检测 — 检查跟踪标的的本地文件日期有效性（在判断新数据之前执行）
+    #       无效日期(如 59027964)说明增量链路已损坏，需 rebuild 修复
+    health_ok = True
+    for code, name in config.NAME_MAP.items():
+        mkt = code[:2]
+        for label, dtype in [('5分钟', 'lc5'), ('日线', 'lday')]:
+            path = os.path.join(config.TARGET_DIR[mkt][dtype], f"{code}.{dtype}")
+            if not os.path.exists(path):
+                continue
+            try:
+                with open(path, 'rb') as f:
+                    f.seek(-32, 2)
+                    raw = f.read(4)
+                    date_val = struct.unpack('<I', raw)[0]
+                if date_val < 20200000 or date_val > 20990000:
+                    logger.log(f"  [健康] {name}({code}) {label}文件日期异常: {date_val}", level='ERROR')
+                    health_ok = False
+            except Exception as e:
+                logger.log(f"  [健康] {name}({code}) {label}文件读取失败: {e}", level='WARN')
+
+    if not health_ok:
+        logger.log("=" * 60, level='ERROR')
+        logger.log("本地数据健康检测失败: 存在日期异常的本地文件", level='ERROR')
+        logger.log("请运行 python update_from_tdx.py --rebuild 修复", level='ERROR')
+        logger.log("=" * 60, level='ERROR')
+        return False
+
     # 判断：日线或分钟线任一有更新则通过
     # v4.8: >= 而非 >，本地已有当天数据也放行(分钟线日线已下载但未合成的情况)
     lday_new = tdx_max_date['lday'] >= local_last.get('lday', 0)
     lc5_new = tdx_max_date['lc5'] >= local_last.get('lc5', 0)
-    
+
     logger.log(f"本地日期: lday={local_last.get('lday','?')}, lc5={local_last.get('lc5','?')}")
     logger.log(f"通达信最大日期: lday={tdx_max_date['lday']}, lc5={tdx_max_date['lc5']}")
 

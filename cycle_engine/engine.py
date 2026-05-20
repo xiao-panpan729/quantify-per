@@ -7,7 +7,8 @@ import time
 from .utils import (read_csv, get_all_codes, get_name_map,
                      SNAPSHOT_DIR, PERIODS, PERIOD_LABELS, KLINES_LOOKBACK)
 from .indicators import (analyze_trend_pe, judge_position, judge_trend,
-                          extract_anchors, price_effectiveness, signal_quality)
+                          extract_anchors, price_effectiveness, signal_quality,
+                          check_rhythm_integrity, scan_resonance)
 from .cycle_structure import (cycle_pattern, detect_dominant_cycle,
                                analyze_volume_regime, judge_wave_structure,
                                detect_exponential_readiness, detect_rs_density)
@@ -224,10 +225,152 @@ def analyze(code, name=''):
                                            _cached_rows=cached_rows)
     dominant_idx = PERIODS.index(dominant_info['dominant_cycle'])
 
+    # ── 跨周期对称增强/压制 ──
+    # 节奏完整 → 增强小周期同向信号；节奏破坏 → 压制小周期同向信号
+    # 节奏破坏时反向信号可能为反转信号，标记关注
+    direction = trend.get('direction', 'neutral')
+    rhythm = check_rhythm_integrity(period_results, direction)
+    resonance = scan_resonance(period_results, rhythm, direction)
+
+    bullish_dirs = ('bullish', 'bullish_bias')
+    bearish_dirs = ('bearish', 'bearish_bias')
+    is_bullish = direction in bullish_dirs
+    is_bearish = direction in bearish_dirs
+    rhythm_verdict = rhythm.get('verdict', 'intact')
+    res_confirmed = resonance.get('resonance_confirmed', False)
+    res_side = resonance.get('resonance_side', 'neutral')
+
+    for i, period in enumerate(PERIODS):
+        p = period_results.get(period)
+        if not p or not p.get('signal_quality'):
+            continue
+        sq = p['signal_quality']
+        curr_buy = sq.get('buy_level', 0)
+        curr_sell = sq.get('sell_level', 0)
+        if curr_buy < 1.0 and curr_sell < 1.0:
+            continue
+
+        for j in range(i + 1, min(i + 3, len(PERIODS))):
+            larger = period_results.get(PERIODS[j])
+            if not larger or not larger.get('signal_quality'):
+                continue
+            lsq = larger['signal_quality']
+            gap = j - i  # 1=大一级, 2=大两级
+
+            # ── 同向增强: 大周期 rhythm intact + 小周期同向信号 ──
+            if is_bullish and curr_buy > 1.0 and lsq.get('buy_level', 0) > 1.0:
+                if rhythm_verdict in ('intact', 'tactical_broken'):
+                    if macd_score >= 3:
+                        boost = 0.10 if gap == 1 else 0.20
+                    elif macd_score == 1:
+                        boost = 0.20 if gap == 1 else 0.35
+                    else:
+                        boost = 0.30 if gap == 1 else 0.50
+                    gain = curr_buy * boost
+                    sq['buy_level'] = min(10, curr_buy + gain)
+                    sq.setdefault('details', []).append(
+                        f'同向增强:大{PERIODS[j]}买→买强度+{(boost*100):.0f}%')
+                else:
+                    discount = 0.30 if gap == 1 else 0.50
+                    sq['buy_level'] = max(0, curr_buy - curr_buy * discount)
+                    sq.setdefault('details', []).append(
+                        f'节奏破坏:大{PERIODS[j]}卖→买强度降{(discount*100):.0f}%')
+
+            elif is_bearish and curr_sell > 1.0 and lsq.get('sell_level', 0) > 1.0:
+                if rhythm_verdict in ('intact', 'tactical_broken'):
+                    if macd_score >= 3:
+                        boost = 0.10 if gap == 1 else 0.20
+                    elif macd_score == 1:
+                        boost = 0.20 if gap == 1 else 0.35
+                    else:
+                        boost = 0.30 if gap == 1 else 0.50
+                    gain = curr_sell * boost
+                    sq['sell_level'] = min(10, curr_sell + gain)
+                    sq.setdefault('details', []).append(
+                        f'同向增强:大{PERIODS[j]}卖→卖强度+{(boost*100):.0f}%')
+                else:
+                    discount = 0.30 if gap == 1 else 0.50
+                    sq['sell_level'] = max(0, curr_sell - curr_sell * discount)
+                    sq.setdefault('details', []).append(
+                        f'节奏破坏:大{PERIODS[j]}买→卖强度降{(discount*100):.0f}%')
+
+            # ── 反向压制: 大周期反方向信号 → 压小周期 ──
+            if curr_buy > 1.0 and lsq.get('sell_level', 0) > 1.0:
+                if macd_score >= 3:
+                    discount = 0.10 if gap == 1 else 0.20
+                elif macd_score == 1:
+                    discount = 0.40 if gap == 1 else 0.65
+                else:
+                    discount = 0.55 if gap == 1 else 0.80
+                sq['buy_level'] = max(0, curr_buy - curr_buy * discount)
+                sq.setdefault('details', []).append(
+                    f'反向压制:大{PERIODS[j]}卖→买强度降{(discount*100):.0f}%')
+
+            if curr_sell > 1.0 and lsq.get('buy_level', 0) > 1.0:
+                if macd_score >= 3:
+                    discount = 0.10 if gap == 1 else 0.20
+                elif macd_score == 1:
+                    discount = 0.40 if gap == 1 else 0.65
+                else:
+                    discount = 0.55 if gap == 1 else 0.80
+                sq['sell_level'] = max(0, curr_sell - curr_sell * discount)
+                sq.setdefault('details', []).append(
+                    f'反向压制:大{PERIODS[j]}买→卖强度降{(discount*100):.0f}%')
+
+    # ── 5+15 共振增强 ──
+    if res_confirmed:
+        m5 = period_results.get('min5')
+        m15 = period_results.get('min15')
+        if m5 and m5.get('signal_quality'):
+            m5_sq = m5['signal_quality']
+            boost = 0.20 if rhythm_verdict == 'intact' else 0.10
+            if res_side == 'buy':
+                m5_sq['buy_level'] = min(10, m5_sq.get('buy_level', 0) * 1.20)
+                m5_sq.setdefault('details', []).append('5+15买共振确认✓')
+            elif res_side == 'sell':
+                m5_sq['sell_level'] = min(10, m5_sq.get('sell_level', 0) * 1.20)
+                m5_sq.setdefault('details', []).append('5+15卖共振确认✓')
+            elif res_side in ('buy_reversal', 'sell_reversal'):
+                m5_sq.setdefault('details', []).append('⚠5+15反向共振=反转预警')
+        if m15 and m15.get('signal_quality'):
+            m15_sq = m15['signal_quality']
+            if res_side == 'buy':
+                m15_sq['buy_level'] = min(10, m15_sq.get('buy_level', 0) * 1.20)
+                m15_sq.setdefault('details', []).append('5+15买共振确认✓')
+            elif res_side == 'sell':
+                m15_sq['sell_level'] = min(10, m15_sq.get('sell_level', 0) * 1.20)
+                m15_sq.setdefault('details', []).append('5+15卖共振确认✓')
+
+    # 更新 level 和 label
+    for period in PERIODS:
+        p = period_results.get(period)
+        if not p or not p.get('signal_quality'):
+            continue
+        sq = p['signal_quality']
+        bl = sq.get('buy_level', 0)
+        sl = sq.get('sell_level', 0)
+        if direction in bullish_dirs:
+            lv = bl
+        elif direction in bearish_dirs:
+            lv = sl
+        else:
+            lv = max(bl, sl) if bl > 1.0 or sl > 1.0 else 0
+        if lv >= 4.0:
+            sq['label'] = '最强出击信号'
+        elif lv >= 3.0:
+            sq['label'] = '加强闭环'
+        elif lv >= 2.0:
+            sq['label'] = '普通闭环'
+        elif lv >= 1.0:
+            sq['label'] = '弱信号'
+        else:
+            sq['label'] = '无出击信号'
+        sq['level'] = lv
+
     # 取高者: ABCD级别 vs 主导量级 → 实际最低操作级别
     actual_min_idx = max(abcd_min_idx, dominant_idx)
 
-    # 找出最佳操作级别
+    # 找出最佳操作级别（用压制调整后的 buy/sell level）
     best = None
     for i, period in enumerate(PERIODS):
         if i < actual_min_idx:
@@ -259,7 +402,7 @@ def analyze(code, name=''):
 
     # 综合操作建议
     advice = _generate_advice(position, trend, best, period_results,
-                               dominant_info, market_coeff)
+                               dominant_info, market_coeff, rhythm, resonance)
 
     return {
         'code': code,
@@ -274,6 +417,8 @@ def analyze(code, name=''):
         'exp_readiness': exp_readiness,
         'rs_density': rs_density,
         'market_coeff': market_coeff,
+        'rhythm': rhythm,
+        'resonance': resonance,
     }
 
 

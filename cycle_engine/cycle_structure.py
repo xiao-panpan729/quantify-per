@@ -129,76 +129,198 @@ def cycle_pattern(anchors):
 # 主导循环量级检测
 # ============================================================
 
+def _signal_reliability(rows, period, check_bars=None):
+    """
+    计算一个K线级别的信号可靠性。
+
+    对最近200根K线内的★买/★卖信号，检查N根后价格是否按预期方向走。
+
+    Args:
+        rows: CSV行数据列表
+        period: 周期名
+        check_bars: 出信号后等多少根验证（按周期自适应）
+
+    Returns:
+        dict 或 None
+    """
+    if not rows or len(rows) < 60:
+        return None
+
+    # 价格因子
+    factor = 1000 if period == 'daily' else 10000
+
+    # 验证根数按周期自适应
+    check_map = {'min5': 12, 'min15': 8, 'min30': 8, 'min60': 4, 'daily': 5}
+    cb = check_bars or check_map.get(period, 8)
+    lookback = 200  # 回看200根K线
+
+    if len(rows) < lookback + cb:
+        lookback = max(len(rows) - cb - 1, 50)
+
+    recent = rows[-(lookback + cb):]
+
+    buy_signals = []
+    sell_signals = []
+
+    for i, r in enumerate(recent):
+        buy = str(r.get('buy_signal', '')).strip()
+        sell = str(r.get('sell_signal', '')).strip()
+        if buy == '★买':
+            buy_signals.append(i)
+        if sell == '★卖':
+            sell_signals.append(i)
+
+    if not buy_signals and not sell_signals:
+        return None
+
+    # 验证买入信号
+    buy_ok = 0
+    buy_moves = []
+    for idx in buy_signals:
+        if idx + cb < len(recent):
+            entry = safe_float(recent[idx].get('close', 0)) / factor
+            exit_ = safe_float(recent[idx + cb].get('close', 0)) / factor
+            if exit_ > entry:
+                buy_ok += 1
+            buy_moves.append((exit_ - entry) / entry * 100)
+
+    # 验证卖出信号
+    sell_ok = 0
+    sell_moves = []
+    for idx in sell_signals:
+        if idx + cb < len(recent):
+            entry = safe_float(recent[idx].get('close', 0)) / factor
+            exit_ = safe_float(recent[idx + cb].get('close', 0)) / factor
+            if exit_ < entry:
+                sell_ok += 1
+            sell_moves.append((entry - exit_) / entry * 100)
+
+    total_buy = len(buy_signals)
+    total_sell = len(sell_signals)
+    buy_rate = buy_ok / total_buy if total_buy > 0 else 0
+    sell_rate = sell_ok / total_sell if total_sell > 0 else 0
+
+    avg_buy_move = (sum(buy_moves) / len(buy_moves)) if buy_moves else 0
+    avg_sell_move = (sum(sell_moves) / len(sell_moves)) if sell_moves else 0
+
+    return {
+        'period': period,
+        'buy_signals': total_buy,
+        'buy_correct': buy_ok,
+        'buy_rate': round(buy_rate, 2),
+        'avg_buy_move': round(avg_buy_move, 2),
+        'sell_signals': total_sell,
+        'sell_correct': sell_ok,
+        'sell_rate': round(sell_rate, 2),
+        'avg_sell_move': round(avg_sell_move, 2),
+    }
+
+
 def detect_dominant_cycle(code, period_results, _cached_rows=None):
     """
-    波峰间距法 — 检测当前主导循环量级
+    信号可靠性比较法 — 检测当前主导周期。
 
-    从最小周期(5分钟)开始逐级向上检查:
-      每个周期取 trend_line 的波峰，量间距
-      间距稳定(当前/历史 < 1.5倍) → 该级别是主导量级
-      间距拉长(>= 1.5倍) → 上级周期在接管，继续向上查
+    核心理念:
+      哪个级别的★买/★卖信号最近最靠谱，那个级别就是主导周期。
+      "打开这个级别的图，信号说买就涨、说卖就跌，照它做能赚钱。"
+
+    与原版兼容:
+      - 仍返回 dominant_cycle / dominant_label
+      - 新增 dominant_buy / dominant_sell 侧输出
+      - stretched_periods 保留(空列表)，外部引用不崩
 
     Returns: dict
         dominant_cycle: 'min5'|'min15'|'min30'|'min60'|'daily'
         dominant_label: 中文标签
-        detail: 各级间距变化描述
-        stretched_periods: 被判定为拉长的级别列表
+        dominant_buy: 买入侧最佳周期
+        dominant_sell: 卖出侧最佳周期
+        detail: '做多15分钟(★买75%均+1.2%) 做空30分钟(★卖80%均-2.1%)'
+        stretched_periods: []  (兼容原字段)
+        buy_rate: 综合★买兑现率
+        sell_rate: 综合★卖兑现率
     """
-    periods_to_check = ['min5', 'min15', 'min30', 'min60', 'daily']
     p_labels = {'min5': '5分钟', 'min15': '15分钟', 'min30': '30分钟',
                 'min60': '60分钟', 'daily': '日线'}
+    periods_to_check = ['min5', 'min15', 'min30', 'min60', 'daily']
 
-    all_details = []
-    stretched = []
-
+    results = []
     for p in periods_to_check:
-        rows = (_cached_rows.get(p) if _cached_rows
-                else read_csv(code, p))
+        rows = (_cached_rows.get(p) if _cached_rows else read_csv(code, p))
         if not rows:
-            all_details.append(f'{p_labels[p]}:无数据')
             continue
+        r = _signal_reliability(rows, p)
+        if r:
+            results.append(r)
 
-        values = [safe_float(r.get('trend_line', 0)) for r in rows
-                  if safe_float(r.get('trend_line', 0)) > 0]
-        if len(values) < 30:
-            all_details.append(f'{p_labels[p]}:数据不足({len(values)})')
-            continue
+    if not results:
+        # 兜底返回日线
+        return {
+            'dominant_cycle': 'daily',
+            'dominant_label': '日线',
+            'dominant_buy': None,
+            'dominant_sell': None,
+            'detail': '所有周期信号不足，默认日线',
+            'stretched_periods': [],
+            'buy_rate': 0,
+            'sell_rate': 0,
+        }
 
-        peak_dicts = _find_local_extremes(values, window=2, find_peaks=True)
-        if len(peak_dicts) < 3:
-            all_details.append(f'{p_labels[p]}:波峰不足({len(peak_dicts)})')
-            continue
+    # 评分函数：兑现率 × 信号数量加权
+    def _score(rate, n):
+        return rate * min(n, 20) / 20
 
-        peak_indices = [e['idx'] for e in peak_dicts]
-        intervals = [peak_indices[i + 1] - peak_indices[i]
-                     for i in range(len(peak_indices) - 1)]
-        if len(intervals) < 2:
-            all_details.append(f'{p_labels[p]}:间距不足')
-            continue
+    minute_results = [r for r in results if r['period'] != 'daily']
+    daily_only = [r for r in results if r['period'] == 'daily']
 
-        current = intervals[-1]
-        baseline = intervals[:-1]
-        avg_base = sum(baseline) / len(baseline) if baseline else current
+    if minute_results:
+        # 综合最佳
+        best_overall = max(minute_results,
+                           key=lambda r: _score(
+                               (r['buy_rate'] + r['sell_rate']) / 2,
+                               r['buy_signals'] + r['sell_signals']))
+        # 做多最佳
+        buy_candidates = [r for r in minute_results if r['buy_signals'] > 0]
+        best_buy = max(buy_candidates,
+                       key=lambda r: _score(r['buy_rate'], r['buy_signals'])) \
+                   if buy_candidates else None
+        # 做空最佳
+        sell_candidates = [r for r in minute_results if r['sell_signals'] > 0]
+        best_sell = max(sell_candidates,
+                        key=lambda r: _score(r['sell_rate'], r['sell_signals'])) \
+                    if sell_candidates else None
+    else:
+        best_overall = daily_only[0] if daily_only else results[0]
+        best_buy = best_overall if best_overall.get('buy_signals', 0) > 0 else None
+        best_sell = best_overall if best_overall.get('sell_signals', 0) > 0 else None
 
-        stretch = current / avg_base if avg_base > 0 else 1.0
-        all_details.append(
-            f'{p_labels[p]}间距{current:.0f}/{avg_base:.0f}({stretch:.1f}倍)')
+    def _label(r):
+        return p_labels.get(r['period'], r['period']) if r else '无'
 
-        if stretch < 1.5:
-            return {
-                'dominant_cycle': p,
-                'dominant_label': p_labels[p],
-                'detail': ' | '.join(all_details),
-                'stretched_periods': stretched,
-            }
+    def _detail(r, side):
+        if not r:
+            return ''
+        if side == 'buy':
+            return f"★买{r['buy_rate']:.0%}均{r['avg_buy_move']:+.2f}%"
         else:
-            stretched.append(p)
+            return f"★卖{r['sell_rate']:.0%}均{r['avg_sell_move']:+.2f}%"
+
+    # 构建detail
+    parts = []
+    if best_buy:
+        parts.append(f"做多{_label(best_buy)}({_detail(best_buy, 'buy')})")
+    if best_sell:
+        parts.append(f"做空{_label(best_sell)}({_detail(best_sell, 'sell')})")
+    detail = ' '.join(parts) if parts else '无有效信号'
 
     return {
-        'dominant_cycle': 'daily',
-        'dominant_label': '日线',
-        'detail': ' | '.join(all_details) + ' → 全线拉长,日线主导',
-        'stretched_periods': stretched,
+        'dominant_cycle': best_overall['period'],
+        'dominant_label': _label(best_overall),
+        'dominant_buy': best_buy['period'] if best_buy else None,
+        'dominant_sell': best_sell['period'] if best_sell else None,
+        'detail': detail,
+        'stretched_periods': [],
+        'buy_rate': best_buy['buy_rate'] if best_buy else 0,
+        'sell_rate': best_sell['sell_rate'] if best_sell else 0,
     }
 
 

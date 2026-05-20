@@ -54,13 +54,30 @@ if %errorlevel% neq 0 (
 )
 echo.
 
+echo [6/6] AI 自然语言日报...
+python ai_report_rewrite.py
+if %errorlevel% neq 0 (
+    echo [警告] AI 日报生成失败（不影响其他步骤）
+) else (
+    echo [弹出] AI 日报
+)
+
+REM 打开最新 AI 日报
+for /f "delims=" %%f in ('dir /b /o-d reports\daily\*_v3_nl.md 2^>nul') do (
+    start "" "reports\daily\%%f"
+    goto :endopen
+)
+:endopen
+echo.
+echo.
+
 echo ==========================================
-echo 全部完成 — reports\daily\YYYYMMDD_v3.md
+echo 全部完成
+echo.
+echo   结构化报告: reports\daily\YYYYMMDD_v3.md
+echo   AI日报:     reports\daily\YYYYMMDD_v3_nl.md
 echo.
 echo 命令速查:
 echo   python gen_report_md.py              — 单独生成v3报告
+echo   python ai_report_rewrite.py          — 单独生成AI日报
 echo   python qa_tool.py                    — 终端快速胜率对比
-echo   python qa_tool.py sz159740 min5      — 单标的信号流水
-echo   python cycle_engine.py --save        — 单独跑周期分析
-echo ==========================================
-pause

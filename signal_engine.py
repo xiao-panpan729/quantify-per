@@ -10,6 +10,7 @@
 v1.2: 抽取核心计算函数消除三函数重复、O(n²)→O(n)算法优化、合并冗余常量
 """
 
+import math
 import struct
 import os
 import csv
@@ -78,6 +79,153 @@ def _clamp_u32(v):
         return 0
 
 
+# 排列熵归一化常量: math.log(factorial(3))，m=3 时恒为 log(6)
+_PE_NORM = math.log(6.0)
+
+
+def _permutation_entropy(values, m=3, delay=1):
+    """
+    排列熵：度量时间序列的有序/无序程度。
+    返回: 归一化 PE 值 (0~1)，1=完全随机/无序，0=完全有序/有方向
+    """
+    n = len(values)
+    if n < m * 2:
+        return 0.5
+    sub_seqs = []
+    for i in range(n - (m - 1) * delay):
+        seq = tuple(values[i + j * delay] for j in range(m))
+        sub_seqs.append(seq)
+    patterns = []
+    for seq in sub_seqs:
+        sorted_idx = tuple(sorted(range(m), key=lambda x: seq[x]))
+        patterns.append(sorted_idx)
+    total = len(patterns)
+    freq = {}
+    for p in patterns:
+        freq[p] = freq.get(p, 0) + 1
+    pe = 0.0
+    for count in freq.values():
+        f = count / total
+        pe -= f * math.log(f) if f > 0 else 0
+    return pe / _PE_NORM
+
+
+def _calc_pe_rolling(rows, window=60):
+    """对每根 bar 计算滚动排列熵（PE），添加 pe / pe_level / pe_chg_5 三列"""
+    trend_vals = [r.get('trend_line', 0) or 0 for r in rows]
+    n = len(rows)
+
+    pe_vals = [None] * n
+    pe_levels = [''] * n
+    pe_chg5 = [None] * n
+
+    for i in range(n):
+        if i < window - 1:
+            continue
+        win = trend_vals[i - window + 1 : i + 1]
+        pe = _permutation_entropy(win, m=3)
+        pe_vals[i] = round(pe, 4)
+        if pe > 0.70:
+            pe_levels[i] = 'high'
+        elif pe < 0.40:
+            pe_levels[i] = 'low'
+        else:
+            pe_levels[i] = 'mid'
+        if i >= window + 4 and pe_vals[i - 5] is not None:
+            pe_chg5[i] = round(pe - pe_vals[i - 5], 4)
+
+    for i, r in enumerate(rows):
+        r['pe'] = pe_vals[i] if pe_vals[i] is not None else ''
+        r['pe_level'] = pe_levels[i]
+        r['pe_chg_5'] = pe_chg5[i] if pe_chg5[i] is not None else ''
+    return rows
+
+
+def _calc_hht_daily(rows):
+    """日线 HHT 分析 — 全量 EMD + Hilbert，每 bar 存储瞬时频率和振幅"""
+    try:
+        import numpy as np
+        from PyEMD import EMD
+        from scipy.signal import hilbert
+    except ImportError:
+        for r in rows:
+            r['hht_freq'] = ''
+            r['hht_amp'] = ''
+        return rows
+
+    trend_vals = []
+    for r in rows:
+        v = r.get('trend_line', 0) or 0
+        trend_vals.append(float(v))
+
+    if len(trend_vals) < 60:
+        for r in rows:
+            r['hht_freq'] = ''
+            r['hht_amp'] = ''
+        return rows
+
+    try:
+        signal = np.array(trend_vals, dtype=np.float64)
+        emd = EMD()
+        imfs = emd.emd(signal, max_imf=6)
+    except Exception:
+        for r in rows:
+            r['hht_freq'] = ''
+            r['hht_amp'] = ''
+        return rows
+
+    if len(imfs) < 2:
+        for r in rows:
+            r['hht_freq'] = ''
+            r['hht_amp'] = ''
+        return rows
+
+    best_imf_idx = max(0, len(imfs) - 2)
+    best_imf = imfs[best_imf_idx]
+
+    try:
+        analytic = hilbert(best_imf)
+        amp = np.abs(analytic)
+        phase = np.unwrap(np.angle(analytic))
+        n = len(best_imf)
+        freq = np.zeros(n)
+        for i in range(1, n):
+            freq[i] = float(phase[i] - phase[i - 1]) / (2.0 * np.pi)
+        freq[0] = freq[1]
+    except Exception:
+        for r in rows:
+            r['hht_freq'] = ''
+            r['hht_amp'] = ''
+        return rows
+
+    for i, r in enumerate(rows):
+        r['hht_freq'] = round(float(freq[i]), 6) if not math.isnan(freq[i]) else ''
+        r['hht_amp'] = round(float(amp[i]), 4) if not math.isnan(amp[i]) else ''
+    return rows
+
+
+def _calc_cycle_period(rows, window=100):
+    """滚动检测主导循环周期（峰值间距均值），轻量级，适合分钟线"""
+    trend_vals = [r.get('trend_line', 0) or 0 for r in rows]
+    n = len(rows)
+
+    for i, r in enumerate(rows):
+        if i < window:
+            r['cycle_period'] = ''
+            continue
+        win = trend_vals[i - window + 1 : i + 1]
+        peaks = []
+        for j in range(1, len(win) - 1):
+            if win[j] > win[j - 1] and win[j] > win[j + 1]:
+                peaks.append(j)
+        if len(peaks) < 2:
+            r['cycle_period'] = ''
+            continue
+        intervals = [peaks[k + 1] - peaks[k] for k in range(len(peaks) - 1)]
+        r['cycle_period'] = round(sum(intervals) / len(intervals), 1)
+    return rows
+
+
 def read_bars(filepath):
     """
     读取通达信二进制文件（日线/lc1/lc5/lc15/lc30/lc60通用）
@@ -92,7 +240,8 @@ def read_bars(filepath):
         return bars
     ext = os.path.splitext(filepath)[1].lower()
 
-    if ext in ('.lc1', '.lc5'):
+    if ext == '.lc1':
+        # lc1 在 read_bars_lc1 中专用读取，此分支仅兜底
         with open(filepath, 'rb') as f:
             while True:
                 raw = f.read(32)
@@ -100,16 +249,17 @@ def read_bars(filepath):
                     break
                 vals = struct.unpack('<HHfffffII', raw)
                 bars.append((
-                    _tdx_date_decode(vals[0]),                     # [0] YYYYMMDD
-                    _clamp_u32(vals[2] * 10000),                   # [1] open ×10000
-                    _clamp_u32(vals[3] * 10000),                   # [2] high ×10000
-                    _clamp_u32(vals[4] * 10000),                   # [3] low ×10000
-                    _clamp_u32(vals[5] * 10000),                   # [4] close ×10000
-                    _clamp_u32(vals[6]),                           # [5] amount
-                    _clamp_u32(vals[7]),                           # [6] volume
-                    _tdx_time_decode(vals[1]),                     # [7] HHMM
+                    _tdx_date_decode(vals[0]),
+                    _clamp_u32(vals[2] * 10000),
+                    _clamp_u32(vals[3] * 10000),
+                    _clamp_u32(vals[4] * 10000),
+                    _clamp_u32(vals[5] * 10000),
+                    _clamp_u32(vals[6]),
+                    _clamp_u32(vals[7]),
+                    _tdx_time_decode(vals[1]),
                 ))
     else:
+        # lc5/lc15/lc30/lc60/lday 均使用 <8I> 格式（update_from_tdx 转换后）
         with open(filepath, 'rb') as f:
             while True:
                 raw = f.read(32)
@@ -148,11 +298,11 @@ def read_bars_lc1(filepath):
             minute = minutes % 60
             timestamp = year * 100000000 + month * 1000000 + day * 10000 + hour * 100 + minute
             bars.append((timestamp,
-                         int(open_f * 10000),
-                         int(high_f * 10000),
-                         int(low_f * 10000),
-                         int(close_f * 10000),
-                         int(amount_f),
+                         _clamp_u32(open_f * 10000),
+                         _clamp_u32(high_f * 10000),
+                         _clamp_u32(low_f * 10000),
+                         _clamp_u32(close_f * 10000),
+                         _clamp_u32(amount_f),
                          volume,
                          0))
     return bars
@@ -601,8 +751,12 @@ def calc_daily_all(filepath):
     amts = [bar[5] for bar in bars]
     timestamps = [bar[0] for bar in bars]
 
-    return _calc_signals_from_arrays(
+    rows = _calc_signals_from_arrays(
         p_o, p_h, p_l, p_c, vols, amts, timestamps, TREND_PERIOD_DAILY)
+    if rows:
+        rows = _calc_pe_rolling(rows)
+        rows = _calc_hht_daily(rows)
+    return rows
 
 
 def calc_min_all(filepath, period='min30', trend_period=None):
@@ -626,8 +780,13 @@ def calc_min_all(filepath, period='min30', trend_period=None):
     amts = [bar[5] for bar in bars]
     timestamps = [int(str(bar[0]) + str(bar[7]).zfill(4)) for bar in bars]
 
-    return _calc_signals_from_arrays(
+    rows = _calc_signals_from_arrays(
         opens, highs, lows, closes, vols, amts, timestamps, trend_period)
+    if rows:
+        rows = _calc_pe_rolling(rows)
+        if period == 'min30':
+            rows = _calc_cycle_period(rows)
+    return rows
 
 
 def calc_min1_all(filepath, period='min1'):
@@ -644,8 +803,11 @@ def calc_min1_all(filepath, period='min1'):
     amts = [bar[5] for bar in bars]
     timestamps = [bar[0] for bar in bars]
 
-    return _calc_signals_from_arrays(
+    rows = _calc_signals_from_arrays(
         opens, highs, lows, closes, vols, amts, timestamps, TREND_PERIOD_MIN_SHORT)
+    if rows:
+        rows = _calc_pe_rolling(rows)
+    return rows
 
 
 # ========== 量能指标后处理 ==========
@@ -774,6 +936,9 @@ SIGNAL_HEADERS = [
     'vol_ma5', 'vol_ma60', 'vr5', 'vr60',
     'vol_llv100', 'vol_llv10', 'vol_堆', 'vol_缩50',
     'vol_突放', 'vol_梯度升', 'vol_梯度降',
+    'pe', 'pe_level', 'pe_chg_5',
+    'hht_freq', 'hht_amp',
+    'cycle_period',
 ]
 
 # 向后兼容别名

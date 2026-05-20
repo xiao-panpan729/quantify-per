@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-cycle_engine 指标层 — 排列熵 / 位置判断 / 趋势评分 / 信号质量 / 锚点
+cycle_engine 指标层 — 排列熵(结构状态) / 位置判断 / 趋势评分 / 信号质量 / 锚点
 """
 import math
 from .utils import safe_float, read_csv, SNAPSHOT_DIR
@@ -58,35 +58,171 @@ def _permutation_entropy(values, m=3, delay=1):
 
 def analyze_trend_pe(raw_rows, lookback=60):
     """
-    对趋势线做排列熵分析，检测循环结构是否正在被打破
+    对趋势线做排列熵分析，检测结构状态。
 
-    取最新 lookback 根K线的 trend_line，前半段→pe_front，后半段→pe_back
+    v3: 优先读取 CSV 中已计算的 PE 轨迹列（pe/pe_level/pe_chg_5），
+    对 PE 时间序列做轨迹分析（看熵的走势而非前后两半对比）；
+    若 PE 列缺失则回退到旧版 front/back 两半计算。
 
-    **熵值绝对值分级**（pe_back 当前值）:
-      > 0.70 = 高熵区（无序震荡）
-      0.40~0.70 = 中熵区（过渡态）
-      < 0.40 = 低熵区（高度有序/方向明确）
-
-    **结合变化趋势** pe_ratio = pe_back / pe_front:
-      高熵 + 平稳 → 高熵震荡（无序无方向）
-      高熵 + 降熵 → 开始降熵（刚从无序转向有序）
-      中熵 + 降熵 → 持续性降熵（已经在走方向）
-      中熵 + 升熵 → 熵增中（方向在退化回震荡）
-      低熵 + 降熵 → 极致压缩（方向极度明确）
-      低熵 + 平稳 → 低熵锁定（方向维持但不再加速）
-      低熵 + 升熵 → 触底回升（有序结构开始松动）
-
-    **新增输出字段**:
-      pe_level: 熵值绝对水平 high/mid/low
-      pe_phase: 所处阶段标签（开始降熵/持续降熵/熵增中等）
-      pe_velocity: 变化烈度（急速/显著/温和/平稳）
-      trending: 降熵中=True, 升熵中=False
+    输出字段（旧版兼容 + 新版轨迹补充）:
+      pe_front / pe_back / pe_ratio: 旧版兼容，从 PE 轨迹推算
+      pe_level / pe_phase / pe_velocity: 沿用旧版状态机标签
+      pe_trajectory: 轨迹详情（新）
     """
-    if not raw_rows or len(raw_rows) < lookback:
-        return {'pe_front': 0.5, 'pe_back': 0.5, 'pe_ratio': 1.0,
-                'pe_level': 'mid', 'pe_phase': '数据不足', 'pe_velocity': '--',
-                'trending': False, 'label': '数据不足'}
+    default = {'pe_front': 0.5, 'pe_back': 0.5, 'pe_ratio': 1.0,
+               'pe_level': 'mid', 'pe_phase': '数据不足', 'pe_velocity': '--',
+               'trending': False, 'label': '数据不足',
+               'pe_trajectory': None}
 
+    if not raw_rows or len(raw_rows) < 20:
+        return default
+
+    # ── 尝试读 PE 轨迹 ──
+    pe_series = []
+    pe_levels = []
+    for r in raw_rows:
+        p = r.get('pe', None)
+        if p is None or p == '':
+            continue
+        try:
+            pe_series.append((float(p), r.get('pe_level', '')))
+        except (ValueError, TypeError):
+            continue
+
+    if len(pe_series) >= 20:
+        return _analyze_pe_from_trajectory(raw_rows, pe_series, lookback)
+
+    # ── 回退: 旧版 front/back 两半计算 ──
+    return _analyze_pe_legacy(raw_rows, lookback)
+
+
+def _analyze_pe_from_trajectory(raw_rows, pe_series, lookback=60):
+    """
+    从 PE 轨迹分析结构状态。
+    pe_series: list[(pe_value, pe_level_str)]
+    """
+    vals = [p[0] for p in pe_series]
+    levels = [p[1] for p in pe_series]
+
+    current_pe = vals[-1]
+    current_level = levels[-1] if levels else 'mid'
+
+    # PE 变化
+    pe_5_ago = vals[-5] if len(vals) >= 5 else vals[0]
+    pe_10_ago = vals[-10] if len(vals) >= 10 else vals[0]
+    pe_20_ago = vals[-20] if len(vals) >= 20 else vals[0]
+
+    chg_5 = current_pe - pe_5_ago
+    chg_20 = current_pe - pe_20_ago
+
+    # 趋势线方向
+    trend_vals = []
+    for r in raw_rows[-30:]:
+        tv = r.get('trend_line', None)
+        if tv is not None and tv != '' and safe_float(tv) > 0:
+            trend_vals.append(safe_float(tv))
+    if len(trend_vals) >= 10:
+        half = len(trend_vals) // 2
+        tl_rising = sum(trend_vals[half:]) / (len(trend_vals) - half) > sum(trend_vals[:half]) / half
+    else:
+        tl_rising = False
+
+    # ── 变化烈度 ──
+    abs_chg = abs(chg_5)
+    if abs_chg > 0.10:
+        velo = 'rapid'
+    elif abs_chg > 0.05:
+        velo = 'strong'
+    elif abs_chg > 0.02:
+        velo = 'mild'
+    else:
+        velo = 'stable'
+
+    # ── 阶段标签（状态机，基于 PE 轨迹）──
+    # 降熵 = 结构趋于有序, 升熵 = 结构趋于溃散
+    falling = chg_5 < -0.02
+    rising = chg_5 > 0.02
+    stable = not falling and not rising
+
+    pe_level = current_level if current_level else ('high' if current_pe > 0.70 else ('low' if current_pe < 0.40 else 'mid'))
+
+    if falling and pe_level == 'high':
+        pe_phase = '方向形成中'
+        trending = True
+    elif falling and pe_level == 'mid' and abs_chg > 0.05:
+        if tl_rising:
+            pe_phase = '结构突破'
+        else:
+            pe_phase = '逆向崩退'
+        trending = True
+    elif falling and pe_level == 'mid':
+        pe_phase = '顺向蓄力'
+        trending = True
+    elif falling and pe_level == 'low' and abs_chg > 0.05:
+        pe_phase = '蓄力压缩'
+        trending = True
+    elif falling and pe_level == 'low':
+        pe_phase = '趋势锁定'
+        trending = True
+    elif stable and pe_level == 'low':
+        pe_phase = '趋势延续'
+        trending = False
+    elif rising and pe_level == 'low':
+        pe_phase = '趋势松动'
+        trending = False
+    elif rising and pe_level in ('mid', 'high') and abs_chg > 0.05:
+        pe_phase = '趋势衰减' if pe_level == 'mid' else '无序放大'
+        trending = False
+    elif rising and pe_level in ('mid', 'high'):
+        pe_phase = '趋势衰减' if pe_level == 'mid' else '无序放大'
+        trending = False
+    elif stable and pe_level == 'high':
+        pe_phase = '无序震荡'
+        trending = False
+    elif stable and pe_level == 'mid':
+        pe_phase = '方向不明'
+        trending = False
+    else:
+        pe_phase = '过渡'
+        trending = False
+
+    # 最近20根PE的最小/最大值
+    recent_vals = vals[-20:]
+    pe_min_20 = min(recent_vals)
+    pe_max_20 = max(recent_vals)
+
+    # 轨迹方向词
+    if falling:
+        traj_dir = 'falling'
+    elif rising:
+        traj_dir = 'rising'
+    else:
+        traj_dir = 'stable'
+
+    return {
+        'pe_front': round(pe_20_ago, 4),
+        'pe_back': round(current_pe, 4),
+        'pe_ratio': round(current_pe / pe_20_ago if pe_20_ago > 0 else 1.0, 4),
+        'pe_level': pe_level,
+        'pe_phase': pe_phase,
+        'pe_velocity': velo,
+        'trending': trending,
+        'label': pe_phase,
+        'tl_dir': '↑' if tl_rising else '↓',
+        'pe_trajectory': {
+            'current': round(current_pe, 4),
+            'chg_5': round(chg_5, 4),
+            'chg_20': round(chg_20, 4),
+            'min_20': round(pe_min_20, 4),
+            'max_20': round(pe_max_20, 4),
+            'direction': traj_dir,
+            'velocity': velo,
+        },
+    }
+
+
+def _analyze_pe_legacy(raw_rows, lookback=60):
+    """旧版 front/back 两半 PE 计算（PE 列缺失时回退使用）"""
     recent = raw_rows[-lookback:]
     trend_vals = []
     for r in recent:
@@ -97,7 +233,7 @@ def analyze_trend_pe(raw_rows, lookback=60):
     if len(trend_vals) < lookback * 0.5:
         return {'pe_front': 0.5, 'pe_back': 0.5, 'pe_ratio': 1.0,
                 'pe_level': 'mid', 'pe_phase': '数据不足', 'pe_velocity': '--',
-                'trending': False, 'label': '数据不足'}
+                'trending': False, 'label': '数据不足', 'pe_trajectory': None}
 
     half = len(trend_vals) // 2
     front = trend_vals[:half]
@@ -107,12 +243,10 @@ def analyze_trend_pe(raw_rows, lookback=60):
     pe_back = _permutation_entropy(back, m=3)
     pe_ratio = pe_back / pe_front if pe_front > 0 else 1.0
 
-    # ── 趋势线方向（用于标注降熵朝向）──
     front_tl = sum(trend_vals[:half]) / half if half > 0 else 0
     back_tl = sum(trend_vals[half:]) / (len(trend_vals) - half) if len(trend_vals) > half else 0
-    tl_rising = back_tl > front_tl  # 趋势线在上升
+    tl_rising = back_tl > front_tl
 
-    # ── 熵值绝对水平 ──
     if pe_back > 0.70:
         pe_level = 'high'
     elif pe_back < 0.40:
@@ -120,72 +254,45 @@ def analyze_trend_pe(raw_rows, lookback=60):
     else:
         pe_level = 'mid'
 
-    # ── 变化烈度 ──
     if pe_ratio < 0.70:
-        pe_velocity = '急速'
         velo = 'rapid'
     elif pe_ratio < 0.85:
-        pe_velocity = '显著'
         velo = 'strong'
     elif pe_ratio < 0.95:
-        pe_velocity = '温和'
         velo = 'mild'
     elif pe_ratio <= 1.05:
-        pe_velocity = '平稳'
         velo = 'stable'
     elif pe_ratio < 1.20:
-        pe_velocity = '温和'
         velo = 'mild_rev'
     elif pe_ratio < 1.50:
-        pe_velocity = '显著'
         velo = 'strong_rev'
     else:
-        pe_velocity = '急速'
         velo = 'rapid_rev'
 
-    # ── 阶段标签（状态机）──
-    # 方向词：只有"结构突破"用上破/下破（"破"字已含方向），其余标签去掉箭头
-    dir_word = '上破' if tl_rising else '下破'
-
     if pe_level == 'high' and pe_ratio < 0.95:
-        pe_phase = '方向形成中'  # 高熵区开始降熵=方向刚从无序中显现
-        trending = True
+        pe_phase = '方向形成中'; trending = True
     elif pe_level == 'mid' and pe_ratio < 0.85:
-        pe_phase = f'结构{dir_word}'  # 中熵区快速降熵=结构正在被打破
-        trending = True
+        pe_phase = '结构突破' if tl_rising else '逆向崩退'; trending = True
     elif pe_level == 'mid' and pe_ratio < 0.95:
-        pe_phase = '趋势强化'  # 中熵区温和降熵=方向在持续
-        trending = True
+        pe_phase = '顺向蓄力'; trending = True
     elif pe_level == 'low' and pe_ratio < 0.85:
-        pe_phase = '蓄力压缩'  # 低熵区继续降=蓄力到极致
-        trending = True
+        pe_phase = '蓄力压缩'; trending = True
     elif pe_level == 'low' and pe_ratio < 0.95:
-        pe_phase = '趋势锁定'  # 低熵区温和降=方向锁定
-        trending = True
+        pe_phase = '趋势锁定'; trending = True
     elif pe_level == 'low' and pe_ratio <= 1.05:
-        pe_phase = '趋势延续'  # 低熵平稳=有序结构保持
-        trending = False
+        pe_phase = '趋势延续'; trending = False
     elif pe_level == 'low' and pe_ratio > 1.05:
-        pe_phase = '趋势松动'  # 低熵回升=有序结构开始松动
-        trending = False
+        pe_phase = '趋势松动'; trending = False
     elif pe_level == 'mid' and pe_ratio > 1.05:
-        pe_phase = '趋势衰减'  # 中熵升熵=方向在退化
-        trending = False
+        pe_phase = '趋势衰减'; trending = False
     elif pe_level == 'high' and pe_ratio > 1.05:
-        pe_phase = '无序放大'  # 高熵继续升=无序在扩散
-        trending = False
+        pe_phase = '无序放大'; trending = False
     elif pe_level == 'high':
-        pe_phase = '无序震荡'  # 高熵平稳=持续无序
-        trending = False
+        pe_phase = '无序震荡'; trending = False
     elif pe_level == 'mid':
-        pe_phase = '方向不明'  # 中熵平稳=没有明确方向
-        trending = False
+        pe_phase = '方向不明'; trending = False
     else:
-        pe_phase = '过渡'
-        trending = False
-
-    # 短标签（用于总览表）— 直接用阶段名，不加emoji前缀，文字本身已经说明一切
-    short_label = pe_phase
+        pe_phase = '过渡'; trending = False
 
     return {
         'pe_front': round(pe_front, 4),
@@ -195,8 +302,9 @@ def analyze_trend_pe(raw_rows, lookback=60):
         'pe_phase': pe_phase,
         'pe_velocity': velo,
         'trending': trending,
-        'label': short_label,
+        'label': pe_phase,
         'tl_dir': '↑' if tl_rising else '↓',
+        'pe_trajectory': None,
     }
 
 
@@ -760,16 +868,16 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         if trend_pe:
             if trend_pe['trending'] and trend_pe['pe_ratio'] < 0.85:
                 buy_level += 1.5
-                buy_details.append(f'★结构突破(pe={trend_pe["pe_back"]:.2f})')
+                buy_details.append(f'★结构突破(熵={trend_pe["pe_back"]:.2f})')
             elif trend_pe['trending']:
                 buy_level += 1.0
-                buy_details.append(f'方向形成中(pe={trend_pe["pe_back"]:.2f})')
+                buy_details.append(f'方向形成中(熵={trend_pe["pe_back"]:.2f})')
             elif trend_pe['pe_ratio'] > 1.15:
                 # 升熵=回归震荡，不扣分，但标记
-                buy_details.append(f'震荡回归(pe={trend_pe["pe_back"]:.2f})')
+                buy_details.append(f'震荡回归(熵={trend_pe["pe_back"]:.2f})')
 
-            # 加入 PE 原始数据用于输出
-            buy_details.append(f'pe({trend_pe["pe_front"]:.2f}→{trend_pe["pe_back"]:.2f})')
+            # 加入熵原始数据用于输出
+            buy_details.append(f'熵值({trend_pe["pe_front"]:.2f}→{trend_pe["pe_back"]:.2f})')
 
         # 7. 量能确认维度（买侧）
         if recent_buy_anchors:
@@ -901,13 +1009,13 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         if trend_pe:
             if trend_pe['trending'] and trend_pe['pe_ratio'] < 0.85:
                 sell_level += 1.5
-                sell_details.append(f'★结构突破(pe={trend_pe["pe_back"]:.2f})')
+                sell_details.append(f'★结构突破(熵={trend_pe["pe_back"]:.2f})')
             elif trend_pe['trending']:
                 sell_level += 1.0
-                sell_details.append(f'方向形成中(pe={trend_pe["pe_back"]:.2f})')
+                sell_details.append(f'方向形成中(熵={trend_pe["pe_back"]:.2f})')
             elif trend_pe['pe_ratio'] > 1.15:
-                sell_details.append(f'震荡回归(pe={trend_pe["pe_back"]:.2f})')
-            sell_details.append(f'pe({trend_pe["pe_front"]:.2f}→{trend_pe["pe_back"]:.2f})')
+                sell_details.append(f'震荡回归(熵={trend_pe["pe_back"]:.2f})')
+            sell_details.append(f'熵值({trend_pe["pe_front"]:.2f}→{trend_pe["pe_back"]:.2f})')
 
         direction = trend['direction']
 
@@ -1005,4 +1113,177 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
     }
 
 
+# ============================================================
+# 节奏完整性检查 — 在 30分钟(战术) + 日线(战略) 两个固定级别
+# ============================================================
 
+def check_rhythm_integrity(period_results, direction):
+    """
+    在固定级别(30分/日线)上判断节奏完整性。
+
+    节奏线 = EXPMA12(白线): 价格日常行动基线
+    旋律线 = EXPMA50(黄线): 趋势生死线
+
+    上涨: 价格在白线上方 + 黄线未有效跌破 + 无死叉(最近交叉)
+    下跌: 价格在白线下方 + 黄线未有效突破 + 无金叉(最近交叉)
+
+    交叉判断看最近一次: 如果最近一次是金叉=节奏完整(涨)，最近一次是死叉=节奏破坏(涨)
+
+    Returns:
+      dict: {
+        'tactical':  {'intact': bool, ...},  # 30分钟
+        'strategic': {'intact': bool, ...},  # 日线
+        'verdict': 'intact'|'tactical_broken'|'strategic_broken'|'fully_broken'
+      }
+    """
+    bullish_dirs = ('bullish', 'bullish_bias')
+    bearish_dirs = ('bearish', 'bearish_bias')
+    is_bullish = direction in bullish_dirs
+
+    def _check_one(period_key, label):
+        pp = period_results.get(period_key) if period_results else None
+        if not pp:
+            return {'intact': True, 'rhythm_line_ok': True, 'melody_line_ok': True,
+                    'cross_ok': True, 'note': '无数据，默认完整'}
+
+        sq = pp.get('signal_quality')
+        if not sq:
+            return {'intact': True, 'rhythm_line_ok': True, 'melody_line_ok': True,
+                    'cross_ok': True, 'note': '无信号质量数据'}
+
+        ecs = sq.get('ema_cross_status') or {}
+
+        # 交叉确认: 看最近一次交叉是什么
+        # 涨: 最近一次是金叉=完整，最近一次是死叉=破坏
+        # 跌: 最近一次是死叉=完整，最近一次是金叉=破坏
+        has_golden = ecs.get('has_recent_golden', False)
+        has_dead = ecs.get('has_recent_dead', False)
+        last_golden = ecs.get('last_golden_idx', -1)
+        last_dead = ecs.get('last_dead_idx', -1)
+
+        if is_bullish:
+            if has_dead and (last_dead > last_golden):
+                # 最近交叉是死叉 → 节奏破坏
+                cross_ok = False
+            else:
+                cross_ok = True  # 最近是金叉或无交叉=节奏完好
+        else:
+            if has_golden and (last_golden > last_dead):
+                # 最近交叉是金叉 → 节奏破坏（对下跌趋势而言）
+                cross_ok = False
+            else:
+                cross_ok = True
+
+        # 节奏线和旋律线: 目前从结构走，价格关系后续补充精确比较
+        rhythm_line_ok = True
+        melody_line_ok = True
+
+        intact = rhythm_line_ok and melody_line_ok and cross_ok
+
+        return {
+            'intact': intact,
+            'rhythm_line_ok': rhythm_line_ok,
+            'melody_line_ok': melody_line_ok,
+            'cross_ok': cross_ok,
+            'label': label,
+            'cross_status': {
+                'has_recent_golden': has_golden,
+                'has_recent_dead': has_dead,
+                'last_golden_idx': last_golden,
+                'last_dead_idx': last_dead,
+                'golden_count': ecs.get('golden_count', 0),
+                'dead_count': ecs.get('dead_count', 0),
+            }
+        }
+
+    tactical = _check_one('min30', '30分钟(战术)')
+    strategic = _check_one('daily', '日线(战略)')
+
+    # 判定
+    if strategic['intact'] and tactical['intact']:
+        verdict = 'intact'
+    elif strategic['intact'] and not tactical['intact']:
+        verdict = 'tactical_broken'
+    elif not strategic['intact'] and tactical['intact']:
+        verdict = 'strategic_broken'
+    else:
+        verdict = 'fully_broken'
+
+    return {
+        'tactical': tactical,
+        'strategic': strategic,
+        'verdict': verdict,
+        'direction': direction,
+    }
+
+
+# ============================================================
+# 共振扫描 — 破坏事件前后的5+15共振确认
+# ============================================================
+
+def scan_resonance(period_results, rhythm, direction):
+    """
+    扫描 5+15 分钟是否有同向共振闭环，用于增强/压制判断。
+
+    节奏完整时: 检查同向共振 → 增强
+    节奏破坏时: 检查反向共振 → 可能反转信号
+
+    Returns:
+      dict: {resonance_confirmed, resonance_score, side: 'buy'|'sell'|'mixed'}
+    """
+    min5 = (period_results or {}).get('min5')
+    min15 = (period_results or {}).get('min15')
+
+    min5_sq = min5.get('signal_quality') if min5 else None
+    min15_sq = min15.get('signal_quality') if min15 else None
+
+    m5_buy = min5_sq.get('buy_level', 0) if min5_sq else 0
+    m5_sell = min5_sq.get('sell_level', 0) if min5_sq else 0
+    m15_buy = min15_sq.get('buy_level', 0) if min15_sq else 0
+    m15_sell = min15_sq.get('sell_level', 0) if min15_sq else 0
+
+    bullish_dirs = ('bullish', 'bullish_bias')
+    bearish_dirs = ('bearish', 'bearish_bias')
+    is_bullish = direction in bullish_dirs
+    is_bearish = direction in bearish_dirs
+
+    verdict = rhythm.get('verdict', 'intact')
+    resonance_confirmed = False
+    resonance_score = 0.0
+    side = 'neutral'
+
+    if verdict in ('intact', 'tactical_broken'):
+        # 节奏完整或仅战术破坏 → 检查同向共振
+        if is_bullish:
+            # 买侧共振: 5+15 同时有买信号
+            if m5_buy >= 2.0 and m15_buy >= 2.0:
+                resonance_confirmed = True
+                resonance_score = min(m5_buy + m15_buy, 10.0)
+                side = 'buy'
+        elif is_bearish:
+            # 卖侧共振: 5+15 同时有卖信号
+            if m5_sell >= 2.0 and m15_sell >= 2.0:
+                resonance_confirmed = True
+                resonance_score = min(m5_sell + m15_sell, 10.0)
+                side = 'sell'
+    elif verdict in ('strategic_broken', 'fully_broken'):
+        # 战略破坏 → 检查是否反向共振（可能反转信号）
+        if is_bullish:
+            # 上涨趋势但战略破坏 → 检查卖共振
+            if m5_sell >= 2.0 and m15_sell >= 2.0:
+                resonance_confirmed = True
+                resonance_score = min(m5_sell + m15_sell, 10.0)
+                side = 'sell_reversal'
+        elif is_bearish:
+            # 下跌趋势但战略破坏 → 检查买共振
+            if m5_buy >= 2.0 and m15_buy >= 2.0:
+                resonance_confirmed = True
+                resonance_score = min(m5_buy + m15_buy, 10.0)
+                side = 'buy_reversal'
+
+    return {
+        'resonance_confirmed': resonance_confirmed,
+        'resonance_score': resonance_score,
+        'side': side,
+        'details': f'5分买{m5_buy:.1f}/卖{m5_sell:.1f} + 15分买{m15_buy:.1f}/卖{m15_sell:.1f}',
+    }

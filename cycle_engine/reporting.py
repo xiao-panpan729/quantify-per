@@ -224,6 +224,8 @@ def save_results(results):
             'advice': r['advice'],
             'rs_density': r.get('rs_density'),
             'market_coeff': r.get('market_coeff'),
+            'rhythm': r.get('rhythm'),
+            'resonance': r.get('resonance'),
         })
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:

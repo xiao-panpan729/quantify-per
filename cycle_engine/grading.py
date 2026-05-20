@@ -272,226 +272,244 @@ def best_period_label(best):
     return best.get('period_label', '未知')
 
 
-def _grade_trend_signal(position, trend, best, all_periods, dominant_info=None, market_coeff=None):
+def _grade_trend_signal(position, trend, best, all_periods, dominant_info=None,
+                           market_coeff=None, rhythm=None, resonance=None):
     """
-    按日线趋势+分钟信号强度分级，返回分级定性和建议
+    ABCD 分级 — 基于节奏完整性的对称递进阶梯
 
-    分级逻辑:
-      日线上涨+分钟闭环 → 可操作
-      日线中性+分钟强   → 中性偏强
-      日线中性+分钟弱   → 中性
-      日线下跌+分钟闭环 → 谨慎观望
-      日线下跌+分钟弱   → 观望
+    上涨阶梯: A+ → A → A- → B → C → D+ → D → D-
+    下跌阶梯: D- → D → D+ → C → B → A- → A → A+
+
+    升降依据 (两个固定级别):
+      30分钟 = 战术节奏 | 日线 = 战略节奏
+      rhythm_verdict: intact → tactical_broken → strategic_broken → fully_broken
+      res_confirmed: 5+15共振确认
+      30+60%死叉/金叉能否形成共振
     """
     direction = trend['direction']
     zone = position['zone']
     risk = position['risk_level']
-    close_price = position.get('close', 0)
-    expma12 = position.get('expma12', 0)
 
-    # ── 信号摘要 ──
+    # rhythm / resonance
+    rhythm_verdict = (rhythm or {}).get('verdict', 'intact')
+    res_confirmed = (resonance or {}).get('resonance_confirmed', False)
+    res_side = (resonance or {}).get('side', 'neutral')
+    tactical = (rhythm or {}).get('tactical', {})
+    strategic = (rhythm or {}).get('strategic', {})
+    t_cross = tactical.get('cross_status', {})
+    s_cross = strategic.get('cross_status', {})
+
+    # 30+60是否同向(买/卖)共振: 两者都金叉或都死叉
+    has_30_60_golden = (_check_golden(all_periods, 'min30') and _check_golden(all_periods, 'min60'))
+    has_30_60_dead = (_check_dead(all_periods, 'min30') and _check_dead(all_periods, 'min60'))
+    has_30_60_buy_res = has_30_60_golden and res_confirmed and res_side in ('buy',)
+    has_30_60_sell_res = has_30_60_dead and res_confirmed and res_side in ('sell',)
+
+    # 日线交叉状态
+    daily_golden = _check_golden(all_periods, 'daily')
+    daily_dead = _check_dead(all_periods, 'daily')
+
+    # 信号摘要
     max_min_level, best_min_label, best_min_period, min_signal_details = \
         _build_signal_summary(all_periods, trend)
-
-    # ── 跨周期共振 ──
     resonance_score, resonance_desc = _detect_resonance(all_periods, direction, best)
 
-    # ── 大盘系数调整 ──
-    best_label = ''
     best_level = 0
     if best and best.get('signal_quality'):
-        best_label = best['signal_quality']['label']
         best_level = best['signal_quality']['level']
-
     mc = (market_coeff or {}).get('coefficient', 1.0) if isinstance(market_coeff, dict) else 1.0
     adj_level = round(best_level * mc, 1)
-    adj_max_level = round(max_min_level * mc, 1)
 
-    bullish_directions = ('bullish', 'bullish_bias')
-    bearish_directions = ('bearish', 'bearish_bias')
+    bullish_dirs = ('bullish', 'bullish_bias')
+    bearish_dirs = ('bearish', 'bearish_bias')
+    is_bullish = direction in bullish_dirs
+    is_bearish = direction in bearish_dirs
+    dc_wait = dominant_info['dominant_label'] if (dominant_info and dominant_info.get('dominant_label')) else '分钟'
 
-    # ── 极端位置优先处理 ──
-    if zone == 'high' and risk == 'critical':
-        if direction in bullish_directions:
-            dc_wait = dominant_info['dominant_label'] if (dominant_info and dominant_info.get('dominant_label')) else '分钟'
-            return _grade_output('observe_strong', '强势观望', '持有/减仓',
-                '多头趋势+高位加速区，强势标的等回调入场',
-                min_signal_details, f'回调EXPMA12后{dc_wait}找★买')
-        else:
-            return _grade_output('avoid', '风险', '回避',
-                '高位+弱势=风险极大',
-                min_signal_details, '等下跌动能释放完毕')
+    # ══════════════════════════════════════════════════
+    # 上涨阶梯: A+ → A → A- → B → C → D+ → D → D-
+    # ══════════════════════════════════════════════════
+    if is_bullish:
 
-    if zone == 'low' and risk == 'critical':
-        if direction in bearish_directions:
-            if adj_level >= 3.0:
-                return _grade_output('observe_weak', '弱势观望', '关注抄底',
-                    '超跌+信号积累，但趋势未转多，等转折确认',
-                    min_signal_details, '等日线MACD金叉+★买出现')
-            else:
-                return _grade_output('avoid', '风险', '等待',
-                    '超跌但信号不充分，勿接飞刀',
-                    min_signal_details, '等60分钟/日线出现★买+金叉闭环')
-        else:
-            return _grade_output('observe', '观望', '轻仓试多',
-                '低位+方向好转，可逐步建仓',
-                min_signal_details, '等5-15分钟信号加强确认')
+        # ── 上涨+高位critical → 用节奏完整性判断能否继续操作 ──
+        if zone == 'high' and risk == 'critical':
+            if has_30_60_buy_res:
+                return _grade_output('actionable', 'A+', '顺势做多',
+                    '高位+节奏完整+30-60-5-15全共振买，趋势强势加速',
+                    min_signal_details, '注意极端位置，移动止盈', resonance_score)
+            if rhythm_verdict == 'intact' and res_confirmed and res_side in ('buy',):
+                return _grade_output('actionable', 'A假', '顺势做多',
+                    '高位+节奏完整+5-15买共振确认，可谨慎做多',
+                    min_signal_details, '位置风险：严格止损，不加仓追高', resonance_score)
+            if rhythm_verdict == 'intact':
+                return _grade_output('observe_strong', 'B', '持有/减仓',
+                    '多头趋势+高位+节奏完整，等回调加仓',
+                    min_signal_details, f'回调EXPMA12后{dc_wait}找★买')
+            if rhythm_verdict == 'tactical_broken':
+                return _grade_output('observe_strong', 'B', '持有/减仓',
+                    '战术节奏破坏，减仓观望等修复',
+                    min_signal_details, f'等30分钟节奏修复后{dc_wait}找★买')
+            if rhythm_verdict == 'strategic_broken':
+                return _grade_output('observe', 'C', '减仓',
+                    '战略节奏破坏，日线趋势可能反转',
+                    min_signal_details, '等日线金叉确认后再看')
+            # fully_broken
+            if has_30_60_sell_res:
+                return _grade_output('avoid', 'D-', '清仓/回避',
+                    '上涨节奏全破+30-60-5-15全共振卖，趋势可能反转',
+                    min_signal_details, '等完整底部结构出现', resonance_score)
+            return _grade_output('avoid', 'D', '回避',
+                '上涨节奏全破，等重新筑底',
+                min_signal_details, '等30分钟金叉+日线金叉出现')
 
-    # ── 日线方向定档 ──
-    if direction in bullish_directions:
-        return _grade_bullish_path(
-            direction, trend, close_price, expma12,
-            best, best_label, adj_level, resonance_score, resonance_desc,
-            min_signal_details)
-
-    elif direction in bearish_directions:
-        return _grade_bearish_path(
-            adj_level, resonance_score, resonance_desc, min_signal_details)
-
-    else:
-        return _grade_neutral_path(
-            max_min_level, best_min_label, best_min_period,
-            adj_max_level, resonance_score, resonance_desc, min_signal_details)
-
-
-# ============================================================
-# 方向定档子函数
-# ============================================================
-
-def _grade_bullish_path(direction, trend, close_price, expma12,
-                         best, best_label, adj_level,
-                         resonance_score, resonance_desc, min_signal_details):
-    """上涨/偏多方向的分级"""
-
-    # 偏多但要检查结构：MACD不能死叉、价格不能在白线下
-    if direction == 'bullish_bias' and adj_level >= 3.0:
-        macd_ok = trend.get('macd_score', 0) >= 2
-        price_ok = close_price > expma12 if close_price and expma12 else True
-        if not macd_ok or not price_ok:
-            weak_reason = []
-            if not macd_ok:
-                weak_reason.append('MACD死叉')
-            if not price_ok:
-                weak_reason.append('价破EXPMA白线')
-            return _grade_output('observe', '关注', '轻仓试错',
-                f'{best_period_label(best)}有{best_label}，但{"+".join(weak_reason)}，只轻仓试错等确认',
-                min_signal_details, '等MACD走好+价格站回白线', resonance_score)
-
-    if adj_level >= 3.0:
-        if resonance_score >= 0.7:
-            return _grade_output('actionable', '可操作', '顺势做多',
-                f'{best_period_label(best)}有{best_label}+{resonance_desc}，共振确认',
+        # ── 上涨+非极端位置 → 正常递进 ──
+        if has_30_60_buy_res:
+            return _grade_output('actionable', 'A+', '顺势做多',
+                '节奏完整+30-60-5-15全共振买，趋势强劲',
                 min_signal_details, '', resonance_score)
-        else:
-            return _grade_output('actionable', '可操作', '顺势做多',
-                f'{best_period_label(best)}有{best_label}，顺势跟进',
+        if rhythm_verdict == 'intact' and res_confirmed and res_side in ('buy',):
+            return _grade_output('actionable', 'A', '顺势做多',
+                '节奏完整+5-15买共振确认，可继续做多',
                 min_signal_details, '', resonance_score)
-    elif adj_level >= 2.0:
-        if resonance_score >= 0.7:
-            return _grade_output('neutral_strong', '中性偏强', '关注做多',
-                f'{best_period_label(best)}有{best_label}+{resonance_desc}，信号可信度提高',
-                min_signal_details, '等信号加强后加仓', resonance_score)
-        else:
-            return _grade_output('observe', '关注', '等待加强',
-                f'{best_period_label(best)}有信号但级别不够，等加强再动手',
-                min_signal_details, '等★买密集+金叉出现', resonance_score)
-    else:
-        if resonance_score >= 0.7:
-            return _grade_output('observe', '关注', '观察共振',
-                f'无强信号但{resonance_desc}，观察后续',
-                min_signal_details, '等分钟级出现★买+金叉闭环', resonance_score)
-        else:
-            return _grade_output('observe', '关注', '观望',
-                '多头但无出击信号，等待',
-                min_signal_details, '等分钟级出现★买+金叉闭环', resonance_score)
-
-
-def _grade_bearish_path(adj_level, resonance_score, resonance_desc, min_signal_details):
-    """下跌/偏空方向的分级"""
-    if adj_level >= 3.0:
-        if resonance_score >= 0.7:
-            return _grade_output('avoid', '风险', '回避',
-                f'下跌+{resonance_desc}，调整确认，不可逆势',
-                min_signal_details, '等日线MACD金叉+★买+金叉确认', resonance_score)
-        else:
-            return _grade_output('observe_weak', '弱势观望', '等待转折',
-                '下跌趋势+信号积累中，等转折确认',
-                min_signal_details, '等日线MACD金叉+★买+金叉确认', resonance_score)
-    elif adj_level >= 2.0:
-        if resonance_score >= 0.7:
-            return _grade_output('avoid', '风险', '回避',
-                f'下跌+{resonance_desc}，趋势延续',
-                min_signal_details, '等60分钟/日线出现★买+金叉闭环', resonance_score)
-        else:
-            return _grade_output('avoid', '观望', '等待',
-                '下跌趋势延续，等底部结构成形',
-                min_signal_details, '等60分钟/日线出现★买+金叉闭环', resonance_score)
-    else:
-        return _grade_output('avoid', '观望', '不参与',
-            '空头+无信号，勿抄底',
-            min_signal_details, '等日线MACD转正+★买出现', resonance_score)
-
-
-def _grade_neutral_path(max_min_level, best_min_label, best_min_period,
-                         adj_max_level, resonance_score, resonance_desc,
-                         min_signal_details):
-    """中性/震荡方向的分级"""
-    if adj_max_level >= 4.0:
-        if resonance_score >= 0.7:
-            return _grade_output('actionable', '可操作', '顺势做多',
-                f'5-15分钟闭环密集({best_min_period}:{best_min_label})+{resonance_desc}，可择机做多',
+        if rhythm_verdict == 'intact' and adj_level >= 3.0:
+            return _grade_output('actionable', 'A-', '顺势做多',
+                '节奏完整+分钟信号强，趋势健康',
                 min_signal_details, '', resonance_score)
-        elif resonance_score >= 0.3:
-            return _grade_output('resonant_strong', '共振偏强', '高抛低吸/偏多',
-                f'5-15分钟闭环密集({best_min_period}:{best_min_label})+{resonance_desc}，偏多操作',
-                min_signal_details, '日线趋势转多后可加仓', resonance_score)
-        else:
-            return _grade_output('neutral_strong', '中性偏强', '高抛低吸',
-                f'5-15分钟闭环密集({best_min_period}:{best_min_label})，等待日线向上选方向',
-                min_signal_details, '日线趋势转多后可加仓', resonance_score)
-    elif adj_max_level >= 3.0:
-        if resonance_score >= 0.7:
-            return _grade_output('neutral_strong', '共振偏强', '高抛低吸/偏多',
-                f'{best_min_period}有{best_min_label}+{resonance_desc}，可偏多操作',
-                min_signal_details, '等日线MACD金叉确认方向', resonance_score)
-        else:
-            return _grade_output('neutral_bias', '中性偏强', '高抛低吸',
-                f'{best_min_period}有{best_min_label}，日线横盘中可做T',
-                min_signal_details, '等日线MACD金叉确认方向', resonance_score)
-    elif adj_max_level >= 2.0:
-        return _grade_output('neutral', '中性', '小仓做T',
-            f'{best_min_period}有{best_min_label}，轻仓参与',
-            min_signal_details, '等分钟级信号加强再加大仓位')
+        if rhythm_verdict == 'intact':
+            return _grade_output('observe_strong', 'B', '持有',
+                '节奏完整但信号一般，持有观察',
+                min_signal_details, '等分钟信号加强')
+        if rhythm_verdict == 'tactical_broken':
+            return _grade_output('observe_strong', 'B', '持有/减仓',
+                '战术节奏破坏，暂时观望等修复',
+                min_signal_details, f'等30分钟节奏修复后{dc_wait}找★买')
+        if rhythm_verdict == 'strategic_broken':
+            return _grade_output('observe', 'C', '减仓',
+                '战略节奏破坏，日线趋势可能变',
+                min_signal_details, '等日线恢复确认')
+        # fully_broken
+        if has_30_60_sell_res:
+            return _grade_output('avoid', 'D-', '清仓/回避',
+                '节奏全破+30-60-5-15全共振卖，趋势反转确认',
+                min_signal_details, '等日线金叉+★买+金叉闭环', resonance_score)
+        return _grade_output('avoid', 'D', '回避',
+            '节奏全破，等重新筑底',
+            min_signal_details, '等30分钟+日线金叉出现')
+
+    # ══════════════════════════════════════════════════
+    # 下跌阶梯: D- → D真 → D假 → D+ → C → B → A- → A → A+
+    # ══════════════════════════════════════════════════
+    elif is_bearish:
+
+        # ── 下跌+低位critical → 用节奏完整性判断是否可抄底 ──
+        if zone == 'low' and risk == 'critical':
+            if has_30_60_sell_res:
+                return _grade_output('avoid', 'D-', '回避/减仓',
+                    '超跌+节奏完整+30-60-5-15全共振卖，趋势加速下行',
+                    min_signal_details, '不要接飞刀，等完整底部结构', resonance_score)
+            # 低位+卖共振但非全共振 → D假（对称于A假：低位假跌破/诱空洗盘）
+            if rhythm_verdict == 'intact' and res_confirmed and res_side in ('sell',):
+                return _grade_output('avoid', 'D假', '回避/关注反转',
+                    '超跌+卖共振确认，但低位极端可能是诱空洗盘(假跌破)',
+                    min_signal_details, '等30分钟金叉+★买确认，警惕假跌破陷阱', resonance_score)
+            # 下跌节奏破坏 = 可能反转
+            if (rhythm_verdict in ('strategic_broken', 'fully_broken')
+                    and res_confirmed
+                    and res_side in ('buy_reversal', 'buy')):
+                if has_30_60_golden:
+                    return _grade_output('observe', 'B', '强关注反转',
+                        '超跌+节奏全面翻转+30-60金叉共振+5-15买确认，重要转折',
+                        min_signal_details, '等二次回踩确认后可试多', resonance_score)
+                return _grade_output('observe', 'C', '关注反转',
+                    '超跌+节奏破环+5-15买共振=潜在反转',
+                    min_signal_details, '等30分钟金叉确认后再行动', resonance_score)
+            if rhythm_verdict in ('strategic_broken', 'tactical_broken'):
+                return _grade_output('observe_weak', 'D+', '等待转折',
+                    '节奏开始松动但不充分，等确认',
+                    min_signal_details, '等30+60分钟买闭环共振出现')
+            return _grade_output('avoid', 'D', '回避',
+                '超跌+节奏完整下跌，不具备反转条件',
+                min_signal_details, '等60分钟/日线出现★买+金叉闭环')
+
+        # ── 下跌+非极端位置 → 正常递进 ──
+        if has_30_60_sell_res:
+            return _grade_output('avoid', 'D-', '回避',
+                '节奏完整+30-60-5-15全共振卖，下跌趋势强劲',
+                min_signal_details, '等日线金叉+★买+金叉闭环', resonance_score)
+        if rhythm_verdict == 'intact' and res_confirmed and res_side in ('sell',):
+            return _grade_output('avoid', 'D真', '回避',
+                '节奏完整+5-15卖共振确认，真下跌趋势延续',
+                min_signal_details, '等60分钟/日线出现★买+金叉闭环')
+        if rhythm_verdict == 'intact':
+            return _grade_output('avoid', 'D', '回避',
+                '节奏完整下跌，不参与',
+                min_signal_details, '等节奏破坏信号出现')
+        if rhythm_verdict == 'tactical_broken':
+            return _grade_output('observe_weak', 'D+', '等待',
+                '战术节奏松动，关注但不动手',
+                min_signal_details, '等30+60分钟买闭环共振')
+        if rhythm_verdict == 'strategic_broken':
+            return _grade_output('observe', 'C', '关注',
+                '战略节奏破坏，可能接近反转',
+                min_signal_details, '等日线金叉确认', resonance_score)
+        # fully_broken
+        if has_30_60_golden and res_confirmed and res_side in ('buy',):
+            return _grade_output('observe', 'B', '强关注',
+                '节奏翻转+30-60金叉共振+5-15买确认，重要转折',
+                min_signal_details, '等二次探底确认后可入场', resonance_score)
+        return _grade_output('observe', 'C', '关注',
+            '节奏翻转中，等确认',
+            min_signal_details, '等30分钟金叉+日线金叉')
+
+    # ══════════════════════════════════════════════════
+    # 中性/震荡 → 原逻辑保留，加 rhythm 判断
+    # ══════════════════════════════════════════════════
     else:
-        return _grade_output('neutral_weak', '中性', '观望',
-            '震荡但信号不足',
-            min_signal_details, '等5-15分钟出现★买+金叉闭环')
+        if adj_level >= 4.0 and resonance_score >= 0.7:
+            return _grade_output('actionable', 'A-', '顺势做多',
+                '中性但信号极强+共振确认，可试多',
+                min_signal_details, '', resonance_score)
+        if adj_level >= 3.0 and resonance_score >= 0.7:
+            return _grade_output('neutral_strong', 'B', '高抛低吸',
+                '中性+信号强+共振，偏多操作',
+                min_signal_details, '等日线明确方向', resonance_score)
+        if adj_level >= 3.0:
+            return _grade_output('neutral_bias', 'C', '高抛低吸',
+                '中性+信号强，日线横盘中可做T',
+                min_signal_details, '等日线MACD金叉确认')
+        return _grade_output('neutral_weak', 'C', '观望',
+            '震荡但信号不足，等待',
+            min_signal_details, '等分钟级出现★买+金叉闭环')
 
 
 # ============================================================
 # 操作建议生成（对外接口）
 # ============================================================
 
-def _generate_advice(position, trend, best, all_periods, dominant_info=None, market_coeff=None):
+def _generate_advice(position, trend, best, all_periods, dominant_info=None, market_coeff=None,
+                     rhythm=None, resonance=None):
     """旧版兼容，_grade_trend_signal 的薄封装，透传所有字段"""
-    g = _grade_trend_signal(position, trend, best, all_periods, dominant_info, market_coeff)
+    g = _grade_trend_signal(position, trend, best, all_periods, dominant_info,
+                            market_coeff, rhythm, resonance)
     wait_part = f" 提示: {g['wait_condition']}" if g['wait_condition'] else ''
 
     dominant_note = ''
     if dominant_info and dominant_info.get('dominant_cycle'):
         dc = dominant_info['dominant_label']
-        stretched = dominant_info.get('stretched_periods', [])
-        if stretched:
-            ignore_list = ', '.join(stretched)
-            trend_d = trend.get('direction', '')
-            if trend_d in ('bullish', 'bullish_bias'):
-                dominant_note = f' | {dc}主导(小级卖信号暂不采信)'
-            elif trend_d in ('bearish', 'bearish_bias'):
-                dominant_note = f' | {dc}主导(小级买信号暂不采信)'
-            else:
-                dominant_note = f' | {dc}主导(小级反向暂不采信)'
+        db = dominant_info.get('dominant_buy')
+        ds = dominant_info.get('dominant_sell')
+        br = dominant_info.get('buy_rate', 0)
+        sr = dominant_info.get('sell_rate', 0)
+        if db and ds and db == ds:
+            dominant_note = f' | 主导周期{dc}'
+        elif db and ds and db != ds:
+            dominant_note = f' | 买看{PERIOD_LABELS.get(db, db)}卖看{PERIOD_LABELS.get(ds, ds)}'
+        elif db and br >= 0.5:
+            dominant_note = f' | 做多{PERIOD_LABELS.get(db, db)}主导'
+        elif ds and sr >= 0.5:
+            dominant_note = f' | 做空{PERIOD_LABELS.get(ds, ds)}主导'
         else:
-            dominant_note = f' | 主导量级{dc}'
+            dominant_note = f' | 主导周期{dc}'
 
     return {
         'grade': g['grade'],

@@ -16,9 +16,11 @@ from config import NAME_MAP
 
 DATA_PATH = 'signals/tracking/cycle_report.json'
 HHT_PATH = 'signals/tracking/hht_report.json'
+SYNTH_PATH = 'signals/tracking/synthesized_report.json'
 
 _data_cache = None
 _hht_cache = None
+_synth_cache = None
 
 def _load_hht():
     if os.path.exists(HHT_PATH):
@@ -29,12 +31,22 @@ def _load_hht():
             pass
     return {}
 
+def _load_synth():
+    if os.path.exists(SYNTH_PATH):
+        try:
+            return json.load(open(SYNTH_PATH, 'r', encoding='utf-8'))
+        except:
+            pass
+    return {}
+
 def _ensure_data():
-    global _data_cache, _hht_cache
+    global _data_cache, _hht_cache, _synth_cache
     if _data_cache is None:
         _data_cache = json.load(open(DATA_PATH, 'r', encoding='utf-8'))
     if _hht_cache is None:
         _hht_cache = _load_hht()
+    if _synth_cache is None:
+        _synth_cache = _load_synth()
     return _data_cache, _hht_cache
 
 def _get_data():
@@ -44,6 +56,10 @@ def _get_data():
 def _get_hht():
     _ensure_data()
     return _hht_cache
+
+def _get_synth():
+    _ensure_data()
+    return _synth_cache
 
 def _hht_summary(code):
     """取标的最重要的HHT状态，返回紧凑标签（含方向）"""
@@ -322,7 +338,7 @@ def build_report_lines():
                     pe = sq.get('trend_pe', None) if isinstance(sq, dict) else None
                     if not pe: pe = pp.get('trend_pe')
                     if pe and isinstance(pe, dict):
-                        # 优先显示异常状态：降熵/熵增/触底回升
+                        # 优先显示异常状态：结构溃散/逆向崩退
                         phase = pe.get('pe_phase', '')
                         if phase:
                             best_pe = phase
@@ -336,6 +352,11 @@ def build_report_lines():
                 best_pe = '-'
     
             hht_tag = _hht_summary(c)
+            # 合成等级（A+/A-/A假/B/C/D）
+            synth = _get_synth().get(c, {})
+            synth_grade = synth.get('grade', '')
+            if synth_grade:
+                trend_dir = '%s %s' % (trend_dir, synth_grade)
             rows.append('| %s | %s | %s | %s | %s | %s | %s |' % (stock_cell, trend_dir, summary, best_pe, hht_tag, dc_str, advice_cn(action)))
         return rows
     
@@ -507,6 +528,18 @@ def build_report_lines():
         # ── 一句话总结 ──
         lines.append('> %s' % _synthesize(item))
         lines.append('')
+
+        # ── 三层评估（synthesize_report 输出）──
+        synth = _get_synth().get(c)
+        if synth:
+            grade = synth.get('grade', '?')
+            action = synth.get('action', '?')
+            struct_s = synth.get('structure_status', '?')
+            momentum_s = synth.get('momentum_status', '?')
+            sig_summary = synth.get('signal_summary', '')
+            lines.append('**三层**: %s | 结构:%s | 动能:%s | %s | → **%s**' % (
+                grade, struct_s, momentum_s, sig_summary, action))
+            lines.append('')
     
         # ── 趋势（含评分+明细） ──
         trend_parts = ['%s %d/16' % (trend_dir, trend_score)]
@@ -920,9 +953,11 @@ def append_params_reference(lines):
     lines.append('')
     lines.append('通过波峰间距检测主导循环周期。小级别信号与主导量级反向 → 「小级暂不采信」')
     lines.append('')
-    lines.append('### 结构状态（排列熵 PE）')
+    lines.append('### 结构状态（排列熵）')
     lines.append('')
-    lines.append('> 蓄力压缩 → 方向形成中 → 趋势锁定 → 趋势延续 → 趋势松动 → 无序放大')
+    lines.append('> ⬇降熵 | 方向形成中 → 结构突破/顺向蓄力 → 蓄力压缩/趋势锁定 → 趋势延续')
+    lines.append('> ⬆升熵 | 趋势松动 → 趋势衰减 → 无序放大（结构溃散过程）')
+    lines.append('> ➖平稳 | 无序震荡 / 方向不明')
     lines.append('')
     lines.append('### ABCD 级别')
     lines.append('')

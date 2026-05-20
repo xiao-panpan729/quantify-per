@@ -1,6 +1,6 @@
 # CLAUDE.md — quantify-per 量化交易信号系统
 
-**代码行数统计**: ~13,500 行 Python  (2026-05-15)
+**代码行数统计**: ~14,200 行 Python  (2026-05-18)
 **当前跟踪**: 14 只标的 (2 指数 + 12 只 ETF/个股)
 **文档目录**: [docs/](docs/) 含 architecture.md / integration-guide.md / operator-runbook.md / evolution_timeline.md
 
@@ -92,7 +92,7 @@ pip install pytdx mytt numpy pandas pandas-ta
     │
     ▼
 update_tracking.py              ← 14只标的全周期信号计算
-    ├─ CSV → signals/tracking/{code}/{period}_signals.csv  (30列/6周期)
+    ├─ CSV → signals/tracking/{code}/{period}_signals.csv  (47列/6周期)
     ├─ JSON → signals/tracking/latest.json
     └─ SQLite → signals/tracking/tracking_db.sqlite
     │
@@ -118,7 +118,7 @@ update_tracking.py              ← 14只标的全周期信号计算
 | 模块 | 行数 | 职责 |
 |------|------|------|
 | [config.py](config.py) | 168 | 路径自适应、`NAME_MAP` 统一管理跟踪列表、合成周期配置 |
-| [signal_engine.py](signal_engine.py) | 866 | 指标公式库 + 量能指标(11列)：均量线/量比/地量/放量突破 |
+| [signal_engine.py](signal_engine.py) | 1060 | 指标公式库(30基础列) + PE/HHT/cycle_period + 量能后处理(11列) → 总计47列 |
 | [update_from_tdx.py](update_from_tdx.py) | 1097 | 通达信二进制读写、增量同步、15/30/60分钟合成 |
 | [update_tracking.py](update_tracking.py) | 408 | 信号计算调度，增量/全量模式，量能后处理 |
 | [cycle_engine.py](cycle_engine.py) | 54 | CLI 薄壳（实际逻辑在 cycle_engine/ 包） |
@@ -130,8 +130,10 @@ update_tracking.py              ← 14只标的全周期信号计算
 | [cycle_engine/reporting.py](cycle_engine/reporting.py) | 238 | 报告格式化、JSON保存 |
 | [backtest_signals.py](backtest_signals.py) | 817 | 信号回测引擎（低点合并/50%合并/★信号独立） |
 | [hht_analyzer.py](hht_analyzer.py) | 580 | HHT 独立分析（EMD分解+瞬时频率+非预期解检测+量能修正层） |
-| [gen_report_md.py](gen_report_md.py) | 1026 | Markdown 报告生成（含HHT/回撤可视化） |
+| [gen_report_md.py](gen_report_md.py) | 1026 | Markdown 报告生成（含A+/A-/A假等级 + 回撤可视化） |
 | [scan_opportunities.py](scan_opportunities.py) | 1771 | 机会扫描（AI分析接口 + 定性判断 + 闭环检测） |
+| [synthesize_report.py](synthesize_report.py) | 454 | 三层聚合引擎（ABCD等级 + A+/A-/A假细分 + 操作动作） |
+| [price_pe_align.py](price_pe_align.py) | 240 | 价格-结构对齐分析（价格阶段检测 + PE轨迹对齐 + 25组合矩阵） |
 | [operation_tracker.py](operation_tracker.py) | 661 | 战役级操作追踪（开仓/持仓/平仓事件链） |
 | [jigou_jiancang.py](jigou_jiancang.py) | 495 | 机构建仓指标（基于真实筹码 WINNER 函数） |
 | [chip_loader.py](chip_loader.py) | 415 | 筹码分布数据加载器 |
@@ -196,13 +198,13 @@ N_trend_min_short = 40     # 5-15分钟线LLV/HHV周期 (lc60用40，非55!)
 
 ## 五、数据格式
 
-### 信号 CSV（41 列）
+### 信号 CSV（47 列）
 
-每列含义按 [signal_engine.py:490-521](signal_engine.py#L490-L521) 生成：
-`timestamp, date, open, high, low, close, expma12, expma50, macd_dif, macd_dea, macd_hist, trend_line, bb_ma221, bb_red_line, red_line_cross, buy_signal, sell_signal, expma_cross, cci, cci_extreme, cci_retreat, cci_divergence, ma5, ma10, ma20, ma60, ma120, ma250, volume, amount`
-
-**量能指标列（后11列，[calc_volume_indicators](signal_engine.py) 后处理计算）**:
-`vol_ma5, vol_ma60, vr5, vr60, vol_llv100, vol_llv10, vol_堆, vol_缩50, vol_突放, vol_梯度升, vol_梯度降`
+- **基础列（30列）**：`timestamp, date, open, high, low, close, expma12, expma50, macd_dif, macd_dea, macd_hist, trend_line, bb_ma221, bb_red_line, red_line_cross, buy_signal, sell_signal, expma_cross, cci, cci_extreme, cci_retreat, cci_divergence, ma5, ma10, ma20, ma60, ma120, ma250, volume, amount`
+- **量能指标列（11列）**：`vol_ma5, vol_ma60, vr5, vr60, vol_llv100, vol_llv10, vol_堆, vol_缩50, vol_突放, vol_梯度升, vol_梯度降`
+- **PE 列（3列）**：`pe`(60窗滚动排列熵), `pe_level`(high/mid/low), `pe_chg_5`(5根PE变化) — 全周期
+- **HHT 列（2列）**：`hht_freq`(瞬时频率), `hht_amp`(瞬时振幅) — 仅日线
+- **周期列（1列）**：`cycle_period`(峰值间距均值) — 仅 min30
 
 - `vr5/vr60`：短期/中期量比（当前VOL / 5或60周期均量）
 - `vol_llv100`：百日地量（近5根内出现100期最低量）
@@ -305,10 +307,30 @@ ETF：sz159740 恒生科技、sh520600 港股通汽车、sh513120 创新药、sz
 
 ## 七、开发规则
 
+### 开发流程硬约束（Superpowers）
+
+以下规则优先于其他所有开发规则，每次编码前强制执行：
+
+| 条件 | 必须执行 | 含义 |
+|------|---------|------|
+| **新建算法/功能/模块** | `Skill("brainstorming")` | 先探索→问清楚→出设计→用户点头→再写代码 |
+| **修改算法逻辑（>30行）** | `Skill("brainstorming")` | 同上，算法改动不能直接上手 |
+| **多文件修改任务** | `Skill("writing-plans")` | 先出实现计划，再动手 |
+| **遇到 bug / 报错 / 异常** | `Skill("systematic-debugging")` | 不准猜原因直接改，走系统调试流程 |
+| **有实现计划后** | `Skill("subagent-driven-development")` | 可并行的子任务用子代理执行 |
+
+以下情况可以跳过：
+- 单行修复（typo/语法错误/变量名修正）
+- 纯数据查询（只读 CSV/SQLite，不改代码）
+- 用户明确说"直接改"或"不用走流程"
+
+### 其他开发规则
+
 - **修改必写日志**：改前/改后代码片段写入 `C:\Users\Administrator\.claude\projects\C--Users-Administrator\archives\`
 - **通达信格式不猜**：必须查 `D:\miniconda3\Lib\site-packages\pytdx\reader\` 源码
 - **数据只读快照**：信号查询走 CSV/SQLite，禁止从源文件重算
 - **日志输出**：各模块统一 `print()` 输出到 stdout，无 logging 配置
+- **🔥新增指标必是 per-bar 滚动计算**：任何新指标（除非算法天然全局不可拆，如 EMD）都必须在 signal_engine 中按每根 bar 独立计算、存入 CSV、参与每日增量更新。禁止只做一次性快照再临时分析。目的：每根 bar 有值 → 可以做轨迹图 → 持续正向反馈
 
 ## 八、相关路径
 

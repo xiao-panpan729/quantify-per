@@ -225,7 +225,7 @@ def detect_reduce_signal(item, hht_lookup):
             reasons.append('%s%s' % (period_cn(pk), label))
             break
 
-    # 3. PE 结构下破
+    # 3. 排列熵结构溃散
     for pk in ['daily', 'min60', 'min30']:
         ps = signal_strength.get(pk, {})
         phase = ps.get('pe_phase', '')
@@ -289,10 +289,10 @@ def detect_close_signal(item, hht_lookup):
             reasons.append('%s空头压过多头(sell=%.1f > buy=%.1f)' % (period_cn(pk), sl, bl))
             break
 
-    # 3. 日线结构下破
+    # 3. 日线结构溃散（升熵方向）
     daily_ps = signal_strength.get('daily', {})
-    if '下破' in daily_ps.get('pe_phase', ''):
-        reasons.append('日线结构下破')
+    if daily_ps.get('pe_phase', '') in ('逆向崩退', '趋势松动', '趋势衰减', '无序放大'):
+        reasons.append('日线结构溃散')
 
     # 4. 操作建议变为回避/观望
     action = item.get('advice', {}).get('action', '')
