@@ -488,7 +488,7 @@ def judge_trend(code, daily_rows, daily_buy_level=0):
     else:
         details.append('MACD未知')
 
-    # ── MA排列: 0~6分（直接从CSV读，不复算了）──
+    # ── MA排列: 0~6分（各关系独立检查，不断链）──
     chain_periods = [5, 10, 20, 60, 120, 250]
     ma_fields = {5: 'ma5', 10: 'ma10', 20: 'ma20', 60: 'ma60', 120: 'ma120', 250: 'ma250'}
     ma_vals = {}
@@ -497,24 +497,38 @@ def judge_trend(code, daily_rows, daily_buy_level=0):
         if v > 0:
             ma_vals[period] = v
 
-    # 链式递进: 从短到长检查连续 short>long，断裂即停
-    chain_length = 0
+    # 每个相邻关系独立检查，不做断裂即停
+    ma_links = 0
+    broken_link = None
     for i in range(len(chain_periods) - 1):
         sp, lp = chain_periods[i], chain_periods[i + 1]
         if sp in ma_vals and lp in ma_vals and ma_vals[sp] > ma_vals[lp]:
-            chain_length += 1
+            ma_links += 1
+        elif ma_links == 0:
+            broken_link = f'{sp}/{lp}'
         else:
-            break
+            if not broken_link:
+                broken_link = f'{sp}/{lp}'
 
-    ma_score = 6 if chain_length >= 5 else chain_length
+    # 每对+1，全链5对+1奖励=满分6
+    ma_score = ma_links + (1 if ma_links >= 5 else 0)
 
-    if chain_length > 0:
-        chain_label = '→'.join(str(p) for p in chain_periods[:chain_length + 1])
+    # 细节
+    if ma_score >= 5:
+        chain_label = '→'.join(str(p) for p in chain_periods)
         details.append(f'均线多头排列({chain_label})')
-    elif 5 in ma_vals and 10 in ma_vals:
-        details.append('均线无序')
+    elif ma_score >= 3:
+        intact = []
+        for i in range(len(chain_periods) - 1):
+            sp, lp = chain_periods[i], chain_periods[i + 1]
+            if sp in ma_vals and lp in ma_vals and ma_vals[sp] > ma_vals[lp]:
+                intact.append(f'{sp}>{lp}')
+        label = ' '.join(intact) if intact else '无明显排列'
+        details.append(f'均线偏多({label})')
+    elif ma_score > 0:
+        details.append(f'均线偏弱(仅{ma_score}/5对排列)')
     else:
-        details.append('均线数据不足')
+        details.append('均线无序')
 
     # ── 日线闭环: 0~4分（只计买侧, 来自analyze_period的buy_level） ──
     cycle_score = 0
@@ -758,6 +772,18 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
             elif ma5_vals[i-1] >= ma10_vals[i-1] and ma5_vals[i] < ma10_vals[i]:
                 recent_ma5_dead.append({'idx': i})
 
+    # ========== 波段起止检测（按波算密度，不按全窗口） ==========
+    # 买侧波起：最近一个★卖或死叉之后（"这一段下跌"的起点）
+    buy_wave_start = 0
+    for i, r in enumerate(recent_rows):
+        if r.get('sell_signal', '').strip() or '死叉' in r.get('expma_cross', ''):
+            buy_wave_start = i + 1
+    # 卖侧波起：最近一个★买或金叉之后（"这一段上涨"的起点）
+    sell_wave_start = 0
+    for i, r in enumerate(recent_rows):
+        if r.get('buy_signal', '').strip() or '金叉' in r.get('expma_cross', ''):
+            sell_wave_start = i + 1
+
     details = []
 
     # --- 做多侧分析 ---
@@ -765,18 +791,21 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
     buy_details = []
 
     if recent_buy_anchors:
-        # 1. ★买密集度
-        buy_count = len(recent_buy_anchors)
-        buy_density = buy_count / row_count * 100  # 每百根K线的★买密度
-        if buy_density >= 0.8:
-            density_label = f'★买密集({buy_count}次/{row_count}K线)'
+        # 1. ★买密集度（按波段：波起之后有几次★买）
+        wave_buys = [a for a in recent_buy_anchors if a['idx'] >= buy_wave_start]
+        buy_count = len(wave_buys)
+        if buy_count >= 3:
+            density_label = f'★买密集({buy_count}次/波)'
             buy_level += 1.5
-        elif buy_density >= 0.4:
-            density_label = f'★买正常({buy_count}次)'
+        elif buy_count == 2:
+            density_label = f'★买连续({buy_count}次/波)'
             buy_level += 1.0
-        else:
-            density_label = f'★买稀疏({buy_count}次)'
+        elif buy_count == 1:
+            density_label = f'★买单次'
             buy_level += 0.5
+        else:
+            density_label = '★买无(波内)'
+            buy_level += 0
         buy_details.append(density_label)
 
         # 2. 金叉跟随速度: ★买后到最近金叉的距离
@@ -789,13 +818,13 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
                         best_follow = gap
         if best_follow is not None:
             if best_follow <= 5:
-                follow_label = f'金叉跟随快(gap={best_follow})'
+                follow_label = f'历史金叉跟随快(gap={best_follow})'
                 buy_level += 1.5
             elif best_follow <= 12:
-                follow_label = f'金叉跟随正常(gap={best_follow})'
+                follow_label = f'历史金叉跟随正常(gap={best_follow})'
                 buy_level += 1.0
             else:
-                follow_label = f'金叉跟随慢(gap={best_follow})'
+                follow_label = f'历史金叉跟随慢(gap={best_follow})'
                 buy_level += 0.3
             buy_details.append(follow_label)
 
@@ -868,7 +897,7 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         if trend_pe:
             if trend_pe['trending'] and trend_pe['pe_ratio'] < 0.85:
                 buy_level += 1.5
-                buy_details.append(f'★结构突破(熵={trend_pe["pe_back"]:.2f})')
+                buy_details.append(f'★结构上破(熵={trend_pe["pe_back"]:.2f})')
             elif trend_pe['trending']:
                 buy_level += 1.0
                 buy_details.append(f'方向形成中(熵={trend_pe["pe_back"]:.2f})')
@@ -881,48 +910,86 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
 
         # 7. 量能确认维度（买侧）
         if recent_buy_anchors:
-            # 地量堆+★买 = 最强底部确认
-            has_堆 = any(safe_float(r.get('vol_堆', 0)) >= 1 for r in recent_rows)
-            if has_堆:
-                buy_level += 1.5
-                buy_details.append('地量堆+★买(底部确认)')
-            else:
+            direction = trend['direction']
+            trend_vals = [safe_float(r.get('trend_line', 50)) for r in recent_rows]
+            has_oversold = any(t < 10 for t in trend_vals)
+
+            if has_oversold:
+                # 超卖区(趋势线<10)量能三维确认，各0.5共1.5
+                vol_score = 0.0
+                vol_parts = []
+
+                # 维度1: 百日地量出现在★买附近 (0.5)
                 has_百地 = any(safe_float(r.get('vol_llv100', 0)) >= 1 for r in recent_rows)
                 if has_百地:
+                    vol_score += 0.5
+                    vol_parts.append('百日地量')
+
+                # 维度2: 地量堆出现在波内 (0.5)
+                has_堆 = any(safe_float(r.get('vol_堆', 0)) >= 1 for r in recent_rows)
+                if has_堆:
+                    vol_score += 0.5
+                    vol_parts.append('地量堆')
+
+                # 维度3: 地量堆量不超百日地量20% (0.5)
+                stack_vols = [float(r.get('volume', 0)) for r in recent_rows
+                              if safe_float(r.get('vol_堆', 0)) >= 1 and float(r.get('volume', 0)) > 0]
+                llv100_vols = [float(r.get('volume', 0)) for r in recent_rows
+                               if safe_float(r.get('vol_llv100', 0)) >= 1 and float(r.get('volume', 0)) > 0]
+                if stack_vols and llv100_vols:
+                    avg_stack = sum(stack_vols) / len(stack_vols)
+                    avg_llv100 = sum(llv100_vols) / len(llv100_vols)
+                    if avg_stack <= avg_llv100 * 1.2:
+                        vol_score += 0.5
+                        vol_parts.append(f'缩量确认({avg_stack/avg_llv100:.2f}x)')
+
+                if vol_score > 0:
+                    buy_level += vol_score
+                    buy_details.append(f'超卖量能{"+".join(vol_parts)}({vol_score:.1f})')
+            else:
+                # 非超卖区：简单放量/缩量检查
+                has_突放 = any(safe_float(r.get('vol_突放', 0)) >= 1 for r in recent_rows)
+                if has_突放 and direction in ('bullish', 'bullish_bias'):
                     buy_level += 1.0
-                    buy_details.append('百日地量+★买(底部)')
+                    buy_details.append('放量突破确认')
                 else:
-                    has_突放 = any(safe_float(r.get('vol_突放', 0)) >= 1 for r in recent_rows)
-                    if has_突放 and direction in ('bullish', 'bullish_bias'):
-                        buy_level += 1.0
-                        buy_details.append('放量突破确认')
+                    shrinks = sum(1 for r in recent_rows if safe_float(r.get('vol_缩50', 0)) >= 1)
+                    if shrinks >= 2 and direction in ('bullish', 'bullish_bias'):
+                        buy_level += 0.5
+                        buy_details.append('回调缩量(调整健康)')
                     else:
-                        shrinks = sum(1 for r in recent_rows if safe_float(r.get('vol_缩50', 0)) >= 1)
-                        if shrinks >= 2 and direction in ('bullish', 'bullish_bias'):
-                            buy_level += 0.5
-                            buy_details.append('回调缩量(调整健康)')
-                        else:
-                            grads = sum(1 for r in recent_rows if safe_float(r.get('vol_梯度升', 0)) >= 1)
-                            if grads >= 3:
-                                buy_level += 0.3
-                                buy_details.append('梯度放量')
+                        grads = sum(1 for r in recent_rows if safe_float(r.get('vol_梯度升', 0)) >= 1)
+                        if grads >= 3:
+                            buy_level += 0.3
+                            buy_details.append('梯度放量')
+
+            # 8. 趋势线上穿0（极端超卖反转）
+            trend_vals = [safe_float(r.get('trend_line', 50)) for r in recent_rows]
+            for i in range(1, len(trend_vals)):
+                if trend_vals[i-1] <= 0 < trend_vals[i]:
+                    buy_level += 0.8
+                    buy_details.append('趋势线上穿0(极端反转)')
+                    break
 
     # --- 做空侧分析 ---
     sell_level = 0
     sell_details = []
 
     if recent_sell_anchors:
-        sell_count = len(recent_sell_anchors)
-        sell_density = sell_count / row_count * 100
-        if sell_density >= 0.8:
-            sell_details.append(f'★卖密集({sell_count}次/{row_count}K线)')
+        wave_sells = [a for a in recent_sell_anchors if a['idx'] >= sell_wave_start]
+        sell_count = len(wave_sells)
+        if sell_count >= 3:
+            sell_details.append(f'★卖密集({sell_count}次/波)')
             sell_level += 1.5
-        elif sell_density >= 0.4:
-            sell_details.append(f'★卖正常({sell_count}次)')
+        elif sell_count == 2:
+            sell_details.append(f'★卖连续({sell_count}次/波)')
             sell_level += 1.0
-        else:
-            sell_details.append(f'★卖稀疏({sell_count}次)')
+        elif sell_count == 1:
+            sell_details.append(f'★卖单次')
             sell_level += 0.5
+        else:
+            sell_details.append('★卖无(波内)')
+            sell_level += 0
 
         best_follow = None
         for sa in recent_sell_anchors:
@@ -933,13 +1000,13 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
                         best_follow = gap
         if best_follow is not None:
             if best_follow <= 5:
-                sell_details.append(f'死叉跟随快(gap={best_follow})')
+                sell_details.append(f'历史死叉跟随快(gap={best_follow})')
                 sell_level += 1.5
             elif best_follow <= 12:
-                sell_details.append(f'死叉跟随正常(gap={best_follow})')
+                sell_details.append(f'历史死叉跟随正常(gap={best_follow})')
                 sell_level += 1.0
             else:
-                sell_details.append(f'死叉跟随慢(gap={best_follow})')
+                sell_details.append(f'历史死叉跟随慢(gap={best_follow})')
                 sell_level += 0.3
 
         if len(recent_sell_anchors) >= 2:
@@ -1009,7 +1076,7 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         if trend_pe:
             if trend_pe['trending'] and trend_pe['pe_ratio'] < 0.85:
                 sell_level += 1.5
-                sell_details.append(f'★结构突破(熵={trend_pe["pe_back"]:.2f})')
+                sell_details.append(f'★结构下破(熵={trend_pe["pe_back"]:.2f})')
             elif trend_pe['trending']:
                 sell_level += 1.0
                 sell_details.append(f'方向形成中(熵={trend_pe["pe_back"]:.2f})')
@@ -1031,15 +1098,25 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
                 sell_level += 0.8
                 sell_details.append('放量阴线(风险)')
 
+            # 趋势线下穿100（极端超买反转）
+            trend_vals_sell = [safe_float(r.get('trend_line', 50)) for r in recent_rows]
+            for i in range(1, len(trend_vals_sell)):
+                if trend_vals_sell[i-1] >= 100 > trend_vals_sell[i]:
+                    sell_level += 0.8
+                    sell_details.append('趋势线下穿100(极端反转)')
+                    break
+
     # --- 根据趋势方向选择主分析侧 ---
     if direction in ('bullish', 'bullish_bias'):
         details = buy_details
-        if buy_level >= 4.0:
+        if buy_level >= 8.0:
             label = '最强出击信号'
-        elif buy_level >= 3.0:
-            label = '加强闭环'
+        elif buy_level >= 6.0:
+            label = '出击信号'
+        elif buy_level >= 4.0:
+            label = '加强信号'
         elif buy_level >= 2.0:
-            label = '普通闭环'
+            label = '普通信号'
         elif buy_level >= 1.0:
             label = '弱信号'
         else:
@@ -1051,12 +1128,14 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
 
     elif direction in ('bearish', 'bearish_bias'):
         details = sell_details
-        if sell_level >= 4.0:
+        if sell_level >= 8.0:
             label = '最强出击信号'
-        elif sell_level >= 3.0:
-            label = '加强闭环'
+        elif sell_level >= 6.0:
+            label = '出击信号'
+        elif sell_level >= 4.0:
+            label = '加强信号'
         elif sell_level >= 2.0:
-            label = '普通闭环'
+            label = '普通信号'
         elif sell_level >= 1.0:
             label = '弱信号'
         else:
@@ -1069,12 +1148,14 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         # 震荡看两侧
         effective_level = max(buy_level, sell_level)
         details = buy_details + sell_details
-        if effective_level >= 4.0:
+        if effective_level >= 8.0:
             label = '最强出击信号'
-        elif effective_level >= 3.0:
-            label = '加强闭环'
+        elif effective_level >= 6.0:
+            label = '出击信号'
+        elif effective_level >= 4.0:
+            label = '加强信号'
         elif effective_level >= 2.0:
-            label = '普通闭环'
+            label = '普通信号'
         elif effective_level >= 1.0:
             label = '弱信号'
         else:

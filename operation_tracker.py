@@ -221,7 +221,7 @@ def detect_reduce_signal(item, hht_lookup):
     for pk in ['daily', 'min60', 'min30']:
         h = hht_state.get(pk, {})
         label = h.get('label', '')
-        if '循环破位' in label:
+        if '循环' in label and '破' in label:
             reasons.append('%s%s' % (period_cn(pk), label))
             break
 

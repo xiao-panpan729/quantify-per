@@ -355,11 +355,11 @@ def analyze(code, name=''):
             lv = sl
         else:
             lv = max(bl, sl) if bl > 1.0 or sl > 1.0 else 0
-        if lv >= 6.0:
+        if lv >= 8.0:
             sq['label'] = '加强出击'
-        elif lv >= 4.0:
+        elif lv >= 6.0:
             sq['label'] = '出击信号'
-        elif lv >= 3.0:
+        elif lv >= 4.0:
             sq['label'] = '加强信号'
         elif lv >= 2.0:
             sq['label'] = '普通信号'

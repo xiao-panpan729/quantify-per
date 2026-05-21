@@ -28,6 +28,10 @@ python gen_report_md.py                 # 步骤5: 可读 Markdown 报告
 python scan_opportunities.py --report   # 替代: 机会扫描报告（含AI分析）
 python operation_tracker.py --status    # 战役级操作追踪
 
+# ─── 信源管理（微信公众号） ───
+python _fetch_articles.py               # 批量拉取7个信源的最新文章全文 → wechat_articles/
+python _search_accounts.py              # 搜索公众号 fakeid（新增信源时用）
+
 # ─── 单标的 / 单周期 ───
 python update_tracking.py sz159740      # 只更新恒生科技
 python cycle_engine.py --code sh513120  # 只分析创新药

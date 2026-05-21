@@ -274,7 +274,8 @@ def regime_label(freq_stability, energy_ratio, dir_up=None, volume_ratio=None):
             return f'量价背离{dir_word}(能量暴增,缩量)'
         return f'突破{dir_word}(能量暴增)'
     elif freq_stability > 1.8:
-        return f'{dir_word}循环破位'
+        dir_text = '上' if dir_up else '下'
+        return f'循环{dir_text}破'
     elif freq_stability < 0.6:
         if volume_ratio and volume_ratio > 2.0:
             return f'蓄力放量{dir_word}'

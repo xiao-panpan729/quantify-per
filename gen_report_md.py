@@ -73,12 +73,14 @@ def _hht_summary(code):
         if not s:
             continue
         sl = s.get('stability_label', '')
-        # 从标签中提取方向（↑/↓）
+        # 从 HHT 标签中提取方向（↑/↓ 可能在末尾或括号前）
         direction = ''
-        if sl.startswith(('↑', '↓')):
-            direction = sl[0]
-        if '循环破位' in sl:
-            return '⚠%s循环破位' % direction
+        for ch in ('↑', '↓'):
+            if ch in sl:
+                direction = ch
+                break
+        if '循环' in sl and '破' in sl:
+            return '⚠下破' if '下' in sl else '⚠上破'
         if '突破' in sl:
             return '⚡%s能量爆发' % direction
         if '压缩' in sl:
@@ -483,12 +485,9 @@ def build_report_lines():
                 hpd = h.get('periods', {}).get(pk, {})
                 hs = hpd.get('summary', {})
                 sl = hs.get('stability_label', '')
-                # 从标签提取方向
-                direction = ''
-                if sl.startswith(('↑', '↓')):
-                    direction = sl[0]
-                if '循环破位' in sl:
-                    hht_str = f'{direction}{period_cn(pk)}循环破位'
+                if '循环' in sl and '破' in sl:
+                    dir_text = '↓' if '下' in sl else '↑'
+                    hht_str = f'{dir_text}{period_cn(pk)}破位'
                     break
                 if '突破' in sl:
                     hht_str = f'{direction}{period_cn(pk)}能量爆发'
