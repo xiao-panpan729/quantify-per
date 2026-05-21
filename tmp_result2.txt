@@ -1,0 +1,26 @@
+=== 评分明细(直接analyze) ===
+score: 10
+
+=== 分数历史 ===
+sh000001: {"score": 10, "direction": "bullish_bias", "name": "上证指数", "expma_score": 2, "macd_score": 4, "ma_score": 0, "cycle_score": 4}
+
+HHT daily:
+  regime=
+  stability_label=↓循环破位
+  freq_stability=3.2515
+  energy_ratio=1.536
+  trend_dir=↓
+
+HHT min60:
+  regime=
+  stability_label=↑循环破位
+  freq_stability=1.9125
+  energy_ratio=0.547
+  trend_dir=↑
+
+HHT min30:
+  regime=
+  stability_label=循环压缩(蓄力)
+  freq_stability=0.0502
+  energy_ratio=1.73
+  trend_dir=↑

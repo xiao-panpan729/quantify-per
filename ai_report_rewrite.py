@@ -145,7 +145,7 @@ def build_table(cycle, synth, hht_labels):
         '观望': ('⚪', '弱势建议回避'),
     }
 
-    hdr = '| 标的 收盘 | 日线趋势 | 分钟闭环 | 结构状态 | HHT | 主导量级 | 操作建议 |'
+    hdr = '| 标的 收盘 | 日线趋势 | 分钟闭环 | 结构状态 | HHT | 主导周期 | 操作建议 |'
     sep = '|----------|----------|----------|--------|-----|----------|----------|'
 
     lines = ['## 一、标的跟踪总览', '']
@@ -286,7 +286,7 @@ def main():
             now = n.get('score') if isinstance(n, dict) else n
             prev = p.get('score') if isinstance(p, dict) else p
             if now is not None and prev is not None and abs(now - prev) >= 2:
-                big.append(f'{s.get("name","")}({code}): {prev}→{now} ({now-prev:+d})')
+                big.append(f'{s.get("name","")}({code}): {prev}→{now} ({now-prev:+.1f})')
         if big:
             context_lines.append('评分显著变化:')
             for b in big:

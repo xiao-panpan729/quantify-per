@@ -917,6 +917,16 @@ def precheck_tdx_data(logger):
     from pytdx.reader import TdxDailyBarReader, TdxMinBarReader
     from datetime import date
 
+    # ── 补丁: pytdx 不认识 52/58 开头的 SH ETF（如 588200 科创芯片、520600 港股通汽车） ──
+    _orig_get_security_type = TdxDailyBarReader.get_security_type
+    def _patched_get_security_type(self, fname):
+        exchange = str(fname[-12:-10]).lower()
+        code_head = fname[-10:-8]
+        if exchange == 'sh' and code_head in ("52", "58"):
+            return "SH_FUND"
+        return _orig_get_security_type(self, fname)
+    TdxDailyBarReader.get_security_type = _patched_get_security_type
+
     # 取本地项目跟踪标的的最后日期
     # 注意：本地 lc1/lc5 文件已经转换为 <8I> 格式（bar[0]=YYYYMMDD），
     #       日线文件是直接从通达信复制的源码格式（<IIIIIfII>）

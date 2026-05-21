@@ -9,6 +9,7 @@ from .utils import (read_csv, get_all_codes, get_name_map,
 from .indicators import (analyze_trend_pe, judge_position, judge_trend,
                           extract_anchors, price_effectiveness, signal_quality,
                           check_rhythm_integrity, scan_resonance)
+from .constants import Direction, RhythmVerdict
 from .cycle_structure import (cycle_pattern, detect_dominant_cycle,
                                analyze_volume_regime, judge_wave_structure,
                                detect_exponential_readiness, detect_rs_density)
@@ -44,7 +45,7 @@ def get_market_coefficient():
     daily_rows = cached_rows.get('daily', [])
     if not daily_rows or len(daily_rows) < 60:
         result = {
-            'market_trend': {'direction': 'neutral', 'score': 8, 'label': '上证数据缺失'},
+            'market_trend': {'direction': Direction.NEUTRAL, 'score': 8, 'label': '上证数据缺失'},
             'coefficient': 1.0,
             'label': '数据不足',
         }
@@ -53,12 +54,12 @@ def get_market_coefficient():
 
     # 大盘基础评分（和个股完全一样）
     trend = judge_trend(code, daily_rows, 0)
-    direction = trend.get('direction', 'neutral')
+    direction = trend.get('direction', Direction.NEUTRAL)
     score = trend.get('score', 8)
 
     # 大盘自身周期分析
     position = judge_position(daily_rows)
-    placeholder_trend = {'direction': 'neutral', 'confidence': 0}
+    placeholder_trend = {'direction': Direction.NEUTRAL, 'confidence': 0}
     period_results = {}
     for period in PERIODS:
         result = analyze_period(code, period, position, placeholder_trend,
@@ -88,13 +89,13 @@ def get_market_coefficient():
         inflection_adj = 0.0
 
     # 系数
-    if direction == 'bullish':
+    if direction == Direction.BULLISH:
         base_coeff = 1.2
-    elif direction == 'bullish_bias':
+    elif direction == Direction.BULLISH_BIAS:
         base_coeff = 1.1
-    elif direction == 'neutral':
+    elif direction == Direction.NEUTRAL:
         base_coeff = 1.0
-    elif direction == 'bearish_bias':
+    elif direction == Direction.BEARISH_BIAS:
         base_coeff = 0.8
     else:
         base_coeff = 0.5
@@ -121,6 +122,253 @@ def get_market_coefficient():
     return result
 
 get_market_coefficient._cache = None
+
+
+# ============================================================
+# 主导方向 — 跨周期方向聚合 + 方向变化 + 传导链
+# ============================================================
+
+def _build_direction_chain(periods_nets, period_results, resonance, cached_rows=None):
+    """构建方向传导链描述"""
+    ordered = ['min5', 'min15', 'min30', 'min60', 'daily']
+    labels = {'min5': '5分', 'min15': '15分', 'min30': '30分', 'min60': '60分', 'daily': '日线'}
+
+    sell_chain = []
+    buy_chain = []
+
+    for p in ordered:
+        if p not in periods_nets or not period_results.get(p):
+            continue
+        net = periods_nets[p]
+        sq = period_results[p].get('signal_quality', {}) or {}
+        ecs = sq.get('ema_cross_status') if isinstance(sq, dict) else None
+        lbl = labels.get(p, p)
+
+        # 检查最新 bar 涨跌方向
+        bar_dir = ''
+        if cached_rows and cached_rows.get(p) and len(cached_rows[p]) >= 2:
+            try:
+                last_c = float(cached_rows[p][-1].get('close', 0))
+                prev_c = float(cached_rows[p][-2].get('close', 0))
+                if last_c < prev_c * 0.995:
+                    bar_dir = '↓'
+                elif last_c > prev_c * 1.005:
+                    bar_dir = '↑'
+            except (ValueError, TypeError):
+                pass
+
+        has_dead = bool(ecs and ecs.get('has_recent_dead', False))
+        has_golden = bool(ecs and ecs.get('has_recent_golden', False))
+        last_dead_idx = ecs.get('last_dead_idx', -1) if ecs else -1
+        last_golden_idx = ecs.get('last_golden_idx', -1) if ecs else -1
+
+        # 判断最近交叉方向（比较谁更新）
+        recent_is_dead = has_dead and (not has_golden or last_dead_idx > last_golden_idx)
+        recent_is_golden = has_golden and (not has_dead or last_golden_idx > last_dead_idx)
+
+        # 判断当前状态：最近交叉 > 最新K线方向 > net 信号平衡
+        sell_active = recent_is_dead or bar_dir == '↓' or net > 0.3
+        buy_active = recent_is_golden or bar_dir == '↑' or net < -0.3
+
+        if sell_active and not buy_active:
+            if recent_is_dead:
+                sell_chain.append(f'{lbl}死叉')
+            elif bar_dir == '↓':
+                sell_chain.append(f'{lbl}↓')
+            else:
+                sell_chain.append(f'{lbl}偏空')
+        elif buy_active and not sell_active:
+            if recent_is_golden:
+                buy_chain.append(f'{lbl}金叉')
+            elif bar_dir == '↑':
+                buy_chain.append(f'{lbl}↑')
+            else:
+                buy_chain.append(f'{lbl}偏多')
+        elif sell_active and buy_active:
+            # 冲突：看哪个更近
+            if recent_is_dead:
+                sell_chain.append(f'{lbl}死叉')
+            elif recent_is_golden:
+                buy_chain.append(f'{lbl}金叉')
+            elif bar_dir == '↓':
+                sell_chain.append(f'{lbl}↓')
+            elif bar_dir == '↑':
+                buy_chain.append(f'{lbl}↑')
+            elif net > 0:
+                sell_chain.append(f'{lbl}偏空')
+            else:
+                buy_chain.append(f'{lbl}偏多')
+
+    res_side = resonance.get('side') if resonance else None
+    res_confirmed = resonance.get('resonance_confirmed', False) if resonance else False
+
+    # 混合链：卖链(小周期) + 买链(大周期)=由强转弱, 反之亦然
+    if sell_chain and buy_chain:
+        sell_str = '→'.join(sell_chain)
+        buy_str = '→'.join(buy_chain)
+        if len(sell_chain) >= len(buy_chain):
+            # 小周期在卖、大周期在买 → 由强转弱
+            result = f'{sell_str}（{buy_str}未破）'
+            if res_side == 'sell' and res_confirmed:
+                result += '→同步共振下跌'
+        else:
+            # 小周期在买、大周期在卖 → 由弱转强
+            result = f'{buy_str}（{sell_str}未破）'
+            if res_side == 'buy' and res_confirmed:
+                result += '→同步共振上涨'
+        return result
+
+    if sell_chain:
+        result = '→'.join(sell_chain)
+        if res_side == 'sell' and res_confirmed:
+            result += '→同步共振下跌'
+        return result
+
+    if buy_chain:
+        result = '→'.join(buy_chain)
+        if res_side == 'buy' and res_confirmed:
+            result += '→同步共振上涨'
+        return result
+
+    return ''
+
+
+DIR_WEIGHTS = {'daily': 5, 'min60': 4, 'min30': 3, 'min15': 2, 'min5': 1}
+DIR_ORDER = [Direction.BEARISH, Direction.BEARISH_BIAS, Direction.NEUTRAL,
+             Direction.BULLISH_BIAS, Direction.BULLISH]
+DIR_VALUES = {d: v for v, d in enumerate(DIR_ORDER)}
+DIR_LABELS = {
+    Direction.BULLISH: '多头主导', Direction.BULLISH_BIAS: '偏多主导',
+    Direction.NEUTRAL: '中性',
+    Direction.BEARISH_BIAS: '偏空主导', Direction.BEARISH: '空头主导',
+}
+CHANGE_LABELS = {'weakening': '由强转弱', 'strengthening': '由弱转强', 'stable': ''}
+
+
+def _calc_dominant_direction(trend, period_results, rhythm, resonance, cached_rows=None):
+    """
+    主导方向 — 跨周期方向聚合 + 方向变化趋势 + 方向收敛度
+
+    返回:
+        dict: {
+            'direction': Direction constant,    # 聚合后的主导方向(五档)
+            'change': 'weakening'/'strengthening'/'stable',  # 变化趋势
+            'convergence': 'aligned'/'mixed',   # 跨周期方向收敛度
+            'net_score': float,                 # -10~10 正=空头占优
+            'label': str,                       # 中文标签
+            'chain': str,                       # 传导链
+        }
+    """
+    ordered = ['daily', 'min60', 'min30', 'min15', 'min5']
+    period_dirs = {}
+    period_nets = {}
+    weighted_sum = 0.0
+    total_weight = 0.0
+
+    for period in ordered:
+        p = period_results.get(period)
+        if not p or not p.get('signal_quality'):
+            continue
+        sq = p['signal_quality']
+        bl = sq.get('buy_level', 0)
+        sl = sq.get('sell_level', 0)
+        net = sl - bl  # 正=卖占优, 负=买占优
+        w = DIR_WEIGHTS.get(period, 1)
+        weighted_sum += net * w
+        total_weight += w
+
+        # 交叉信号优先：比较最近一次金叉/死叉谁更新
+        ecs = sq.get('ema_cross_status')
+        has_dead = bool(ecs and ecs.get('has_recent_dead', False))
+        has_golden = bool(ecs and ecs.get('has_recent_golden', False))
+        last_dead_idx = ecs.get('last_dead_idx', -1) if ecs else -1
+        last_golden_idx = ecs.get('last_golden_idx', -1) if ecs else -1
+
+        if has_dead and has_golden:
+            # 两者都有：谁发生在后谁决定方向
+            pd = Direction.BEARISH if last_dead_idx > last_golden_idx else Direction.BULLISH
+        elif has_dead:
+            pd = Direction.BEARISH
+        elif has_golden:
+            pd = Direction.BULLISH
+        elif net > 0.3:
+            pd = Direction.BEARISH_BIAS if net <= 1.0 else Direction.BEARISH
+        elif net < -0.3:
+            pd = Direction.BULLISH_BIAS if net >= -1.0 else Direction.BULLISH
+        else:
+            pd = Direction.NEUTRAL
+        period_dirs[period] = pd
+        period_nets[period] = net
+
+    if total_weight == 0:
+        return {
+            'direction': Direction.NEUTRAL,
+            'change': 'stable',
+            'convergence': 'aligned',
+            'net_score': 0,
+            'label': '中性',
+            'chain': '',
+        }
+
+    net_score = weighted_sum / total_weight
+
+    # 五档方向判定（基于净分）
+    if net_score >= 2.0:
+        agg_dir = Direction.BEARISH
+    elif net_score >= 1.0:
+        agg_dir = Direction.BEARISH_BIAS
+    elif net_score <= -2.0:
+        agg_dir = Direction.BULLISH
+    elif net_score <= -1.0:
+        agg_dir = Direction.BULLISH_BIAS
+    else:
+        agg_dir = Direction.NEUTRAL
+
+    # 交叉级联系数修正：如果多数周期有同向死叉/金叉，覆盖聚合方向
+    bear_count = sum(1 for d in period_dirs.values() if d == Direction.BEARISH)
+    bull_count = sum(1 for d in period_dirs.values() if d == Direction.BULLISH)
+    total_periods = sum(1 for p in ordered if p in period_dirs)
+    if bear_count >= 3 and bear_count >= bull_count * 2 and total_periods >= 3:
+        agg_dir = Direction.BEARISH
+    elif bull_count >= 3 and bull_count >= bear_count * 2 and total_periods >= 3:
+        agg_dir = Direction.BULLISH
+
+    # 变化趋势: 方向是否从大周期到小周期渐变
+    active = [(p, period_dirs[p]) for p in ordered
+              if p in period_dirs and period_dirs[p] != Direction.NEUTRAL]
+    change = 'stable'
+    if len(active) >= 2:
+        vals = [DIR_VALUES.get(d, 2) for _, d in active]
+        dec = sum(1 for i in range(len(vals) - 1) if vals[i] > vals[i + 1])
+        inc = sum(1 for i in range(len(vals) - 1) if vals[i] < vals[i + 1])
+        if dec >= max(2, inc):
+            change = 'weakening'
+        elif inc >= max(2, dec):
+            change = 'strengthening'
+
+    # 收敛度: 非中性方向是否只有一种
+    non_neutral = {d for d in period_dirs.values() if d != Direction.NEUTRAL}
+    convergence = 'aligned' if len(non_neutral) <= 1 else 'mixed'
+
+    # 中文标签
+    label = DIR_LABELS.get(agg_dir, '中性')
+    cl = CHANGE_LABELS.get(change, '')
+    if cl:
+        label += f'({cl})'
+    if convergence == 'aligned' and len(non_neutral) >= 2:
+        label += '·全周期一致'
+
+    # 传导链（传入原始K线数据检查最新bar方向）
+    chain = _build_direction_chain(period_nets, period_results, resonance, cached_rows)
+
+    return {
+        'direction': agg_dir,
+        'change': change,
+        'convergence': convergence,
+        'net_score': round(net_score, 2),
+        'label': label,
+        'chain': chain,
+    }
 
 
 # ============================================================
@@ -186,16 +434,16 @@ def analyze(code, name=''):
     position = judge_position(daily_rows)
 
     # 先算日线闭环信号(placeholder趋势 → 日线 signal_quality → 买侧闭环level)
-    placeholder_trend = {'direction': 'neutral', 'confidence': 0}
+    placeholder_trend = {'direction': Direction.NEUTRAL, 'confidence': 0}
     daily_pre = analyze_period(code, 'daily', position, placeholder_trend,
                                 _rows=daily_rows)
-    daily_buy_level = 0
+    daily_net_score = 0.0
     if daily_pre and daily_pre.get('signal_quality'):
         sq = daily_pre['signal_quality']
-        daily_buy_level = sq.get('buy_level', 0)
+        daily_net_score = sq.get('net_score', 0.0)
 
-    # 第二层: 趋势方向 (传入日线买侧闭环level)
-    trend = judge_trend(code, daily_rows, daily_buy_level)
+    # 第二层: 趋势方向 (传入日线净值)
+    trend = judge_trend(code, daily_rows, daily_net_score)
 
     # 第三层: 各周期循环适配
     period_results = {}
@@ -228,15 +476,15 @@ def analyze(code, name=''):
     # ── 跨周期对称增强/压制 ──
     # 节奏完整 → 增强小周期同向信号；节奏破坏 → 压制小周期同向信号
     # 节奏破坏时反向信号可能为反转信号，标记关注
-    direction = trend.get('direction', 'neutral')
+    direction = trend.get('direction', Direction.NEUTRAL)
     rhythm = check_rhythm_integrity(period_results, direction)
     resonance = scan_resonance(period_results, rhythm, direction)
 
-    bullish_dirs = ('bullish', 'bullish_bias')
-    bearish_dirs = ('bearish', 'bearish_bias')
+    bullish_dirs = Direction.BULLISH_DIRS
+    bearish_dirs = Direction.BEARISH_DIRS
     is_bullish = direction in bullish_dirs
     is_bearish = direction in bearish_dirs
-    rhythm_verdict = rhythm.get('verdict', 'intact')
+    rhythm_verdict = rhythm.get('verdict', RhythmVerdict.INTACT)
     res_confirmed = resonance.get('resonance_confirmed', False)
     res_side = resonance.get('resonance_side', 'neutral')
 
@@ -259,7 +507,7 @@ def analyze(code, name=''):
 
             # ── 同向增强: 大周期 rhythm intact + 小周期同向信号 ──
             if is_bullish and curr_buy > 1.0 and lsq.get('buy_level', 0) > 1.0:
-                if rhythm_verdict in ('intact', 'tactical_broken'):
+                if rhythm_verdict in RhythmVerdict.INTACT_OR_TACTICAL:
                     if macd_score >= 3:
                         boost = 0.10 if gap == 1 else 0.20
                     elif macd_score == 1:
@@ -277,7 +525,7 @@ def analyze(code, name=''):
                         f'节奏破坏:大{PERIODS[j]}卖→买强度降{(discount*100):.0f}%')
 
             elif is_bearish and curr_sell > 1.0 and lsq.get('sell_level', 0) > 1.0:
-                if rhythm_verdict in ('intact', 'tactical_broken'):
+                if rhythm_verdict in RhythmVerdict.INTACT_OR_TACTICAL:
                     if macd_score >= 3:
                         boost = 0.10 if gap == 1 else 0.20
                     elif macd_score == 1:
@@ -323,7 +571,7 @@ def analyze(code, name=''):
         m15 = period_results.get('min15')
         if m5 and m5.get('signal_quality'):
             m5_sq = m5['signal_quality']
-            boost = 0.20 if rhythm_verdict == 'intact' else 0.10
+            boost = 0.20 if rhythm_verdict == RhythmVerdict.INTACT else 0.10
             if res_side == 'buy':
                 m5_sq['buy_level'] = min(10, m5_sq.get('buy_level', 0) * 1.20)
                 m5_sq.setdefault('details', []).append('5+15买共振确认✓')
@@ -402,6 +650,9 @@ def analyze(code, name=''):
     # 大盘系数权重
     market_coeff = get_market_coefficient()
 
+    # 主导方向 — 跨周期方向聚合
+    dominant_direction = _calc_dominant_direction(trend, period_results, rhythm, resonance, cached_rows)
+
     # 综合操作建议
     advice = _generate_advice(position, trend, best, period_results,
                                dominant_info, market_coeff, rhythm, resonance)
@@ -413,6 +664,7 @@ def analyze(code, name=''):
         'trend': trend,
         'periods': period_results,
         'best_period': best,
+        'dominant_direction': dominant_direction,
         'advice': advice,
         'volume_regime': volume_info,
         'wave_structure': wave_structure,

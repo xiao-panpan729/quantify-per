@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "<string>", line 31, in <module>
+    h = hht.get('sh000001', {})
+        ^^^^^^^
+AttributeError: 'list' object has no attribute 'get'
+=== 上证指数 ===
+收盘: 407.728
+评分: 10 方向: bullish_bias 标签: 偏多震荡
+评分明细: {}
+
+建议: 顺势做多 actionable
+理由: 节奏完整+30-60-5-15全共振买，趋势强劲 | 主导周期15分钟
+
+主导方向: 空头主导
+链: 5分死叉→15分死叉→30分死叉→60分死叉（日线金叉未破）
+
+主导量级: min15 15分钟

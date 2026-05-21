@@ -381,7 +381,7 @@ def analyze_one(code, period):
             dominant_imf = max(mid_imfs, key=lambda x: x['amp_mean'])
 
     # 检查所有 IMF 是否有"突破"或"循环破位"信号
-    has_breakout = any(imri['regime'].startswith('突破') or '循环破位' in imri['regime']
+    has_breakout = any(imri['regime'].startswith('突破') or ('循环' in imri['regime'] and '破' in imri['regime'])
                        for imri in imf_results)
     has_compression = any(imri['regime'] == '循环压缩(蓄力)' for imri in imf_results)
 

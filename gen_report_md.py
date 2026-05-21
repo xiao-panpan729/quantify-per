@@ -27,7 +27,7 @@ def _load_hht():
         try:
             raw = json.load(open(HHT_PATH, 'r', encoding='utf-8'))
             return {r['code']: r for r in raw}
-        except:
+        except (json.JSONDecodeError, OSError):
             pass
     return {}
 
@@ -35,7 +35,7 @@ def _load_synth():
     if os.path.exists(SYNTH_PATH):
         try:
             return json.load(open(SYNTH_PATH, 'r', encoding='utf-8'))
-        except:
+        except (json.JSONDecodeError, OSError):
             pass
     return {}
 
@@ -61,6 +61,43 @@ def _get_synth():
     _ensure_data()
     return _synth_cache
 
+# ── HHT 统一4字标签映射（hht_analyzer原始标签 → 4字显示）──
+_HHT_4CHAR_MAP = [
+    ('循环', '破', '循环破位'),       # 频率>1.8，结构被打破
+    ('量价共振', None, '量价齐升'),   # 量能+价格同时暴增
+    ('量价齐升', None, '量价齐升'),   # 同上简写
+    ('量价背离', None, '量价背离'),   # 量能暴增但价格不跟随
+    ('突破', None, '能量爆发'),        # 高能量突破
+    ('蓄力放量', None, '蓄力放量'),    # 缩量蓄力+放量确认
+    ('压缩', None, '蓄力锁定'),        # 频率<0.6，能量积蓄
+    ('散乱', None, '方向切换'),        # 频率不稳定，可能变盘
+    ('动能增强', None, '动能增强'),    # 能量逐步增强
+    ('动能枯竭', None, '动能枯竭'),    # 能量衰竭
+    ('地量休眠', None, '地量休眠'),    # 地量盘整
+    ('正常', None, '循环正常'),        # 无异常
+]
+_HHT_DIR_CHARS = ('↑', '↓')
+
+def _hht_4char(label):
+    """hht stability_label → 4字中文标签"""
+    if not label:
+        return None
+    for keyword, extra, term in _HHT_4CHAR_MAP:
+        if keyword in label:
+            if extra and extra not in label:
+                continue
+            return term
+    return None
+
+def _hht_dir(label):
+    """hht stability_label → 方向字符 ↑/↓/空"""
+    if not label:
+        return ''
+    for ch in _HHT_DIR_CHARS:
+        if ch in label:
+            return ch
+    return ''
+
 def _hht_summary(code):
     """取标的最重要的HHT状态，返回紧凑标签（含方向）"""
     h = _get_hht().get(code)
@@ -73,44 +110,30 @@ def _hht_summary(code):
         if not s:
             continue
         sl = s.get('stability_label', '')
-        # 从 HHT 标签中提取方向（↑/↓ 可能在末尾或括号前）
-        direction = ''
-        for ch in ('↑', '↓'):
-            if ch in sl:
-                direction = ch
-                break
-        if '循环' in sl and '破' in sl:
-            return '⚠下破' if '下' in sl else '⚠上破'
-        if '突破' in sl:
-            return '⚡%s能量爆发' % direction
-        if '压缩' in sl:
-            return '🔒蓄力'
-        if '动能增强' in sl:
-            return '📈%s动能' % direction
-        if '频率散乱' in sl:
-            return '⇄方向切换'
+        tag = _hht_4char(sl)
+        if not tag:
+            continue
+        d = _hht_dir(sl)
+        return f'{d}{tag}' if d else tag
     dp = periods.get('daily', {})
     ds = dp.get('summary', {})
-    if ds: return '✓正常'
+    if ds: return '循环正常'
     return '-'
 
 # ════════════════ 分数历史 ════════════════
 SCORE_HISTORY = 'signals/tracking/score_history.json'
 
 def load_score_history():
-    """返回最近两次有数据的日期: {prev_date, prev_scores}, 如果只有一次数据则 prev_scores 为空"""
+    """返回所有历史条目（按日期排序），空列表 = 无历史"""
     if os.path.exists(SCORE_HISTORY):
         try:
             raw = json.load(open(SCORE_HISTORY, 'r', encoding='utf-8'))
             entries = raw.get('history', [])
             entries.sort(key=lambda e: e['date'])
-            if len(entries) >= 2:
-                return {'date': entries[-1]['date'], 'scores': entries[-2]['scores']}
-            elif len(entries) == 1:
-                return {'date': entries[0]['date'], 'scores': {}}
-        except:
+            return entries
+        except (json.JSONDecodeError, OSError):
             pass
-    return {'date': '无', 'scores': {}}
+    return []
 
 def save_score_history(date_str):
     """追加今日分数快照（保留历史用于跨日对比）"""
@@ -118,7 +141,7 @@ def save_score_history(date_str):
     if os.path.exists(SCORE_HISTORY):
         try:
             raw = json.load(open(SCORE_HISTORY, 'r', encoding='utf-8'))
-        except:
+        except (json.JSONDecodeError, OSError):
             pass
     entries = raw.get('history', [])
     # 如果今天已经有记录，更新；否则追加
@@ -150,9 +173,9 @@ def save_score_history(date_str):
 # ════════════════ 翻译函数 ════════════════
 
 def level_label(score):
-    if score >= 6.0: return '🔥🔥 加强出击'
-    elif score >= 4.0: return '🔥 出击信号'
-    elif score >= 3.0: return '🔥 加强信号'
+    if score >= 8.0: return '🔥🔥 加强出击'
+    elif score >= 6.0: return '🔥 出击信号'
+    elif score >= 4.0: return '🔥 加强信号'
     elif score >= 2.0: return '⚡ 普通信号'
     elif score >= 1.0: return '⚡ 信号弱'
     else: return '-- 无信号'
@@ -179,7 +202,7 @@ def price_color_str(change_pct):
     if change_pct is None: return ''
     if isinstance(change_pct, str):
         try: change_pct = float(change_pct.replace('%',''))
-        except: return change_pct
+        except (ValueError, TypeError): return change_pct
     s = ('%+.2f%%' % change_pct)
     return s
 
@@ -204,11 +227,11 @@ def dd_bar(dd_val, max_dd=35):
         elif dd_val <= -5: ch = '▒'
         else: ch = '░'
         return '%s%.1f%%' % (ch * width, abs(dd_val))
-    except:
+    except Exception:
         return ''
 
 def _fmt_dominant_note(dominant_info, trend_dir):
-    """主导量级文字：返回 (label, note)。
+    """主导周期文字：返回 (label, note)。
     label: '15分钟' 等, note: '小级卖信号暂不采信' 等, 无主导时返回 ('', '')"""
     if not dominant_info or not dominant_info.get('dominant_cycle'):
         return '', ''
@@ -295,7 +318,7 @@ def get_yesterday_close_from_report(yesterday_date_str, code):
     m = re.search(pattern, text)
     if m:
         try: return float(m.group(1))
-        except: pass
+        except (ValueError, TypeError): pass
     return None
 
 def build_report_lines():
@@ -324,13 +347,22 @@ def build_report_lines():
             if wc:
                 summary += ' → ' + wc
     
-            # 主导量级
+            # 主导周期
             dc_label, dc_note = _fmt_dominant_note(adv.get('dominant_cycle', {}), t.get('direction', ''))
             if dc_label:
                 dc_str = f'{dc_label}主导({dc_note})' if dc_note else dc_label
             else:
                 dc_str = '-'
     
+            # 主导方向
+            dd = item.get('dominant_direction', {})
+            if isinstance(dd, dict):
+                dd_label = dd.get('label', '-')
+                dd_chain = dd.get('chain', '')
+                dd_str = dd_label if not dd_chain else f'{dd_label}({dd_chain})'
+            else:
+                dd_str = '-'
+
             # 排列熵总览：优先日线的pe_label，含完整状态机标签
             periods = item.get('periods', {})
             if isinstance(periods, dict):
@@ -361,7 +393,7 @@ def build_report_lines():
             synth_grade = synth.get('grade', '')
             if synth_grade:
                 trend_dir = '%s %s' % (trend_dir, synth_grade)
-            rows.append('| %s | %s | %s | %s | %s | %s | %s |' % (stock_cell, trend_dir, summary, best_pe, hht_tag, dc_str, advice_cn(action)))
+            rows.append('| %s | %s | %s | %s | %s | %s | %s | %s |' % (stock_cell, trend_dir, summary, best_pe, hht_tag, dc_str, dd_str, advice_cn(action)))
         return rows
     
     # ════════════════ 正文开始 ════════════════
@@ -399,44 +431,59 @@ def build_report_lines():
         title, desc = GRADE_INFO.get(gk, ('', ''))
         lines.append('### %s (%d 只) — %s' % (title, len(grp), desc))
         lines.append('')
-        lines.append('| 标的 收盘 | 日线趋势 | 分钟闭环 | 结构状态 | HHT | 主导量级 | 操作建议 |')
-        lines.append('|----------|----------|----------|--------|-----|----------|----------|')
+        lines.append('| 标的 收盘 | 日线趋势 | 分钟闭环 | 结构状态 | HHT | 主导周期 | 主导方向 | 操作建议 |')
+        lines.append('|----------|----------|----------|--------|-----|----------|----------|----------|')
         for r in table_rows(grp):
             lines.append(r)
         lines.append('')
     
     lines.append('---')
     lines.append('')
-    
-    # ── 分数起伏对比 ──
-    lines.append('### 分数起伏（今日 vs 昨日）')
+
+    # ── 分数历史趋势 ──
+    lines.append('### 分数历史趋势')
     lines.append('')
-    history = load_score_history()
-    prev_scores = history.get('scores', {})
-    prev_date = history.get('date', '无')
-    lines.append('> 对比 %s → 今日 %s，跟踪趋势评分变化' % (prev_date[-4:] if prev_date != '无' else '--', date_str[-4:]))
-    lines.append('')
-    lines.append('| 标的 | 昨日总分 | 今日总分 | 变动 | 方向变化 |')
-    lines.append('|------|---------|---------|------|---------|')
-    for item in _get_data():
-        code = item['code']
-        name = item.get('name', '')[:6]
-        t = item['trend']
-        today_score = t.get('score', 0)
-        today_dir = t.get('direction', '')
-        prev = prev_scores.get(code, {})
-        prev_score = prev.get('score', '新')
-        prev_dir = prev.get('direction', '')
-        if prev_score != '新':
-            diff = today_score - prev_score
-            diff_s = ('%+d' % diff) if diff != 0 else '0'
-            if diff > 0: diff_s = '🔺' + diff_s
-            elif diff < 0: diff_s = '🔻' + diff_s
-            else: diff_s = '➖' + diff_s
-            dir_changed = '→' if prev_dir == today_dir else ('%s→%s' % (trend_cn(prev_dir)[:2], trend_cn(today_dir)[:2]))
-            lines.append('| `%s` %s | %s | %d | %s | %s |' % (code, name, str(prev_score) if isinstance(prev_score, int) else prev_score, today_score, diff_s, dir_changed))
-        else:
-            lines.append('| `%s` %s | (首日) | %d | - | %s |' % (code, name, today_score, trend_cn(today_dir)))
+    entries = load_score_history()
+    if len(entries) >= 2:
+        dates = [e['date'] for e in entries]
+        date_labels = [d[4:6] + '/' + d[6:8] for d in dates]
+        n = len(date_labels)
+        # 首尾变动
+        first_total = {}
+        for code, s in entries[0]['scores'].items():
+            first_total[code] = s.get('score', 0)
+        # 表头: 标的 + N个日期 + 变动 + 方向
+        headers = ['标的'] + date_labels + ['变动', '方向']
+        lines.append('| ' + ' | '.join(headers) + ' |')
+        lines.append('|' + '|'.join(['---'] * (n + 3)) + '|')
+        for item in _get_data():
+            code = item['code']
+            name = item.get('name', '')[:6]
+            row_scores = []
+            for e in entries:
+                s = e['scores'].get(code, {})
+                row_scores.append(s.get('score', '-'))
+            # 变动: 首 → 尾
+            first_s = row_scores[0]
+            last_s = row_scores[-1]
+            if isinstance(first_s, (int, float)) and isinstance(last_s, (int, float)):
+                diff = last_s - first_s
+                if diff > 0:
+                    diff_s = '🔺%+.1f' % diff
+                elif diff < 0:
+                    diff_s = '🔻%+.1f' % diff
+                else:
+                    diff_s = '➖0'
+            else:
+                diff_s = '-'
+            # 方向: 从最新条目取
+            latest_entry = entries[-1]['scores'].get(code, {})
+            latest_dir = latest_entry.get('direction', '')
+            dir_s = trend_cn(latest_dir)[:2] if latest_dir else '?'
+            cells = [f'`{code}` {name}'] + [str(s) for s in row_scores] + [diff_s, dir_s]
+            lines.append('| ' + ' | '.join(cells) + ' |')
+    else:
+        lines.append('> 暂无历史数据')
     lines.append('')
     
     lines.append('---')
@@ -485,12 +532,10 @@ def build_report_lines():
                 hpd = h.get('periods', {}).get(pk, {})
                 hs = hpd.get('summary', {})
                 sl = hs.get('stability_label', '')
-                if '循环' in sl and '破' in sl:
-                    dir_text = '↓' if '下' in sl else '↑'
-                    hht_str = f'{dir_text}{period_cn(pk)}破位'
-                    break
-                if '突破' in sl:
-                    hht_str = f'{direction}{period_cn(pk)}能量爆发'
+                tag = _hht_4char(sl)
+                if tag:
+                    d = _hht_dir(sl)
+                    hht_str = f'{d}{period_cn(pk)}{tag}' if d else f'{period_cn(pk)}{tag}'
                     break
     
         parts = [f'价格{zone}(偏离{dev_y}%)', f'趋势{trend_dir}']
@@ -573,9 +618,12 @@ def build_report_lines():
                 hpd = h.get('periods', {}).get(hp, {})
                 hs = hpd.get('summary', {})
                 sl = hs.get('stability_label', '')
-                if sl:
+                tag = _hht_4char(sl)
+                if tag:
                     fs = hs.get('freq_stability', '')
                     er = hs.get('energy_ratio', '')
+                    d = _hht_dir(sl)
+                    display = f'{d}{tag}' if d else tag
                     fb = hs.get('false_breakout')
                     fb_tag = ''
                     if fb is True:
@@ -583,7 +631,7 @@ def build_report_lines():
                     elif fb is False:
                         fb_tag = ' ✓有效突破'
                     hht_parts.append('%s %s(fs=%.2f,er=%.2f)%s' % (
-                        period_cn(hp), sl,
+                        period_cn(hp), display,
                         fs if isinstance(fs, (int, float)) else 1.0,
                         er if isinstance(er, (int, float)) else 1.0,
                         fb_tag))
@@ -599,13 +647,20 @@ def build_report_lines():
             sig_parts.append('%s %s' % (period_cn(sp), label))
         lines.append('- **信号**: %s' % ' | '.join(sig_parts))
     
-        # ── 主导量级 + 建议 ──
+        # ── 主导周期 + 主导方向 + 建议 ──
         dc_label, dc_note = _fmt_dominant_note(adv.get('dominant_cycle'), t.get('direction', ''))
         if dc_label:
             dc_str = f'{dc_label}主导({dc_note})' if dc_note else dc_label
         else:
             dc_str = ''
-        lines.append('- **主导**: %s | **建议**: %s (置信度:%s)' % (dc_str or '-', advice_cn(action), conf))
+        dd = item.get('dominant_direction', {})
+        if isinstance(dd, dict) and dd.get('label'):
+            dd_label = dd['label']
+            dd_chain = dd.get('chain', '')
+            dd_str = f'{dd_label} ({dd_chain})' if dd_chain else dd_label
+            lines.append('- **主导**: %s | **方向**: %s | **建议**: %s (置信度:%s)' % (dc_str or '-', dd_str, advice_cn(action), conf))
+        else:
+            lines.append('- **主导**: %s | **建议**: %s (置信度:%s)' % (dc_str or '-', advice_cn(action), conf))
     
         lines.append('')
         lines.append('---')
@@ -899,7 +954,7 @@ def build_report_lines():
         else:
             cs = ('%.3f' % close) if isinstance(close, (int,float)) else close
     
-            # 主导量级展示
+            # 主导周期展示
             dc = adv.get('dominant_cycle')
             if dc and dc.get('dominant_cycle'):
                 dc_label = dc['dominant_label']
@@ -911,7 +966,7 @@ def build_report_lines():
                     dc_parts.append(f'小级反向暂不采信')
                 if dc_detail:
                     dc_parts.append(f'({dc_detail})')
-                lines.append(f'\n> **主导量级**: {" | ".join(dc_parts)}')
+                lines.append(f'\n> **主导周期**: {" | ".join(dc_parts)}')
     
             lines.append(f'\n> **当前状态**: EXPMA={expma_status} | MACD={macd_status} | 收盘={cs} | 最佳={period_cn(best_p) if best_p else "-"} | {reason or advice_cn(action)}')
             lines.append('')
@@ -926,18 +981,22 @@ def append_params_reference(lines):
     lines.append('')
     lines.append('### HHT 循环状态')
     lines.append('')
-    lines.append('| 条件 | 标签 | 含义 |')
-    lines.append('|------|------|------|')
-    lines.append('| `er>2.0 + fs<0.7` | ↑↓突破(能量暴增+循环锁定) | 最理想突破：放量+结构锁定 |')
-    lines.append('| `er>2.0` | ↑↓突破(能量暴增) | 单纯放量，结构未必锁定 |')
-    lines.append('| `fs>1.8` | ↑↓循环破位 | 频率比历史大1.8倍，节奏已乱 |')
-    lines.append('| `fs<0.6` | 循环压缩(蓄力) | 频率收窄，蓄势待发 |')
-    lines.append('| `fs>1.5` | ↑↓频率散乱(方向切换) | 方向切换中 |')
-    lines.append('| `er>1.5` | ↑↓动能增强 | 温和放量 |')
-    lines.append('| `er<0.5` | 动能枯竭 | 缩量衰竭 |')
+    lines.append('| 显示标签 | 原始条件 | 含义 |')
+    lines.append('|----------|----------|------|')
+    lines.append('| `↑↓循环破位` | `fs>1.8` | 频率比历史大1.8倍，节奏已乱 |')
+    lines.append('| `↑↓能量爆发` | `er>2.0` | 高能量突破，可能放量+结构锁定 |')
+    lines.append('| `量价齐升` | `er>2.0+量价共振` | 量能+价格同时暴增（强突破） |')
+    lines.append('| `量价背离` | `er>2.0+量价背离` | 量能暴增但价格不跟随（警惕） |')
+    lines.append('| `蓄力锁定` | `fs<0.6` | 频率收窄，蓄势待发 |')
+    lines.append('| `↑↓方向切换` | `fs>1.5` | 频率散乱，方向切换中 |')
+    lines.append('| `↑↓动能增强` | `er>1.5` | 温和放量 |')
+    lines.append('| `动能枯竭` | `er<0.5` | 缩量衰竭 |')
+    lines.append('| `蓄力放量` | 缩量蓄力+放量确认 | 先缩再放的蓄力突破 |')
+    lines.append('| `地量休眠` | 地量盘整 | 无人问津的横盘 |')
+    lines.append('| `循环正常` | 其他 | 无异常 |')
     lines.append('')
-    lines.append('> `fs`=频率稳定性：`<0.6`蓄力 → `0.6~1.5`正常 → `>1.5`散乱 → `>1.8`循环破位')
-    lines.append('> `er`=能量比：`<0.5`枯竭 → `0.5~1.5`正常 → `>1.5`增强 → `>2.0`暴增')
+    lines.append('> `fs`=频率稳定性：`<0.6`蓄力 → `0.6~1.5`正常 → `>1.5`方向切换 → `>1.8`循环破位')
+    lines.append('> `er`=能量比：`<0.5`枯竭 → `0.5~1.5`正常 → `>1.5`增强 → `>2.0`能量爆发')
     lines.append('')
     lines.append('### 0-16 趋势评分')
     lines.append('')
@@ -945,14 +1004,14 @@ def append_params_reference(lines):
     lines.append('|------|:----:|------|')
     lines.append('| EXPMA | 0~2 | e12>e50=2，粘合=1，空头=0 |')
     lines.append('| MACD | 0~4 | 0轴+金叉死叉，强势>0.01% |')
-    lines.append('| MA排列 | 0~6 | 5→10→20→60→120→250链式递进，断链即停 |')
-    lines.append('| 日线闭环 | 0~4 | buy_level≥4→4分，≥3.5→3分 |')
+    lines.append('| MA排列 | 0~6 | 扣分制(浮点): 5/10/20区各拆价>MA(0.5)+短>长(0.5)，60/120/250长线整分(各1.0)，满分加成(+1) |')
+    lines.append('| 日线闭环 | 0~4 | 8维净值制: net=buy_level-sell_level，net≥6=4分，≥4=3分，≥2=2分，≥0=1分，<0=0分 |')
     lines.append('')
     lines.append('> **方向**: `13~16`上涨 | `10~12`偏多 | `7~9`中性 | `4~6`偏空 | `0~3`下跌')
     lines.append('')
-    lines.append('### 主导量级')
+    lines.append('### 主导周期')
     lines.append('')
-    lines.append('通过波峰间距检测主导循环周期。小级别信号与主导量级反向 → 「小级暂不采信」')
+    lines.append('通过信号可靠性比较法检测主导周期，选择当前最可靠的交易级别。小级别信号与主导周期反向 → 「小级暂不采信」')
     lines.append('')
     lines.append('### 结构状态（排列熵）')
     lines.append('')
@@ -996,7 +1055,7 @@ def save_analysis_history(data, date_str):
         try:
             with open(ANALYSIS_HISTORY, 'r', encoding='utf-8') as f:
                 history = json.load(f)
-        except:
+        except (json.JSONDecodeError, OSError):
             history = {'records': []}
 
     # 检查该日期是否已存在记录（避免重复追加）

@@ -831,15 +831,36 @@ def _rolling_min_mask(values, window):
     return result
 
 
+def _rolling_max_mask(values, window):
+    """
+    O(n) 滚动窗口最大值检测。
+    返回 bool 数组: values[i] 是 values[i-window+1:i+1] 中的最大值时为 True。
+    """
+    n = len(values)
+    result = [False] * n
+    dq = deque()
+    for i in range(n):
+        while dq and dq[0] <= i - window:
+            dq.popleft()
+        while dq and values[dq[-1]] <= values[i]:
+            dq.pop()
+        dq.append(i)
+        if dq[0] == i:
+            result[i] = True
+    return result
+
+
 def calc_volume_indicators(rows):
     """
     量能指标后处理 — 在基础信号计算之后执行。
 
-    每行新增 11 列量能指标:
+    每行新增 13 列量能指标:
       vol_ma5 / vol_ma60  — 均量线
       vr5 / vr60           — 量比（当前量/均量）
       vol_llv100           — 百日地量标志（近5根内出现LLV100）
       vol_llv10            — 十日地量标志
+      vol_hhv100           — 百日高量标志（近5根内出现HHV100）
+      vol_放堆              — 放量堆（近5根中十日高量>=3次）
       vol_堆               — 地量堆（近5根中十日地量>=3次）
       vol_缩50             — 缩量过半（vr5<0.5）
       vol_突放             — 放量突破（C>前高 + vr5>1.5）
@@ -869,10 +890,16 @@ def calc_volume_indicators(rows):
     is_llv100 = _rolling_min_mask(vols, 100)
     is_llv10 = _rolling_min_mask(vols, 10)
 
+    # 百日高量 / 十日高量 — 对称结构
+    is_hhv100 = _rolling_max_mask(vols, 100)
+    is_hhv10 = _rolling_max_mask(vols, 10)
+
     for i in range(n):
         if vols[i] <= 0:
             rows[i]['vol_llv100'] = 0
             rows[i]['vol_llv10'] = 0
+            rows[i]['vol_hhv100'] = 0
+            rows[i]['vol_hhv10'] = 0
             continue
 
         # 近5根内是否有百日低点
@@ -890,11 +917,32 @@ def calc_volume_indicators(rows):
                 break
         rows[i]['vol_llv10'] = llv10_flag
 
+        # 近5根内是否有百日高点
+        hhv100_flag = 0
+        for j in range(max(0, i - 4), i + 1):
+            if is_hhv100[j] and vols[j] > 0:
+                hhv100_flag = 1
+                break
+        rows[i]['vol_hhv100'] = hhv100_flag
+
+        hhv10_flag = 0
+        for j in range(max(0, i - 4), i + 1):
+            if is_hhv10[j] and vols[j] > 0:
+                hhv10_flag = 1
+                break
+        rows[i]['vol_hhv10'] = hhv10_flag
+
     # 地量堆: 含当前位置的后6根中十日地量 >= 3 次
     for i in range(n):
         end = min(n, i + 6)
         cnt = sum(1 for j in range(i, end) if rows[j].get('vol_llv10', 0) == 1)
         rows[i]['vol_堆'] = 1 if cnt >= 3 else 0
+
+    # 放量堆: 含当前位置的后6根中十日高量 >= 3 次
+    for i in range(n):
+        end = min(n, i + 6)
+        cnt = sum(1 for j in range(i, end) if rows[j].get('vol_hhv10', 0) == 1)
+        rows[i]['vol_放堆'] = 1 if cnt >= 3 else 0
 
     # 缩量过半
     for i in range(n):
@@ -934,7 +982,7 @@ SIGNAL_HEADERS = [
     'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'ma250',
     'volume', 'amount',
     'vol_ma5', 'vol_ma60', 'vr5', 'vr60',
-    'vol_llv100', 'vol_llv10', 'vol_堆', 'vol_缩50',
+    'vol_llv100', 'vol_llv10', 'vol_hhv100', 'vol_hhv10', 'vol_堆', 'vol_放堆', 'vol_缩50',
     'vol_突放', 'vol_梯度升', 'vol_梯度降',
     'pe', 'pe_level', 'pe_chg_5',
     'hht_freq', 'hht_amp',

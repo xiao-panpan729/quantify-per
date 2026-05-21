@@ -3,7 +3,7 @@
 import urllib.request, urllib.parse, json, os, time, sys
 from datetime import datetime
 
-KEY = '8a1e3faf9861407aa6a00eb6d4971e0c'
+KEY = os.environ.get('MPTEXT_API_KEY', '8a1e3faf9861407aa6a00eb6d4971e0c')
 OUTPUT_DIR = r'D:\quantify-per\wechat_articles'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -48,7 +48,7 @@ def get_article_links(fakeid, max_msgs=30):
             break
         try:
             data = json.loads(raw)
-        except:
+        except json.JSONDecodeError:
             break
         articles = data.get('articles', [])
         if not articles:

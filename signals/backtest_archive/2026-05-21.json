@@ -1,0 +1,1962 @@
+{
+  "sh000001": {
+    "min1": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh513120": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh513310": {
+    "min1": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh520600": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh588200": {
+    "min1": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bullish",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh600438": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sh601012": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz000100": {
+    "min1": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz002129": {
+    "min1": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz002261": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz159326": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz159740": {
+    "min1": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bearish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz300118": {
+    "min1": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "neutral",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  },
+  "sz399006": {
+    "min1": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min5": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min15": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min30": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "min60": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    },
+    "daily": {
+      "trend": "bullish_bias",
+      "merge_low": {
+        "buy": null,
+        "sell": null
+      },
+      "merge_50": {
+        "buy": null,
+        "sell": null
+      },
+      "per_signal": {
+        "buy": null,
+        "sell": null
+      },
+      "no_merge": {
+        "buy": null,
+        "sell": null
+      },
+      "golden_no_new_low": {
+        "buy": null,
+        "sell": null
+      }
+    }
+  }
+}

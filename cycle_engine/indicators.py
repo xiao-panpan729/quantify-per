@@ -4,6 +4,7 @@ cycle_engine 指标层 — 排列熵(结构状态) / 位置判断 / 趋势评分
 """
 import math
 from .utils import safe_float, read_csv, SNAPSHOT_DIR
+from .constants import Direction, RhythmVerdict
 
 # 排列熵归一化常量: math.log(factorial(3))，m=3 时恒为 log(6)
 _PE_NORM = math.log(6.0)
@@ -119,8 +120,10 @@ def _analyze_pe_from_trajectory(raw_rows, pe_series, lookback=60):
     trend_vals = []
     for r in raw_rows[-30:]:
         tv = r.get('trend_line', None)
-        if tv is not None and tv != '' and safe_float(tv) > 0:
-            trend_vals.append(safe_float(tv))
+        if tv is not None and tv != '':
+            f_tv = safe_float(tv)
+            if f_tv > 0:
+                trend_vals.append(f_tv)
     if len(trend_vals) >= 10:
         half = len(trend_vals) // 2
         tl_rising = sum(trend_vals[half:]) / (len(trend_vals) - half) > sum(trend_vals[:half]) / half
@@ -398,7 +401,7 @@ def judge_position(daily_rows):
 # 第二层: 趋势方向判断
 # ============================================================
 
-def judge_trend(code, daily_rows, daily_buy_level=0):
+def judge_trend(code, daily_rows, daily_net_score=0.0):
     """
     0-16 评分体系判断趋势方向 — 带日线闭环 + EXPMA
 
@@ -417,12 +420,15 @@ def judge_trend(code, daily_rows, daily_buy_level=0):
       - 0: clearly_off + dif<0 + dif<dea (0轴下,强势空头)
 
     MA排列: 0~6分
-      - 链式递进: 从5开始检查连续 short>long 到第几级断裂
-      - 链长0→0, 1→1, 2→2, 3→3, 4→4, 5→6(完美排列奖励)
-      - 5>10>20>60>120>250 全部顺序 = 满分6分
+      - 5/10区: close>5MA(0.5) + 5MA>10MA(0.5) → 价格先破5MA再等死叉
+      - 10/20区: close>10MA(0.5) + 10MA>20MA(0.5)
+      - 20/60区: close>20MA(0.5) + 20MA>60MA(0.5)
+      - 60/120区: 60MA>120MA(1.0) — 长线整分不再拆
+      - 120/250区: 120MA>250MA(1.0)
+      - 满分加成(+1): 8个子项全满足
 
-    日线闭环: 0~4分（只计买侧, daily_buy_level >= 4.0=4分, >=3.5=3分, >=3.0=2分）
-      - 只取★买侧的闭环质量, 不取max(buy,sell)
+    日线闭环: 0~4分（8维净值制, buy_level - sell_level）
+      - net >= 6.0=4分, >=4.0=3分, >=2.0=2分, >=0=1分, <0=0分
 
     总分 0~16 → 方向:
       13-16: bullish    10-12: bullish_bias
@@ -488,7 +494,7 @@ def judge_trend(code, daily_rows, daily_buy_level=0):
     else:
         details.append('MACD未知')
 
-    # ── MA排列: 0~6分（各关系独立检查，不断链）──
+    # ── MA排列: 0~6分（短线区拆价格+均线各0.5分，长线区整分）──
     chain_periods = [5, 10, 20, 60, 120, 250]
     ma_fields = {5: 'ma5', 10: 'ma10', 20: 'ma20', 60: 'ma60', 120: 'ma120', 250: 'ma250'}
     ma_vals = {}
@@ -497,68 +503,91 @@ def judge_trend(code, daily_rows, daily_buy_level=0):
         if v > 0:
             ma_vals[period] = v
 
-    # 每个相邻关系独立检查，不做断裂即停
-    ma_links = 0
-    broken_link = None
-    for i in range(len(chain_periods) - 1):
-        sp, lp = chain_periods[i], chain_periods[i + 1]
-        if sp in ma_vals and lp in ma_vals and ma_vals[sp] > ma_vals[lp]:
-            ma_links += 1
-        elif ma_links == 0:
-            broken_link = f'{sp}/{lp}'
-        else:
-            if not broken_link:
-                broken_link = f'{sp}/{lp}'
+    ma_sub_score = 0.0
+    sub_items = []
 
-    # 每对+1，全链5对+1奖励=满分6
-    ma_score = ma_links + (1 if ma_links >= 5 else 0)
+    # 5/10区: close>5MA(0.5) + 5MA>10MA(0.5)
+    if ma_vals.get(5) and close > ma_vals[5]:
+        ma_sub_score += 0.5
+        sub_items.append('价>5MA')
+    if ma_vals.get(5) and ma_vals.get(10) and ma_vals[5] > ma_vals[10]:
+        ma_sub_score += 0.5
+        sub_items.append('5>10')
+
+    # 10/20区: close>10MA(0.5) + 10MA>20MA(0.5)
+    if ma_vals.get(10) and close > ma_vals[10]:
+        ma_sub_score += 0.5
+        sub_items.append('价>10MA')
+    if ma_vals.get(10) and ma_vals.get(20) and ma_vals[10] > ma_vals[20]:
+        ma_sub_score += 0.5
+        sub_items.append('10>20')
+
+    # 20/60区: close>20MA(0.5) + 20MA>60MA(0.5)
+    if ma_vals.get(20) and close > ma_vals[20]:
+        ma_sub_score += 0.5
+        sub_items.append('价>20MA')
+    if ma_vals.get(20) and ma_vals.get(60) and ma_vals[20] > ma_vals[60]:
+        ma_sub_score += 0.5
+        sub_items.append('20>60')
+
+    # 60/120区: 60MA>120MA(1.0)
+    if ma_vals.get(60) and ma_vals.get(120) and ma_vals[60] > ma_vals[120]:
+        ma_sub_score += 1.0
+        sub_items.append('60>120')
+
+    # 120/250区: 120MA>250MA(1.0)
+    if ma_vals.get(120) and ma_vals.get(250) and ma_vals[120] > ma_vals[250]:
+        ma_sub_score += 1.0
+        sub_items.append('120>250')
+
+    # 满分加成: 8个子项全满足 → +1
+    if ma_sub_score >= 5.0:
+        ma_sub_score += 1.0
+
+    ma_score = ma_sub_score  # 保留浮点，不做 int() 舍入
 
     # 细节
     if ma_score >= 5:
-        chain_label = '→'.join(str(p) for p in chain_periods)
-        details.append(f'均线多头排列({chain_label})')
+        details.append(f'均线多头排列({",".join(sub_items)})')
     elif ma_score >= 3:
-        intact = []
-        for i in range(len(chain_periods) - 1):
-            sp, lp = chain_periods[i], chain_periods[i + 1]
-            if sp in ma_vals and lp in ma_vals and ma_vals[sp] > ma_vals[lp]:
-                intact.append(f'{sp}>{lp}')
-        label = ' '.join(intact) if intact else '无明显排列'
-        details.append(f'均线偏多({label})')
+        details.append(f'均线偏多({",".join(sub_items) if sub_items else "无明显排列"})')
     elif ma_score > 0:
-        details.append(f'均线偏弱(仅{ma_score}/5对排列)')
+        details.append(f'均线偏弱(得分{ma_score}/6)')
     else:
         details.append('均线无序')
 
-    # ── 日线闭环: 0~4分（只计买侧, 来自analyze_period的buy_level） ──
+    # ── 日线闭环: 0~4分（8维净值制, buy_level - sell_level） ──
     cycle_score = 0
-    if daily_buy_level >= 4.0:
+    if daily_net_score >= 6.0:
         cycle_score = 4
-        details.append('日线★买(最强出击)')
-    elif daily_buy_level >= 3.5:
+        details.append('日线★买(加强出击)')
+    elif daily_net_score >= 4.0:
         cycle_score = 3
         details.append('日线★买(短期确认)')
-    elif daily_buy_level >= 3.0:
+    elif daily_net_score >= 2.0:
         cycle_score = 2
-        details.append('日线★买(加强闭环)')
+        details.append('日线★买(加强信号)')
+    elif daily_net_score >= 0:
+        cycle_score = 1
+        details.append('日线信号偏弱')
 
     # ── 总分 0~16 ──
     total_score = expma_score + macd_score + ma_score + cycle_score
 
     if total_score >= 13:
-        direction = 'bullish'
+        direction = Direction.BULLISH
         label = '上涨趋势'
     elif total_score >= 10:
-        direction = 'bullish_bias'
+        direction = Direction.BULLISH_BIAS
         label = '偏多震荡'
     elif total_score >= 7:
-        direction = 'neutral'
+        direction = Direction.NEUTRAL
         label = '横盘震荡'
     elif total_score >= 4:
-        direction = 'bearish_bias'
+        direction = Direction.BEARISH_BIAS
         label = '偏空震荡'
     else:
-        direction = 'bearish'
+        direction = Direction.BEARISH
         label = '下跌趋势'
 
     confidence = abs(total_score - 8) / 8 * 100
@@ -572,7 +601,7 @@ def judge_trend(code, daily_rows, daily_buy_level=0):
         'macd_score': macd_score,
         'ma_score': ma_score,
         'cycle_score': cycle_score,
-        'daily_buy_level': daily_buy_level,
+        'daily_net_score': daily_net_score,
         'details': details,
         'close': close,
         'macd_dif': macd_dif,
@@ -772,6 +801,9 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
             elif ma5_vals[i-1] >= ma10_vals[i-1] and ma5_vals[i] < ma10_vals[i]:
                 recent_ma5_dead.append({'idx': i})
 
+    # ── 趋势线数据（一次性计算，买侧+卖侧共用） ──
+    trend_vals = [safe_float(r.get('trend_line', 50)) for r in recent_rows]
+
     # ========== 波段起止检测（按波算密度，不按全窗口） ==========
     # 买侧波起：最近一个★卖或死叉之后（"这一段下跌"的起点）
     buy_wave_start = 0
@@ -911,7 +943,6 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         # 7. 量能确认维度（买侧）
         if recent_buy_anchors:
             direction = trend['direction']
-            trend_vals = [safe_float(r.get('trend_line', 50)) for r in recent_rows]
             has_oversold = any(t < 10 for t in trend_vals)
 
             if has_oversold:
@@ -949,12 +980,12 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
             else:
                 # 非超卖区：简单放量/缩量检查
                 has_突放 = any(safe_float(r.get('vol_突放', 0)) >= 1 for r in recent_rows)
-                if has_突放 and direction in ('bullish', 'bullish_bias'):
+                if has_突放 and direction in Direction.BULLISH_DIRS:
                     buy_level += 1.0
                     buy_details.append('放量突破确认')
                 else:
                     shrinks = sum(1 for r in recent_rows if safe_float(r.get('vol_缩50', 0)) >= 1)
-                    if shrinks >= 2 and direction in ('bullish', 'bullish_bias'):
+                    if shrinks >= 2 and direction in Direction.BULLISH_DIRS:
                         buy_level += 0.5
                         buy_details.append('回调缩量(调整健康)')
                     else:
@@ -964,7 +995,6 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
                             buy_details.append('梯度放量')
 
             # 8. 趋势线上穿0（极端超卖反转）
-            trend_vals = [safe_float(r.get('trend_line', 50)) for r in recent_rows]
             for i in range(1, len(trend_vals)):
                 if trend_vals[i-1] <= 0 < trend_vals[i]:
                     buy_level += 0.8
@@ -1087,30 +1117,65 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         direction = trend['direction']
 
         # 7. 量能确认维度（卖侧）
+        direction = trend['direction']
         if recent_sell_anchors:
-            # 放量阴线（vr5>1.5 + 收盘<开盘）
-            has_放量阴 = any(
-                safe_float(r.get('vr5', 1.0)) > 1.5
-                and safe_float(r.get('close', 0)) < safe_float(r.get('open', 0))
-                for r in recent_rows
-            )
-            if has_放量阴 and direction in ('bearish', 'bearish_bias'):
-                sell_level += 0.8
-                sell_details.append('放量阴线(风险)')
+            has_overbought = any(t > 90 for t in trend_vals)
+
+            if has_overbought:
+                # 超买区(趋势线>90)量能三维确认，各0.5共1.5 ★卖侧负分
+                vol_score_s = 0.0
+                vol_parts_s = []
+
+                # 维度7a': 百日高量出现在★卖附近 (0.5)
+                has_百高 = any(safe_float(r.get('vol_hhv100', 0)) >= 1 for r in recent_rows)
+                if has_百高:
+                    vol_score_s += 0.5
+                    vol_parts_s.append('百日高量')
+
+                # 维度7b': 放量堆存在于波内 (0.5)
+                has_放堆 = any(safe_float(r.get('vol_放堆', 0)) >= 1 for r in recent_rows)
+                if has_放堆:
+                    vol_score_s += 0.5
+                    vol_parts_s.append('放量堆')
+
+                # 维度7c': 高量均价 < 波内均价 → 越放量越跌 (0.5)
+                all_vol_price = [(float(r.get('volume', 0)), float(r.get('close', 0)))
+                                 for r in recent_rows if float(r.get('volume', 0)) > 0]
+                if len(all_vol_price) >= 3:
+                    all_vol_price.sort(key=lambda x: x[0], reverse=True)
+                    top_n = max(3, len(all_vol_price) // 3)
+                    high_vol_avg = sum(v[1] for v in all_vol_price[:top_n]) / top_n
+                    wave_avg = sum(v[1] for v in all_vol_price) / len(all_vol_price)
+                    if high_vol_avg < wave_avg:
+                        vol_score_s += 0.5
+                        vol_parts_s.append(f'放量下跌({high_vol_avg/wave_avg:.2f}x)')
+
+                if vol_score_s > 0:
+                    sell_level += vol_score_s
+                    sell_details.append(f'超买量能{"+".join(vol_parts_s)}({vol_score_s:.1f})')
+            else:
+                # 非超买区：简单放量阴线检查
+                has_放量阴 = any(
+                    safe_float(r.get('vr5', 1.0)) > 1.5
+                    and safe_float(r.get('close', 0)) < safe_float(r.get('open', 0))
+                    for r in recent_rows
+                )
+                if has_放量阴:
+                    sell_level += 0.8
+                    sell_details.append('放量阴线(风险)')
 
             # 趋势线下穿100（极端超买反转）
-            trend_vals_sell = [safe_float(r.get('trend_line', 50)) for r in recent_rows]
-            for i in range(1, len(trend_vals_sell)):
-                if trend_vals_sell[i-1] >= 100 > trend_vals_sell[i]:
+            for i in range(1, len(trend_vals)):
+                if trend_vals[i-1] >= 100 > trend_vals[i]:
                     sell_level += 0.8
                     sell_details.append('趋势线下穿100(极端反转)')
                     break
 
     # --- 根据趋势方向选择主分析侧 ---
-    if direction in ('bullish', 'bullish_bias'):
+    if direction in Direction.BULLISH_DIRS:
         details = buy_details
         if buy_level >= 8.0:
-            label = '最强出击信号'
+            label = '加强出击'
         elif buy_level >= 6.0:
             label = '出击信号'
         elif buy_level >= 4.0:
@@ -1118,18 +1183,18 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         elif buy_level >= 2.0:
             label = '普通信号'
         elif buy_level >= 1.0:
-            label = '弱信号'
+            label = '信号弱'
         else:
-            label = '无出击信号'
+            label = '无信号'
         level = buy_level
         # 附带空头信息（做参考）
         if sell_details:
             details.append(f'[空侧参考: {" | ".join(sell_details)}]')
 
-    elif direction in ('bearish', 'bearish_bias'):
+    elif direction in Direction.BEARISH_DIRS:
         details = sell_details
         if sell_level >= 8.0:
-            label = '最强出击信号'
+            label = '加强出击'
         elif sell_level >= 6.0:
             label = '出击信号'
         elif sell_level >= 4.0:
@@ -1137,9 +1202,9 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         elif sell_level >= 2.0:
             label = '普通信号'
         elif sell_level >= 1.0:
-            label = '弱信号'
+            label = '信号弱'
         else:
-            label = '无出击信号'
+            label = '无信号'
         level = sell_level
         if buy_details:
             details.append(f'[多侧参考: {" | ".join(buy_details)}]')
@@ -1149,7 +1214,7 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         effective_level = max(buy_level, sell_level)
         details = buy_details + sell_details
         if effective_level >= 8.0:
-            label = '最强出击信号'
+            label = '加强出击'
         elif effective_level >= 6.0:
             label = '出击信号'
         elif effective_level >= 4.0:
@@ -1157,9 +1222,9 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         elif effective_level >= 2.0:
             label = '普通信号'
         elif effective_level >= 1.0:
-            label = '弱信号'
+            label = '信号弱'
         else:
-            label = '无出击信号'
+            label = '无信号'
         level = effective_level
 
     # 排列熵信息
@@ -1182,6 +1247,7 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
         'details': details,
         'buy_level': buy_level,
         'sell_level': sell_level,
+        'net_score': buy_level - sell_level,
         'trend_pe': pe_info,
         'ema_cross_status': {
             'has_recent_golden': bool(recent_golden),
@@ -1217,8 +1283,8 @@ def check_rhythm_integrity(period_results, direction):
         'verdict': 'intact'|'tactical_broken'|'strategic_broken'|'fully_broken'
       }
     """
-    bullish_dirs = ('bullish', 'bullish_bias')
-    bearish_dirs = ('bearish', 'bearish_bias')
+    bullish_dirs = Direction.BULLISH_DIRS
+    bearish_dirs = Direction.BEARISH_DIRS
     is_bullish = direction in bullish_dirs
 
     def _check_one(period_key, label):
@@ -1282,13 +1348,13 @@ def check_rhythm_integrity(period_results, direction):
 
     # 判定
     if strategic['intact'] and tactical['intact']:
-        verdict = 'intact'
+        verdict = RhythmVerdict.INTACT
     elif strategic['intact'] and not tactical['intact']:
-        verdict = 'tactical_broken'
+        verdict = RhythmVerdict.TACTICAL_BROKEN
     elif not strategic['intact'] and tactical['intact']:
-        verdict = 'strategic_broken'
+        verdict = RhythmVerdict.STRATEGIC_BROKEN
     else:
-        verdict = 'fully_broken'
+        verdict = RhythmVerdict.FULLY_BROKEN
 
     return {
         'tactical': tactical,
@@ -1323,17 +1389,17 @@ def scan_resonance(period_results, rhythm, direction):
     m15_buy = min15_sq.get('buy_level', 0) if min15_sq else 0
     m15_sell = min15_sq.get('sell_level', 0) if min15_sq else 0
 
-    bullish_dirs = ('bullish', 'bullish_bias')
-    bearish_dirs = ('bearish', 'bearish_bias')
+    bullish_dirs = Direction.BULLISH_DIRS
+    bearish_dirs = Direction.BEARISH_DIRS
     is_bullish = direction in bullish_dirs
     is_bearish = direction in bearish_dirs
 
-    verdict = rhythm.get('verdict', 'intact')
+    verdict = rhythm.get('verdict', RhythmVerdict.INTACT)
     resonance_confirmed = False
     resonance_score = 0.0
     side = 'neutral'
 
-    if verdict in ('intact', 'tactical_broken'):
+    if verdict in RhythmVerdict.INTACT_OR_TACTICAL:
         # 节奏完整或仅战术破坏 → 检查同向共振
         if is_bullish:
             # 买侧共振: 5+15 同时有买信号
@@ -1347,7 +1413,7 @@ def scan_resonance(period_results, rhythm, direction):
                 resonance_confirmed = True
                 resonance_score = min(m5_sell + m15_sell, 10.0)
                 side = 'sell'
-    elif verdict in ('strategic_broken', 'fully_broken'):
+    elif verdict in RhythmVerdict.STRATEGIC_OR_FULLY:
         # 战略破坏 → 检查是否反向共振（可能反转信号）
         if is_bullish:
             # 上涨趋势但战略破坏 → 检查卖共振

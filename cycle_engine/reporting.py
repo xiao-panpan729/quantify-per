@@ -129,6 +129,16 @@ def format_report(results):
                 if stretched:
                     lines.append(f'    ⚠ 忽略{",".join(stretched)}反向信号(被{dc_label}趋势吸收)')
 
+            # 主导方向展示
+            dd = r.get('dominant_direction')
+            if dd:
+                dd_label = dd.get('label', '')
+                dd_chain = dd.get('chain', '')
+                line = f'    主导方向: {dd_label}'
+                if dd_chain:
+                    line += f' | {dd_chain}'
+                lines.append(line)
+
             # 量价阶段标注
             vi = r.get('volume_regime')
             if vi and vi.get('phase') not in ('数据不足', '正常放量'):
@@ -221,6 +231,7 @@ def save_results(results):
             'periods': periods_clean,
             'best_period': r['best_period']['period'] if r['best_period'] else None,
             'best_signal_level': r['best_period']['signal_quality']['level'] if r['best_period'] and r['best_period'].get('signal_quality') else 0,
+            'dominant_direction': r.get('dominant_direction'),
             'advice': r['advice'],
             'rs_density': r.get('rs_density'),
             'market_coeff': r.get('market_coeff'),
