@@ -1,2 +1,0 @@
-dict
-{"date": "20260514", "scores": {"sh513310": {"score": 10, "direction": "bullish_bias", "name": "中韩半导体ETF", "expma_score": 2, "macd_score": 4, "ma_score": 0, "cycle_score": 4}, "sh588200": {"score": 10, "direction": "bullish_bias", "name": "科创芯片ETF", "expma_score": 2, "macd_score": 4, "ma_score": 0, "cycle_score": 4}, "sz300118": {"score": 10, "direction": "bullish_bias", "name": "东方日升", "expma_score": 2, "macd_score": 4, "ma_score": 0, "cycle_score": 4}, "sz399006": {"score": 10, "direction": "b

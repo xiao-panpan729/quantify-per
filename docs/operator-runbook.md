@@ -20,7 +20,7 @@
 
 ```bash
 # 查看单标的详情
-python scan_opportunities.py --code sz159740
+python cycle_engine.py --code sz159740
 
 # 检查闭环数据
 # 打开 signals/tracking/sz159740/closes.json
@@ -45,7 +45,7 @@ python scan_opportunities.py --code sz159740
 
 ```bash
 # 验证语法
-python -m py_compile D:\quantify-per\scan_opportunities.py
+python -m py_compile D:\quantify-per\cycle_engine.py
 
 # 快速测试单标的信号读取
 python -c "import csv; r=csv.DictReader(open(r'D:\quantify-per\signals\tracking\sz159740\min5_signals.csv')); print(sum(1 for _ in r), 'rows')"
@@ -65,7 +65,7 @@ python -c "import json; d=json.load(open(r'D:\quantify-per\signals\tracking\sz15
 ls D:\quantify-per\signals\tracking\sz159740\min5_signals.csv
 
 # 如果有文件但报告报错，尝试单标的
-python D:\quantify-per\scan_opportunities.py --code sz159740
+python D:\quantify-per\cycle_engine.py --code sz159740
 ```
 
 ### 4.2 信号异常（比如 CCI 巨大）

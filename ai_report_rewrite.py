@@ -16,6 +16,7 @@ BASE = Path(__file__).parent.resolve()
 sys.path.insert(0, str(BASE))
 
 from ai_analyzer import call_llm, load_persona, load_framework
+from config import NAME_MAP
 
 CYCLE_REPORT = BASE / 'signals' / 'tracking' / 'cycle_report.json'
 SYNTH_REPORT = BASE / 'signals' / 'tracking' / 'synthesized_report.json'
@@ -242,6 +243,8 @@ def main():
     if not cycle:
         print('[错误] 找不到 cycle_report.json')
         sys.exit(1)
+    # 排除 volume_leader 等动态标的，仅保留固定跟踪标的
+    cycle = [r for r in cycle if r.get('code') in NAME_MAP]
     synth = load_json(SYNTH_REPORT)
     score_data = load_json(SCORE_HISTORY)
     hht_raw = load_json(HHT_REPORT)

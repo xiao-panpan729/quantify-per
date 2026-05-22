@@ -23,10 +23,11 @@ CSV 缓存 / SQLite
 多周期信号快照 CSV
   ↓（update_tracking.py 管理）
 signals/tracking/{code}/{period}_signals.csv
-  ↓（scan_opportunities.py 分析）
-  ├─ 闭环检测 → closes.json
-  ├─ 多级别嵌套分析
-  └─ 每日报告 → reports/daily/YYYYMMDD.md
+  ↓（cycle_engine.py 分析）
+  ├─ 多层次分析（位置/趋势/循环）
+  ├─ ABCD分级 + 操作建议
+  ├─ 分钟闭环检测 → cycle_report.json
+  └─ 每日报告 → reports/daily/YYYYMMDD_v3.md + v3_nl.md
 ```
 
 ---
@@ -38,7 +39,7 @@ signals/tracking/{code}/{period}_signals.csv
 | 数据同步 | `update_from_tdx.py` | 通达信→CSV缓存 | `.day`/`.lc5` | `data/*.csv` |
 | 信号引擎 | `signal_engine.py` | 计算指标+信号 | `data/*.csv` | `signals/tracking/*.csv` |
 | 跟踪管理 | `update_tracking.py` | 管理12只标的的快照 | `signals/tracking/*.csv` | 同上（增量更新） |
-| 机会扫描 | `scan_opportunities.py` | 报告+闭环+嵌套分析 | `signals/tracking/*.csv` | 报告/JSON |
+| 周期分析 | `cycle_engine.py` `/ cycle_engine/` | 趋势评分+ABCD分级+信号质量+操作建议 | `signals/tracking/*.csv` | cycle_report.json |
 | 筹码选股 | `chips_selector.py` | 筹码集中度筛选 | data/ | 候选列表 |
 | AI分析 | `ai_analyzer.py` | API调用生成智能分析 | 报告.md | 分析.md |
 
@@ -154,8 +155,7 @@ signals/tracking/{code}/{period}_signals.csv
 |:---|:---|
 | 信号快照 | `D:\quantify-per\signals\tracking\{code}\{period}_signals.csv` |
 | 闭环数据 | `D:\quantify-per\signals\tracking\{code}\closes.json` |
-| 每日报告 | `D:\quantify-per\reports\daily\YYYYMMDD.md` |
-| 判断日志 | `D:\quantify-per\reports\judgement_log.csv` |
+| 每日报告 | `D:\quantify-per\reports\daily\YYYYMMDD_v3.md` (结构化) + `_v3_nl.md` (AI自然语言) |
 | 上下文约束 | `D:\quantify-per\prompts\trading_persona.md` |
 | 日线缓存 | `D:\quantify-per\data\day\{code}.csv` |
 | 分钟线缓存 | `D:\quantify-per\data\min5\{code}.csv` |

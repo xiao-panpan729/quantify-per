@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "<string>", line 4, in <module>
-    with open('/dev/null', 'w') as f:
-         ~~~~^^^^^^^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/dev/null'

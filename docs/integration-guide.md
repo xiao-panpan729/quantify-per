@@ -28,7 +28,8 @@ D:\quantify-per\run_daily.bat
 自动执行：
 1. `update_from_tdx.py` — 同步通达信数据到 CSV
 2. `update_tracking.py` — 计算信号 → 快照
-3. `scan_opportunities.py --report` — 生成 Markdown 报告
+3. `cycle_engine.py --save` — 周期循环分析 → cycle_report.json
+4. `gen_report_md.py` — 生成 Markdown 报告
 
 ### 2.2 单独运行各模块
 
@@ -39,17 +40,14 @@ python D:\quantify-per\update_from_tdx.py
 # 只更新某只标的的跟踪快照
 python D:\quantify-per\update_tracking.py --code sz159740
 
-# 只生成报告（依赖快照已存在）
-python D:\quantify-per\scan_opportunities.py --report
+# 生成报告（依赖 cycle_report.json 已存在）
+python D:\quantify-per\gen_report_md.py
+
+# AI 自然语言日报
+python D:\quantify-per\ai_report_rewrite.py
 
 # 单标的多周期详情
-python D:\quantify-per\scan_opportunities.py --code sh513310
-
-# AI 智能分析（生成 AI 版本的报告）
-python D:\quantify-per\scan_opportunities.py --report --ai
-
-# 指定日期报告
-python D:\quantify-per\scan_opportunities.py --report --date 20260429
+python D:\quantify-per\cycle_engine.py --code sh513310
 
 # 筹码选股
 python D:\quantify-per\chips_selector.py
@@ -183,5 +181,5 @@ CCI: 值（极值类型）
 | 报告说"无数据" | 通达信还没下载盘后数据 | 先打开通达信下载 |
 | CCI 值巨大 | 价格缩放因子未除 | `/10000` |
 | 信号漏了 ★买 | 时序窗口太短 | 检查 `look_forward` 参数 |
-| 闭环数据不对 | 没运行过 `--report` | 先运行 scan_opportunities.py |
+| 闭环数据不对 | 没运行过 `cycle_engine.py --save` | 先运行 cycle_engine.py --save |
 | 时间戳全是同一天 | `get_file_date()` 返回 YYYYMMDD 字符串 | 改为返回 float |

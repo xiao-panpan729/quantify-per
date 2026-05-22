@@ -50,8 +50,9 @@ def _ensure_data():
     return _data_cache, _hht_cache
 
 def _get_data():
+    """仅返回固定跟踪标的（NAME_MAP）的数据，排除 volume_leader 等动态标的"""
     _ensure_data()
-    return _data_cache
+    return [r for r in _data_cache if r.get('code') in NAME_MAP]
 
 def _get_hht():
     _ensure_data()
