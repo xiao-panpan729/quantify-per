@@ -31,11 +31,13 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
+import config
+
 # ===== 路径配置 =====
-TDX_VIPDOC = r'C:\zd_cjzq\vipdoc'
-GBBQ_CSV = r'D:\quantify-per\gbbq\gbbq.csv'
-RANK_HISTORY_CSV = r'D:\quantify-per\signals\tracking\volume_rank_history.csv'
-UNIVERSE_PATH = r'D:\quantify-per\signals\tracking\volume_leader_universe.json'
+TDX_VIPDOC = os.path.join(config.TDX_ROOT, 'vipdoc')
+GBBQ_CSV = os.path.join(config.PROJECT_ROOT, 'gbbq', 'gbbq.csv')
+RANK_HISTORY_CSV = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', 'volume_rank_history.csv')
+UNIVERSE_PATH = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', 'volume_leader_universe.json')
 
 # ===== 常量 =====
 PRICE_COEF = 0.01       # A股日线价格系数
@@ -141,7 +143,6 @@ def _load_names():
     if NAME_CACHE:
         return NAME_CACHE
 
-    import config
     NAME_CACHE = {}
 
     # 1. 本地名称缓存

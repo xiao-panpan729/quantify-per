@@ -5,8 +5,8 @@
 """
 
 import sys, os
-sys.path.insert(0, 'D:\\quantify-per')
-sys.path.insert(0, 'D:\\quantify-per\\tools')
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tdx_fetch import fetch_bars
 
 def calc_ema(values, n=12):

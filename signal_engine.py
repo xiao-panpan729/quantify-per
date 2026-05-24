@@ -18,6 +18,8 @@ import json
 from collections import deque
 from datetime import datetime
 
+import config
+
 # ========== 常量 ==========
 
 DAY_PRICE_FACTOR = 1000   # 日线价格编码: price * 1000
@@ -1092,8 +1094,8 @@ def save_snapshot(filepath, all_snapshots):
 # ========== 文件路径工具 ==========
 
 def get_data_path(code, market, period):
-    """获取数据文件路径"""
-    base = r'D:\quantify-per'
+    """获取数据文件路径（自适应项目根目录）"""
+    base = config.PROJECT_ROOT
     ext_map = {
         'daily': '.day', 'min1': '.lc1', 'min5': '.lc5',
         'min15': '.lc15', 'min30': '.lc30', 'min60': '.lc60',
@@ -1108,8 +1110,8 @@ def get_data_path(code, market, period):
 
 
 def get_signal_path(code, period, fmt='csv'):
-    """获取信号输出文件路径"""
-    base = r'D:\quantify-per\signals\tracking'
+    """获取信号输出文件路径（自适应项目根目录）"""
+    base = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking')
     period_file = {
         'daily': 'daily_signals', 'min1': 'min1_signals',
         'min5': 'min5_signals', 'min15': 'min15_signals',

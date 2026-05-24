@@ -21,9 +21,10 @@ import json
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import config
 import signal_engine as se
 
-UNIVERSE_PATH = r'D:\quantify-per\signals\tracking\volume_leader_universe.json'
+UNIVERSE_PATH = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', 'volume_leader_universe.json')
 PERIODS = ['daily', 'min1', 'min5', 'min15', 'min30', 'min60']
 
 

@@ -14,14 +14,17 @@ import os
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tools'))
+import config
 from ai_analyzer import call_llm, load_persona, load_framework
 
-CYCLE_REPORT = r'D:\quantify-per\signals\tracking\cycle_report.json'
-SYNTH_REPORT = r'D:\quantify-per\signals\tracking\synthesized_report.json'
-SCORE_HISTORY = r'D:\quantify-per\signals\tracking\score_history.json'
-UNIVERSE_PATH = r'D:\quantify-per\signals\tracking\volume_leader_universe.json'
-NAME_CACHE = r'D:\quantify-per\signals\tracking\stock_names.csv'
-REPORT_DIR = r'D:\quantify-per\reports\volume_leader'
+_BASE = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking')
+CYCLE_REPORT = os.path.join(_BASE, 'cycle_report.json')
+SYNTH_REPORT = os.path.join(_BASE, 'synthesized_report.json')
+SCORE_HISTORY = os.path.join(_BASE, 'score_history.json')
+UNIVERSE_PATH = os.path.join(_BASE, 'volume_leader_universe.json')
+NAME_CACHE = os.path.join(_BASE, 'stock_names.csv')
+REPORT_DIR = os.path.join(config.PROJECT_ROOT, 'reports', 'volume_leader')
 
 
 def load_json(path):

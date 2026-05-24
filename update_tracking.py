@@ -15,6 +15,8 @@ import os
 import json
 import time
 
+import config
+
 # 确保能导入 signal_engine 和 tools
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tools'))
@@ -361,7 +363,7 @@ def main():
         save_to_db(code, periods_data)
 
     # 保存 latest.json（单标模式：合并旧数据，不丢其他标的快照）
-    snapshot_path = os.path.join(r'D:\quantify-per\signals\tracking', 'latest.json')
+    snapshot_path = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', 'latest.json')
     if target_code and os.path.exists(snapshot_path):
         try:
             old = json.loads(open(snapshot_path, 'r', encoding='utf-8').read())

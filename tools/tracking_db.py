@@ -33,7 +33,10 @@ import sys
 import io
 from datetime import datetime
 
-DB_PATH = r'D:\quantify-per\data\tracking.db'
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import config
+
+DB_PATH = os.path.join(config.PROJECT_ROOT, 'data', 'tracking.db')
 
 # 支持的周期列表
 VALID_PERIODS = ['daily', 'min15', 'min30', 'min60']

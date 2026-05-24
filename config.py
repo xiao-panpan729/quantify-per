@@ -11,19 +11,62 @@ from pathlib import Path
 # ========== 路径自适应 ==========
 
 def find_tdx_path():
-    """自动检测通达信安装路径"""
+    """自动检测通达信安装路径（多策略，适应任意盘符和券商定制版）"""
+    import subprocess, string
+
+    # ─── 策略1: 检查已知候选路径（最快） ───
     candidates = [
         r'C:\zd_cjzq',
         r'C:\new_zdzq',
         r'C:\new_dxzq',
         r'C:\new_hxzq',
+        r'C:\国金证券',
+        r'C:\华泰证券',
+        r'C:\htzq',
         r'D:\zd_cjzq',
         r'D:\new_zdzq',
+        r'D:\国金证券',
+        r'D:\华泰证券',
+        r'D:\htzq',
+        r'E:\zd_cjzq',
+        r'E:\金长江',
+        r'E:\new_zdzq',
     ]
     for p in candidates:
         if os.path.exists(os.path.join(p, 'vipdoc')):
             return p
-    # 如果没找到，返回默认值（后续会报错提示）
+
+    # ─── 策略2: 从正在运行的通达信进程获取路径 ───
+    try:
+        result = subprocess.run(
+            ['wmic', 'process', 'where', "name='TdxW.exe'", 'get', 'ExecutablePath'],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.endswith('TdxW.exe') and os.path.exists(line):
+                tdx_dir = os.path.dirname(line)
+                if os.path.exists(os.path.join(tdx_dir, 'vipdoc')):
+                    return tdx_dir
+    except Exception:
+        pass
+
+    # ─── 策略3: 全盘扫描（只查各驱动器根目录下一级子目录） ───
+    for letter in string.ascii_uppercase:
+        drive = f'{letter}:'
+        if not os.path.exists(drive):
+            continue
+        try:
+            for name in os.listdir(drive):
+                full = os.path.join(drive, name)
+                if os.path.isdir(full) and os.path.exists(os.path.join(full, 'vipdoc')):
+                    return full
+        except PermissionError:
+            continue
+        except Exception:
+            continue
+
+    # 所有策略都失败，返回默认值
     return r'C:\zd_cjzq'
 
 def find_python():

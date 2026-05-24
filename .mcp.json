@@ -1,16 +1,5 @@
 {
   "mcpServers": {
-    "weixin_search_mcp": {
-      "command": "C:\\Users\\Administrator\\.local\\bin\\uvx.exe",
-      "args": [
-        "--from",
-        "weixin-search-mcp",
-        "weixin_search_mcp",
-        "--transport",
-        "stdio"
-      ],
-      "description": "微信公众号文章搜索与内容获取（搜狗微信搜索接口）"
-    },
     "anysearch": {
       "type": "streamable-http",
       "url": "https://api.anysearch.com/mcp",
