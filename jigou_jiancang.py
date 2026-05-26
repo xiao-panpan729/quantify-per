@@ -438,13 +438,13 @@ if __name__ == '__main__':
     import sys
     from pytdx.reader import TdxDailyBarReader
     import pandas as pd
+    from config import TDX_ROOT
 
     # 默认参数
     code = sys.argv[1] if len(sys.argv) > 1 else 'sh600438'
     days = int(sys.argv[2]) if len(sys.argv) > 2 else 60
 
-    # 读取日线数据
-    TDX_ROOT = r'C:\zd_cjzq'
+    # 读取日线数据（路径从 config 自动检测）
     if code.startswith('sz'):
         market = 'sz'
         tdx_code = code[2:]

@@ -27,7 +27,7 @@ def get_market_coefficient():
     上证指数已加入跟踪列表(sh000001)，和个股用完全相同的体系。
 
     输出:
-      1. 基础评分: judge_trend 日线趋势方向(0-16分)
+      1. 基础评分: judge_trend 日线趋势方向(0-14分)
       2. 拐点: 评分 + 大盘自身主导周期方向
       3. 大盘主导周期: detect_dominant_cycle
       4. 大盘结构: judge_wave_structure
@@ -53,7 +53,7 @@ def get_market_coefficient():
         return result
 
     # 大盘基础评分（和个股完全一样）
-    trend = judge_trend(code, daily_rows, 0)
+    trend = judge_trend(code, daily_rows, 0, cached_rows.get('min30', []), cached_rows.get('min60', []))
     direction = trend.get('direction', Direction.NEUTRAL)
     score = trend.get('score', 8)
 
@@ -77,13 +77,20 @@ def get_market_coefficient():
     dc_label = dominant_info.get('dominant_label', '')
     ws_direction = wave_struc.get('direction', '') if wave_struc else ''
 
-    # 拐点: 评分 + 主导周期方向
-    if score >= 10 and ws_direction == '卖闭环':
+    # 拐点: 评分区间 + 主导周期方向
+    zone_adv = trend.get('zone_advice', '')
+    if zone_adv.startswith('fragile_high') and ws_direction == '卖闭环':
+        inflection = '虚高走弱'
+        inflection_adj = -0.08
+    elif score >= 10 and ws_direction == '卖闭环':
         inflection = '高位走弱'
         inflection_adj = -0.05
     elif score <= 6 and ws_direction == '买闭环':
         inflection = '低位走强'
         inflection_adj = 0.08
+    elif score <= 3 and ws_direction == '买闭环':
+        inflection = '筑底走强'
+        inflection_adj = 0.12
     else:
         inflection = '平稳'
         inflection_adj = 0.0
@@ -122,6 +129,67 @@ def get_market_coefficient():
     return result
 
 get_market_coefficient._cache = None
+
+
+# 评分历史缓存（一次会话只读一次）
+_score_history_cache = None
+
+def _classify_fragile_path(code, current_score, zone_advice):
+    """
+    区分 fragile_high 的来时路: 低位续涨 vs 高位陷阱
+
+    原理:
+    - 低位续涨: 评分从 <8 爬升到 11+，趋势生长中
+    - 高位陷阱: 之前已到 11+，大幅回撤后再次冲高
+
+    返回: (refined_zone, refined_label)
+    """
+    if zone_advice != 'fragile_high':
+        return zone_advice, None
+
+    global _score_history_cache
+    if _score_history_cache is None:
+        path = SNAPSHOT_DIR / 'score_history.json'
+        if path.exists():
+            try:
+                _score_history_cache = json.load(open(path, 'r', encoding='utf-8'))
+            except Exception:
+                _score_history_cache = {}
+
+    history = _score_history_cache.get('history', []) if _score_history_cache else []
+    if len(history) < 3:
+        return zone_advice, None
+
+    # 提取该标的评分序列
+    scores = []
+    for h in history:
+        s = h.get('scores', {}).get(code, {})
+        if isinstance(s, dict):
+            sc = s.get('score')
+        else:
+            sc = s
+        if sc is not None:
+            scores.append(sc)
+
+    if len(scores) < 3:
+        return zone_advice, None
+
+    recent = scores[-10:] if len(scores) >= 10 else scores
+
+    # 高位陷阱: 之前到过高位，大幅回撤后再次冲高
+    # 检查: 过去10天内曾 >= (当前-0.5)，然后从该高点回撤 >= 1.5 分
+    for i in range(len(recent) - 1):
+        if recent[i] >= current_score - 0.5:
+            peak = recent[i]
+            remaining = recent[i + 1:]
+            if remaining and (peak - min(remaining)) >= 1.5:
+                return 'fragile_high_trap', '高位陷阱（二次冲高）'
+
+    # 低位续涨: 5天前评分显著低于当前 (>=3分差距)
+    if len(scores) >= 5 and scores[-5] <= current_score - 3.0:
+        return 'fragile_high_uptrend', '高位续涨（趋势生长）'
+
+    return zone_advice, None
 
 
 # ============================================================
@@ -443,7 +511,14 @@ def analyze(code, name=''):
         daily_net_score = sq.get('net_score', 0.0)
 
     # 第二层: 趋势方向 (传入日线净值)
-    trend = judge_trend(code, daily_rows, daily_net_score)
+    trend = judge_trend(code, daily_rows, daily_net_score, cached_rows.get('min30', []), cached_rows.get('min60', []))
+
+    # 来时路路径分析: 区分 fragile_high 低位续涨 vs 高位陷阱
+    refined_zone, refined_label = _classify_fragile_path(
+        code, trend.get('score', 0), trend.get('zone_advice', ''))
+    if refined_label:
+        trend['zone_advice'] = refined_zone
+        trend['zone_label'] = refined_label
 
     # 第三层: 各周期循环适配
     period_results = {}

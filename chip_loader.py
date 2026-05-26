@@ -30,12 +30,13 @@ import os
 import csv
 from datetime import datetime
 from collections import defaultdict
+from config import PROJECT_ROOT
 
 # ============================================================
 # 配置
 # ============================================================
 
-CHIP_DIR = r'D:\quantify-per\data\chips'
+CHIP_DIR = os.path.join(PROJECT_ROOT, 'data', 'chips')
 
 # 代码 → 文件名前缀映射 (筹码数据文件命名规则)
 # v2: code 参数直接就是前缀(如 sh600438)，不再需要映射表

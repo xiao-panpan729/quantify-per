@@ -129,7 +129,9 @@ def build_table(cycle, synth, hht_labels):
     def sort_key(stk):
         g = stk.get('trend', '').split()[-1] if stk.get('trend') else ''
         g_order = GRADE_ORDER.get(g, 99)
-        sc = stk.get('score', 0) or 0
+        sc = stk.get('score', 0)
+        if not isinstance(sc, (int, float)):
+            sc = 0
         # 分类排序
         cat_order = {'可操作': 0, '强势追踪': 1, '中性偏强': 2, '关注': 3, '观望': 4}
         return (cat_order.get(stk['cat'], 9), g_order, -sc)
@@ -271,7 +273,7 @@ def main():
     dp = next((s for s in cycle if s.get('code') == 'sh000001'), None)
     if dp:
         t = dp.get('trend', {})
-        context_lines.append(f'大盘: {DIR_EN_MAP.get(t.get("direction",""),t.get("direction",""))} {t.get("score","?")}/16分')
+        context_lines.append(f'大盘: {DIR_EN_MAP.get(t.get("direction",""),t.get("direction",""))} {t.get("score","?")}/14分')
         context_lines.append(f'大盘建议: {dp.get("advice",{}).get("action","?") if isinstance(dp.get("advice"),dict) else "?"}')
         context_lines.append(f'大盘HHT: {hht_labels.get("sh000001","-")}')
         context_lines.append('')
@@ -309,8 +311,8 @@ def main():
         adv_action = adv.get('action', '') if isinstance(adv, dict) else str(adv)
 
         context_lines.append(f'【{name}】收盘{close_str}')
-        context_lines.append(f'趋势:{t.get("direction","?")} 评分:{t.get("score","?")}/16')
-        context_lines.append(f'ABCD:{syn.get("grade","?")} 建议:{adv_action}')
+        context_lines.append(f'趋势:{t.get("direction","?")} 评分:{t.get("score","?")}/14 [{t.get("zone_label","")}]')
+        context_lines.append(f'操作级别:{syn.get("grade","?")} 建议:{adv_action}')
         context_lines.append(f'HHT:{hht_labels.get(code,"-")} 信号:{syn.get("signal_summary","-")} 结构:{syn.get("structure_status","-")}')
 
         pos_label = pos_info.get('label', '') if isinstance(pos_info, dict) else str(pos_info) if pos_info else ''

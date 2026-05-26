@@ -119,7 +119,7 @@ def main():
             if is_tracked(code):
                 data = build_radar_data(code)
                 n_sig = len(data['signal_events'])
-                print(f'[雷达] 已加载: {data["name"]} 评分{data["score"]}/16 {n_sig}个信号')
+                print(f'[雷达] 已加载: {data["name"]} 评分{data["score"]}/14 {n_sig}个信号')
                 win.show_status(code, data)
             else:
                 print(f'[雷达] {code} 未跟踪')

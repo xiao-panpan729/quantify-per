@@ -15,10 +15,11 @@ import os
 import sys
 import time
 from pathlib import Path
+from config import PROJECT_ROOT
 
-
+# 筹码峰源数据目录（外部数据，不在项目内）
 SOURCE_DIR = r'D:\筹码峰'
-OUTPUT_BASE = r'D:\quantify-per\data\chips'
+OUTPUT_BASE = os.path.join(PROJECT_ROOT, 'data', 'chips')
 
 # 只解压 A 股（sh + sz 前缀），跳过 bj 北交所
 VALID_PREFIXES = ('sh', 'sz')

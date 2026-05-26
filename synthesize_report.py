@@ -391,6 +391,8 @@ def synthesize_one(code, cycle_item, hht_item):
         'trend': {
             'direction': trend_direction,
             'score': trend.get('score', 0),
+            'zone_advice': trend.get('zone_advice', ''),
+            'zone_label': trend.get('zone_label', ''),
         },
         'period_signals': period_signals,
     }

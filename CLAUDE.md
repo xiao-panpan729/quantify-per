@@ -63,6 +63,10 @@ python tools/volume_leader_screener.py --top 50 --update-rank --sync-universe --
 python update_volume_leaders.py           # ★成交量领导者信号计算（6周期，全量+增量）
 python update_volume_leaders.py sh603986  # 只更新指定标的
 python gen_volume_leader_report.py       # ★成交量领导者 AI 日报 → reports/volume_leader/
+python tools/volume_leader/monitor.py --filter all   # 三级同时弹: MA(试错)/金叉(买)/共振(买完)
+python tools/volume_leader/monitor.py               # 默认 MA级(试错)
+python tools/volume_leader/monitor.py --filter resonance  # 仅共振级(买完)
+python tools/volume_leader/monitor.py --once --no-toast  # 单轮扫描（测试用）
 python tools/a_stock_screener.py        # 全A股强势+波动率排序
 python tools/strong_vol_screener.py     # ETF+主流板块强势筛选
 
@@ -276,18 +280,32 @@ N_trend_min_short = 40     # 5-15分钟线LLV/HHV周期 (lc60用40，非55!)
 
 ## 六、核心领域规则（高频使用）
 
-### 0-16 趋势评分
+### 0-14 趋势评分
 
 | 维度 | 分值 | 逻辑 |
 |------|------|------|
-| EXPMA | 0~2 | e12>e50=2，粘合=1，空头=0 |
-| MACD | 0~4 | 0轴+金叉死叉，强势>0.01% |
+| MACD | 0~4 | 0轴锚定·位置+交叉解耦，6种状态(0轴上金叉/死叉、过渡态、0轴下回踩/深水) |
 | MA排列 | 0~6 | 链式递进5→10→20→60→120→250，断链即停 |
-| 日线闭环 | 0~4 | buy_level>=4→4分, >=3.5→3分 |
+| 日线闭环 | 0~4 | 波段累积扣分制·来时路，含30/60共振(金叉+1/死叉-1) |
 
-方向：13-16上涨 / 10-12偏多 / 7-9中性 / 4-6偏空 / 0-3下跌
+方向：13-14上涨 / 10-12偏多 / 7-9中性 / 4-6偏空 / 0-3下跌
 
-### ABCD 级别匹配
+**操作建议区（基于回测验证）**：
+- fragile_high (11+分): 虚高警示。MACD+MA完美但闭环薄弱易反转。不追高
+- sweet_spot (8-10分): 真实强势区，顺势做多窗口。评分最准区域
+- neutral (3-7分): 中性等待
+- fragile_low (0-2分): 筑底观察，不盲目抄底
+
+### 两轴决策框架
+
+| 轴 | 名称 | 来源 | 回答的问题 |
+|:--|:--|:--|:--|
+| 纵轴 | 操作级别 (ABCD) | macd_score(0-4) | 信号在哪个周期可信？ |
+| 横轴 | 环境建议 (zone_advice) | total_score(0-14) | 现在该不该做？ |
+
+两轴独立使用，不互相替代。
+
+### 操作级别（ABCD — 周期筛选）
 
 | 等级 | 条件 | 最小操作级别 |
 |------|------|-------------|

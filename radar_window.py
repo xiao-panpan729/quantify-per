@@ -78,7 +78,7 @@ class RadarWindow(QWidget):
         self.data = data
         self._last_update = datetime.now().strftime('%H:%M:%S')
         if data and data.get('tracked'):
-            self._status_text = f"{data['name']}  评分:{data['score']}/16  {data['direction_label']}"
+            self._status_text = f"{data['name']}  评分:{data['score']}/14  {data['direction_label']}  [{data.get('zone_label','')}]"
             self._build_cache(data)
         else:
             self._status_text = f'{code} 未跟踪' if code else '等待通达信...'
@@ -211,7 +211,7 @@ class RadarWindow(QWidget):
         if self.data and self.data.get('tracked'):
             sc = self.data['score']
             dir_label = self.data['direction_label']
-            st = f'评分:{sc}/16  {dir_label}'
+            st = f'评分:{sc}/14  {dir_label}'
             fm = QFontMetrics(f)
             tw = fm.width(st)
             p.setPen(TEXT)

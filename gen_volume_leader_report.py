@@ -11,6 +11,7 @@
 import json
 import sys
 import os
+import csv as csv_module
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -32,6 +33,94 @@ def load_json(path):
         return None
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
+
+
+SIGNAL_STAR_BUY = '★买'
+TRACKING_DIR = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking')
+
+
+def _load_csv(code, period='min5'):
+    """读取信号CSV，返回list[dict]"""
+    path = os.path.join(TRACKING_DIR, code, f'{period}_signals.csv')
+    if not os.path.exists(path):
+        return []
+    with open(path, 'r', encoding='utf-8') as f:
+        reader = csv_module.DictReader(f)
+        return list(reader)
+
+
+def compute_filter_level(code):
+    """从5分钟信号CSV计算当前 filter level: None / 'ma' / 'jincha' / 'resonance'"""
+    rows = _load_csv(code, 'min5')
+    if not rows or len(rows) < 2:
+        return None
+
+    # 找最近一根有★买的bar（回溯最近96根=约1天）
+    star_i = -1
+    for i in range(len(rows) - 1, max(len(rows) - 96, -1), -1):
+        row = rows[i]
+        if (row.get('buy_signal', '') or '').strip() == SIGNAL_STAR_BUY:
+            star_i = i
+            break
+    if star_i < 0:
+        return None
+
+    star = rows[star_i]
+    ma5 = float(star.get('ma5', 0) or 0)
+    ma10 = float(star.get('ma10', 0) or 0)
+    ma20 = float(star.get('ma20', 0) or 0)
+    if not (ma5 > ma10 > ma20):
+        return None  # 只有裸★买，不展示
+
+    # 最近20根内无死叉事件
+    has_death = False
+    for j in range(1, 21):
+        pos = star_i - j
+        if pos < 0:
+            break
+        cross = (rows[pos].get('expma_cross', '') or '').strip()
+        if cross == '死叉':
+            has_death = True
+            break
+        if cross == '金叉':
+            break
+    if has_death:
+        return None
+
+    # 60分钟expma黄线上方
+    min60 = _load_csv(code, 'min60')
+    min60_ok = False
+    if min60:
+        last60 = min60[-1]
+        c60 = float(last60.get('close', 0) or 0)
+        e50_60 = float(last60.get('expma50', 0) or 0)
+        min60_ok = c60 > e50_60
+    if not min60_ok:
+        return None
+
+    # 5分钟EXPMA金叉？
+    expma12 = float(star.get('expma12', 0) or 0)
+    expma50 = float(star.get('expma50', 0) or 0)
+    if not (expma12 > expma50):
+        return 'ma'  # MA级(试错)
+
+    # 共振检测：15分 + 30分金叉
+    min15 = _load_csv(code, 'min15')
+    min30 = _load_csv(code, 'min30')
+    m15_jincha = False
+    m30_jincha = False
+    for csv_rows, period in [(min15, 'min15'), (min30, 'min30')]:
+        if csv_rows:
+            last = csv_rows[-1]
+            ec = (last.get('expma_cross', '') or '').strip()
+            if ec == '金叉':
+                if period == 'min15':
+                    m15_jincha = True
+                else:
+                    m30_jincha = True
+    if m15_jincha or m30_jincha:
+        return 'resonance'  # 共振级(买完)
+    return 'jincha'  # 金叉级(买)
 
 
 def load_universe_codes():
@@ -59,13 +148,15 @@ def build_summary_table(cycle_items, synth_data, names):
     lines = ['## 一、成交量领导者总览', '']
     lines.append(f'**{datetime.now().strftime("%Y-%m-%d")}** | {len(cycle_items)} 只标的')
     lines.append('')
-    lines.append('| 代码 | 名称 | 收盘 | 趋势 | 评分 | ABCD | 操作建议 | 主导周期 | 结构状态 |')
-    lines.append('|:---|:---|---:|:---|---:|:---|:---|:---|:---|')
+    lines.append('| 代码 | 名称 | 收盘 | 趋势 | 评分 | 操作级别 | 操作建议 | 入场信号 | 主导周期 | 结构状态 |')
+    lines.append('|:---|:---|---:|:---|---:|:---|:---|:---|:---|:---|')
 
     DIR_MAP = {
         'bullish': '上涨', 'bullish_bias': '偏多', 'neutral': '中性',
         'bearish_bias': '偏空', 'bearish': '下跌',
     }
+
+    FILTER_LABEL = {'ma': 'MA(试错)', 'jincha': '金叉(买)', 'resonance': '共振(买完)'}
 
     for item in cycle_items:
         code = item.get('code', '')
@@ -95,7 +186,11 @@ def build_summary_table(cycle_items, synth_data, names):
             elif isinstance(rs, dict) and rs.get('rs_label'):
                 structure = rs['rs_label']
 
-        lines.append(f'| {code} | {name} | {close_str} | {direction} | {score} | {grade} | {action} | {dom_label} | {structure} |')
+        # filter level 入场信号
+        fl = compute_filter_level(code)
+        fl_str = FILTER_LABEL.get(fl, '')
+
+        lines.append(f'| {code} | {name} | {close_str} | {direction} | {score} | {grade} | {action} | {fl_str} | {dom_label} | {structure} |')
 
     return '\n'.join(lines)
 
@@ -154,8 +249,8 @@ def build_ai_context(cycle_items, synth_data):
         action = adv.get('action', '-') if isinstance(adv, dict) else '-'
 
         lines.append(f'【{name}】{code} 收盘{close_str}')
-        lines.append(f'  趋势:{trend.get("direction","?")} 评分:{trend.get("score","?")}/16')
-        lines.append(f'  ABCD:{syn.get("grade","?")} 建议:{action}')
+        lines.append(f'  趋势:{trend.get("direction","?")} 评分:{trend.get("score","?")}/14 [{trend.get("zone_label","")}]')
+        lines.append(f'  操作级别:{syn.get("grade","?")} 建议:{action}')
         lines.append(f'  信号:{syn.get("signal_summary","-")} 结构:{syn.get("structure_status","-")}')
 
         me = item.get('magnitude_engine', {})

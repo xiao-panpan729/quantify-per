@@ -12,7 +12,7 @@
 analyze() — 主函数 (engine.py)
   │
   ├── judge_position()        → 位置 (高位/低位/超跌)
-  ├── judge_trend()           → 方向 (0-16评分)
+  ├── judge_trend()           → 方向 (0-14评分)
   │
   ├── analyze_period() × 6    → 各周期信号质量
   │     │

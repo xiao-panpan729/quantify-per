@@ -300,6 +300,7 @@ def build_overview_html(item):
     mc = item.get('market_coeff', {})
 
     score = t.get('score', 0)
+    zone_label = t.get('zone_label', '')
     direction = t.get('direction', '未知')
     direction_cn = t.get('label', direction)
     grade = adv.get('grade_label', '未知')
@@ -322,11 +323,12 @@ def build_overview_html(item):
     <div class="overview-grid">
         <div class="ov-card">
             <div class="ov-label">趋势评分</div>
-            <div class="ov-value" style="color:{score_color}">{score}<span class="ov-unit">/16</span></div>
+            <div class="ov-value" style="color:{score_color}">{score}<span class="ov-unit">/14</span></div>
             <div class="ov-sub">{direction_cn}</div>
+            <div class="ov-zone" style="color:{score_color};font-size:11px">{zone_label}</div>
         </div>
         <div class="ov-card">
-            <div class="ov-label">ABCD 级别</div>
+            <div class="ov-label">操作级别</div>
             <div class="ov-value grade">{grade}</div>
             <div class="ov-sub">{action}</div>
         </div>
@@ -341,9 +343,9 @@ def build_overview_html(item):
             <div class="ov-sub">最佳周期: {item.get('best_period', '?')}</div>
         </div>
         <div class="ov-card">
-            <div class="ov-label">EXPMA</div>
-            <div class="ov-value">{'多头' if t.get('expma_score', 0) > 0 else '空头'}</div>
-            <div class="ov-sub">MACD: {'多头' if t.get('macd_score', 0) > 1 else '空头'}</div>
+            <div class="ov-label">MACD</div>
+            <div class="ov-value">{'多头' if t.get('macd_score', 0) > 1 else '空头'}</div>
+            <div class="ov-sub">评分: {t.get('macd_score', 0)}</div>
         </div>
         <div class="ov-card">
             <div class="ov-label">位置区间</div>

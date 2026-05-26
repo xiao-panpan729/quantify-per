@@ -2,9 +2,10 @@
 """批量拉取微信公众号最新文章全文（带重试+更健壮）"""
 import urllib.request, urllib.parse, json, os, time, sys
 from datetime import datetime
+from config import PROJECT_ROOT
 
 KEY = os.environ.get('MPTEXT_API_KEY', '8a1e3faf9861407aa6a00eb6d4971e0c')
-OUTPUT_DIR = r'D:\quantify-per\wechat_articles'
+OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'wechat_articles')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 ACCOUNTS = {

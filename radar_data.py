@@ -155,6 +155,7 @@ def build_radar_data(code):
         'score': trend.get('score', 0),
         'direction': trend.get('direction', ''),
         'direction_label': trend.get('label', ''),
+        'zone_label': trend.get('zone_label', ''),
         'advice_label': advice.get('grade_label', ''),
         'advice_action': advice.get('action', ''),
         'dominant_level': cycle.get('best_period', ''),

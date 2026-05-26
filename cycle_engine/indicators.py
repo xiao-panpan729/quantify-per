@@ -401,37 +401,16 @@ def judge_position(daily_rows):
 # 第二层: 趋势方向判断
 # ============================================================
 
-def judge_trend(code, daily_rows, daily_net_score=0.0):
+def judge_trend(code, daily_rows, daily_net_score=0.0, min30_rows=None, min60_rows=None):
     """
-    0-16 评分体系判断趋势方向 — 带日线闭环 + EXPMA
+    0-14 评分体系判断趋势方向
 
-    EXPMA: 0~2分
-      - 2: expma12 > expma50 (白线在上)
-      - 1: 粘合（差距 < 股价×0.5%）
-      - 0: expma12 < expma50 (黄线在上)
-
-    MACD: 0~4分
-      - dif_ratio = |DIF| / close
-      - clearly_off = dif_ratio > 0.01
-      - 4: clearly_off + dif>0 + dif>dea (0轴上,强势多头)
-      - 3: dif>0 + dif>dea (0轴上金叉,未完全远离)
-      - 2: dif<0 + dif>dea (0轴下金叉,弱势) 或 默认
-      - 1: dif<dea (死叉,不论上下)
-      - 0: clearly_off + dif<0 + dif<dea (0轴下,强势空头)
-
+    MACD: 0~4分（0轴锚定·位置+交叉解耦）
     MA排列: 0~6分
-      - 5/10区: close>5MA(0.5) + 5MA>10MA(0.5) → 价格先破5MA再等死叉
-      - 10/20区: close>10MA(0.5) + 10MA>20MA(0.5)
-      - 20/60区: close>20MA(0.5) + 20MA>60MA(0.5)
-      - 60/120区: 60MA>120MA(1.0) — 长线整分不再拆
-      - 120/250区: 120MA>250MA(1.0)
-      - 满分加成(+1): 8个子项全满足
+    日线闭环: 0~4分（波段累积扣分制·来时路, 含30/60共振）
 
-    日线闭环: 0~4分（8维净值制, buy_level - sell_level）
-      - net >= 6.0=4分, >=4.0=3分, >=2.0=2分, >=0=1分, <0=0分
-
-    总分 0~16 → 方向:
-      13-16: bullish    10-12: bullish_bias
+    总分 0~14 → 方向:
+      13-14: bullish    10-12: bullish_bias
       7-9: neutral      4-6: bearish_bias
       0-3: bearish
     """
@@ -447,50 +426,93 @@ def judge_trend(code, daily_rows, daily_net_score=0.0):
 
     details = []
 
-    # ── EXPMA: 0~2分 ──
-    expma_score = 1  # 默认粘合
-    if expma12 and expma50 and close > 0:
-        expma_gap = abs(expma12 - expma50) / close
-        if close > expma12 > expma50 and expma_gap > 0.005:
-            expma_score = 2
-            details.append('EXPMA多头')
-        elif expma12 > expma50:
-            # 白线>黄线但价格跌破白线，结构弱化
-            expma_score = 1
-            details.append('EXPMA偏多(价破白线)')
-        elif expma12 < expma50 and expma_gap > 0.005:
-            expma_score = 0
-            details.append('EXPMA空头')
-        else:
-            expma_score = 1
-            details.append('EXPMA粘合')
-    else:
-        details.append('EXPMA未知')
-
-    # ── MACD: 0~4分 ──
+    # ── MACD: 0~4分（0轴锚定·位置+交叉解耦）──
+    # 位置分(铁律): dif>0=+1, dea>0=+1
+    # 交叉分:
+    #   0轴上(新生):    金叉+2→4  死叉+1→3
+    #   0轴上(水下带上): 金叉+0.5→2.5  死叉0→2
+    #   过渡态:         金叉+1→2  死叉0→1
+    #   0轴下(长期深水): 金叉+1→1  死叉-1→0
+    #   0轴下(1月内上过0轴): 金叉+1.5→1.5  (回踩再攻)
     macd_score = 2
     if close > 0 and macd_dif is not None and macd_dea is not None:
-        dif_ratio = abs(macd_dif) / close
-        clearly_off = dif_ratio > 0.01
+        pos_score = 0
+        if macd_dif > 0: pos_score += 1
+        if macd_dea > 0: pos_score += 1
 
-        if clearly_off and macd_dif > 0 and macd_dif > macd_dea:
-            macd_score = 4
-            details.append('MACD多头强')
-        elif macd_dif > 0 and macd_dif > macd_dea:
-            macd_score = 3
-            details.append('MACD金叉(0轴上)')
-        elif macd_dif < 0 and macd_dif > macd_dea:
-            macd_score = 2
-            details.append('MACD金叉(0轴下)')
-        elif clearly_off and macd_dif < 0 and macd_dif < macd_dea:
-            macd_score = 0
-            details.append('MACD空头强')
-        elif macd_dif < macd_dea:
-            macd_score = 1
-            details.append('MACD死叉')
+        is_golden = macd_dif > macd_dea
+        dif_above = macd_dif > 0
+        dea_above = macd_dea > 0
+
+        # ── 追溯最近一次金叉事件的来源（0轴上新生 / 水下带上）──
+        golden_origin = 'earned'
+        if dif_above and dea_above:
+            for j in range(len(daily_rows)-1, max(0, len(daily_rows)-500), -1):
+                prev_dif_j = safe_float(daily_rows[j-1].get('macd_dif', 0))
+                prev_dea_j = safe_float(daily_rows[j-1].get('macd_dea', 0))
+                cur_dif_j = safe_float(daily_rows[j].get('macd_dif', 0))
+                cur_dea_j = safe_float(daily_rows[j].get('macd_dea', 0))
+                if prev_dif_j <= prev_dea_j and cur_dif_j > cur_dea_j:
+                    golden_origin = 'earned' if cur_dea_j > 0 else 'carried'
+                    break
+                if cur_dif_j < 0 and cur_dea_j < 0:
+                    golden_origin = 'carried'
+                    break
+
+        # ── 0轴下金叉：检测1月内是否上过0轴（回踩再攻 vs 长期深水）──
+        recently_above_zero = False
+        if not dif_above and not dea_above and is_golden:
+            lookback = min(20, len(daily_rows)-1)
+            for j in range(len(daily_rows)-1, len(daily_rows)-1-lookback, -1):
+                prev_dif_j = safe_float(daily_rows[j].get('macd_dif', 0))
+                prev_dea_j = safe_float(daily_rows[j].get('macd_dea', 0))
+                if prev_dif_j > 0 and prev_dea_j > 0:
+                    recently_above_zero = True
+                    break
+
+        # ── 评分 ──
+        if dif_above and dea_above:
+            if is_golden:
+                if golden_origin == 'carried':
+                    cross_score = 0.5
+                    macd_score = pos_score + cross_score
+                    details.append(f'MACD金叉(0轴下带上·待确认) {macd_score:.1f}/4')
+                else:
+                    cross_score = 2
+                    macd_score = pos_score + cross_score
+                    details.append(f'MACD金叉(0轴上) {macd_score}/4')
+            else:
+                if golden_origin == 'carried':
+                    cross_score = 0
+                    macd_score = pos_score + cross_score
+                    details.append(f'MACD死叉(0轴上·弱) {macd_score:.1f}/4')
+                else:
+                    cross_score = 1
+                    macd_score = pos_score + cross_score
+                    details.append(f'MACD死叉(0轴上) {macd_score}/4')
+        elif not dif_above and not dea_above:
+            if is_golden:
+                if recently_above_zero:
+                    cross_score = 1.5
+                    macd_score = pos_score + cross_score
+                    details.append(f'MACD金叉(0轴下·回踩再攻) {macd_score:.1f}/4')
+                else:
+                    cross_score = 1
+                    macd_score = pos_score + cross_score
+                    details.append(f'MACD金叉(0轴下) {macd_score}/4')
+            else:
+                cross_score = -1
+                macd_score = max(0, pos_score + cross_score)
+                details.append(f'MACD空头(0轴下) {macd_score}/4')
         else:
-            macd_score = 2
-            details.append('MACD中性')
+            if is_golden:
+                cross_score = 1
+                macd_score = pos_score + cross_score
+                details.append(f'MACD金叉(过渡·单线上穿) {macd_score}/4')
+            else:
+                cross_score = 0
+                macd_score = pos_score + cross_score
+                details.append(f'MACD死叉(过渡·单线先破) {macd_score}/4')
     else:
         details.append('MACD未知')
 
@@ -556,23 +578,119 @@ def judge_trend(code, daily_rows, daily_net_score=0.0):
     else:
         details.append('均线无序')
 
-    # ── 日线闭环: 0~4分（8维净值制, buy_level - sell_level） ──
-    cycle_score = 0
-    if daily_net_score >= 6.0:
-        cycle_score = 4
-        details.append('日线★买(加强出击)')
-    elif daily_net_score >= 4.0:
-        cycle_score = 3
-        details.append('日线★买(短期确认)')
-    elif daily_net_score >= 2.0:
-        cycle_score = 2
-        details.append('日线★买(加强信号)')
-    elif daily_net_score >= 0:
-        cycle_score = 1
-        details.append('日线信号偏弱')
+    # ── 日线闭环: 0~4分（波段累积扣分制·来时路）──
+    # 每项独立追踪余额，扣分不超过该项累积。★卖为结构性扣分，直接计入。
+    items = {}  # {name: balance}
+    cycle_items = []
 
-    # ── 总分 0~16 ──
-    total_score = expma_score + macd_score + ma_score + cycle_score
+    # 找最近★卖作为锚点
+    last_sell_idx = None
+    for i in range(len(daily_rows) - 1, -1, -1):
+        if str(daily_rows[i].get('sell_signal', '')).strip():
+            last_sell_idx = i
+            break
+
+    # 累积参考点: ★卖之前那根K线（如无★卖则用最新）
+    ref_row = daily_rows[last_sell_idx - 1] if last_sell_idx and last_sell_idx > 0 else last
+    ref_close = safe_float(ref_row.get('close', 0))
+    ref_e12 = safe_float(ref_row.get('expma12', 0))
+    ref_e50 = safe_float(ref_row.get('expma50', 0))
+
+    # --- 累积(★卖前的状态) ---
+    # 1) EXPMA多头: 金叉期内=+2
+    if ref_e12 and ref_e50 and ref_close > 0 and ref_e12 > ref_e50:
+        items['EXPMA'] = 2.0
+        cycle_items.append('EXPMA+2')
+    elif ref_e12 and ref_e50:
+        cycle_items.append('EXPMA空头')
+
+    # 2) 60分钟次级别★买(★卖前240根内)
+    if min60_rows:
+        end_idx = len(min60_rows)
+        if last_sell_idx is not None:
+            sell_date = str(daily_rows[last_sell_idx].get('date', ''))[:10]
+            for j in range(len(min60_rows) - 1, -1, -1):
+                if str(min60_rows[j].get('date', ''))[:10] <= sell_date:
+                    end_idx = j
+                    break
+        start_idx = max(0, end_idx - 240)
+        buy60_count = sum(1 for r in min60_rows[start_idx:end_idx]
+                         if str(r.get('buy_signal', '')).strip())
+        if buy60_count > 0:
+            bonus = min(buy60_count, 4) * 0.5
+            items['60min★买'] = bonus
+            cycle_items.append(f'60min★买×{buy60_count}+{bonus:.1f}')
+
+    # 3) 30/60共振 — 扫描累积期内是否存在金叉共振
+    if min30_rows and min60_rows:
+        pre_end_30 = len(min30_rows)
+        pre_end_60 = len(min60_rows)
+        if last_sell_idx is not None:
+            sell_date = str(daily_rows[last_sell_idx].get('date', ''))[:10]
+            for j in range(len(min30_rows)):
+                if str(min30_rows[j].get('date', ''))[:10] > sell_date:
+                    pre_end_30 = j
+                    break
+            for j in range(len(min60_rows)):
+                if str(min60_rows[j].get('date', ''))[:10] > sell_date:
+                    pre_end_60 = j
+                    break
+        pre30_gold = any(
+            safe_float(r.get('expma12', 0)) > safe_float(r.get('expma50', 0))
+            for r in min30_rows[max(0, pre_end_30-200):pre_end_30]
+        )
+        pre60_gold = any(
+            safe_float(r.get('expma12', 0)) > safe_float(r.get('expma50', 0))
+            for r in min60_rows[max(0, pre_end_60-100):pre_end_60]
+        )
+        if pre30_gold and pre60_gold:
+            items['30/60共振'] = 1.0
+            cycle_items.append('30/60共振+1')
+
+    # --- 扣分(来时路: 每项独立扣, 余额不低于0) ---
+    if last_sell_idx is not None:
+        # ★卖: 结构性扣分, 直接计入总分
+        sell_count = sum(1 for r in daily_rows[last_sell_idx:]
+                        if str(r.get('sell_signal', '')).strip())
+        items['★卖'] = -1.0 * sell_count
+        cycle_items.append(f'★卖×{sell_count}-{sell_count}')
+
+        # 破白线 → 扣 EXPMA
+        if expma12 and close < expma12 and 'EXPMA' in items:
+            items['EXPMA'] = max(0, items['EXPMA'] - 0.5)
+            cycle_items.append('破白线-0.5')
+
+        # 破黄线 → 扣 EXPMA
+        if expma50 and close < expma50 and 'EXPMA' in items:
+            items['EXPMA'] = max(0, items['EXPMA'] - 0.5)
+            cycle_items.append('破黄线-0.5')
+
+        # EXPMA死叉 → 扣 EXPMA
+        if expma12 and expma50 and expma12 < expma50 and 'EXPMA' in items:
+            items['EXPMA'] = max(0, items['EXPMA'] - 0.5)
+            cycle_items.append('EXPMA死叉-0.5')
+
+        # 30/60死叉共振 — 无条件(无需日线死叉触发)
+        if min30_rows and min60_rows and '30/60共振' in items:
+            e30_12 = safe_float(min30_rows[-1].get('expma12', 999))
+            e30_50 = safe_float(min30_rows[-1].get('expma50', 0))
+            e60_12 = safe_float(min60_rows[-1].get('expma12', 999))
+            e60_50 = safe_float(min60_rows[-1].get('expma50', 0))
+            if e30_12 < e30_50 and e60_12 < e60_50:
+                items['30/60共振'] = max(0, items['30/60共振'] - 1.0)
+                cycle_items.append('30/60死叉共振-1')
+
+    cycle_score = max(0, min(4, int(sum(items.values()) + 0.5)))  # 四舍五入
+
+    if cycle_score >= 3:
+        details.append(f'日线闭环强(余额:{dict(items)} {",".join(cycle_items)})')
+    elif cycle_score >= 1:
+        details.append(f'日线闭环弱(余额:{dict(items)} {",".join(cycle_items)})')
+    else:
+        details.append(f'日线闭环无(余额:{dict(items)} {",".join(cycle_items)})')
+
+    # ── 总分 0~14 ──
+    total_score = macd_score + ma_score + cycle_score
 
     if total_score >= 13:
         direction = Direction.BULLISH
@@ -592,16 +710,33 @@ def judge_trend(code, daily_rows, daily_net_score=0.0):
 
     confidence = abs(total_score - 8) / 8 * 100
 
+    # 评分操作建议区（基于回测验证）
+    # 8-10: sweet_spot 顺势窗口 | 11+: fragile_high 虚高警示
+    # 0-2: fragile_low 筑底观察 | 3-7: neutral 中性等待
+    if total_score >= 11:
+        zone_advice = 'fragile_high'
+        zone_label = '虚高警示'
+    elif total_score >= 8:
+        zone_advice = 'sweet_spot'
+        zone_label = '顺势窗口'
+    elif total_score >= 3:
+        zone_advice = 'neutral'
+        zone_label = '中性等待'
+    else:
+        zone_advice = 'fragile_low'
+        zone_label = '筑底观察'
+
     return {
         'direction': direction,
         'label': label,
         'confidence': round(confidence),
         'score': total_score,
-        'expma_score': expma_score,
         'macd_score': macd_score,
         'ma_score': ma_score,
         'cycle_score': cycle_score,
         'daily_net_score': daily_net_score,
+        'zone_advice': zone_advice,
+        'zone_label': zone_label,
         'details': details,
         'close': close,
         'macd_dif': macd_dif,
@@ -819,6 +954,7 @@ def signal_quality(anchors, raw_rows, position, trend, lookback_klines=20, trend
     details = []
 
     # --- 做多侧分析 ---
+    direction = trend.get('direction', 'bullish')  # 默认上涨
     buy_level = 0  # 0=无 1=普通 2=加强 3=最强
     buy_details = []
 

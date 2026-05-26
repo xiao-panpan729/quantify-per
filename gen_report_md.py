@@ -12,11 +12,11 @@ import os
 import re
 from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from config import NAME_MAP
+from config import NAME_MAP, PROJECT_ROOT
 
-DATA_PATH = 'signals/tracking/cycle_report.json'
-HHT_PATH = 'signals/tracking/hht_report.json'
-SYNTH_PATH = 'signals/tracking/synthesized_report.json'
+DATA_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'cycle_report.json')
+HHT_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'hht_report.json')
+SYNTH_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'synthesized_report.json')
 
 _data_cache = None
 _hht_cache = None
@@ -122,7 +122,7 @@ def _hht_summary(code):
     return '-'
 
 # ════════════════ 分数历史 ════════════════
-SCORE_HISTORY = 'signals/tracking/score_history.json'
+SCORE_HISTORY = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'score_history.json')
 
 def load_score_history():
     """返回所有历史条目（按日期排序），空列表 = 无历史"""
@@ -154,7 +154,6 @@ def save_score_history(date_str):
             'score': t.get('score', 0),
             'direction': t.get('direction', 'unknown'),
             'name': item.get('name', ''),
-            'expma_score': t.get('expma_score', 0),
             'macd_score': t.get('macd_score', 0),
             'ma_score': t.get('ma_score', 0),
             'cycle_score': t.get('cycle_score', 0),
@@ -269,7 +268,7 @@ def parse_yesterday_advice(yesterday_date_str):
     从昨日的 v3 报告中解析出每只标的的: 操作建议 + 理由
     返回 {code: {'action': str, 'reason': str}}
     """
-    y_path = os.path.join('reports/daily', '%s_v3.md' % yesterday_date_str)
+    y_path = os.path.join(PROJECT_ROOT, 'reports', 'daily', '%s_v3.md' % yesterday_date_str)
     result = {}
     if not os.path.exists(y_path):
         return result
@@ -311,7 +310,7 @@ def parse_yesterday_advice(yesterday_date_str):
 
 def get_yesterday_close_from_report(yesterday_date_str, code):
     """从昨日报告中提取该标的的收盘价"""
-    y_path = os.path.join('reports/daily', '%s_v3.md' % yesterday_date_str)
+    y_path = os.path.join(PROJECT_ROOT, 'reports', 'daily', '%s_v3.md' % yesterday_date_str)
     if not os.path.exists(y_path): return None
     text = open(y_path, 'r', encoding='utf-8').read()
     # 匹配 ### code name x.xxx [+x.xx%]
@@ -403,8 +402,9 @@ def build_report_lines():
     time_str = now.strftime('%Y-%m-%d %H:%M')
     yesterday_str = (now - timedelta(days=1)).strftime('%Y%m%d')
     # 如果当天不是交易日（周末/假日），往前找最近的有报告的交易日
-    if not os.path.exists(os.path.join('reports/daily', '%s_v3.md' % yesterday_str)):
-        reports = sorted([f.replace('_v3.md','') for f in os.listdir('reports/daily') if f.endswith('_v3.md')], reverse=True)
+    reports_dir = os.path.join(PROJECT_ROOT, 'reports', 'daily')
+    if not os.path.exists(os.path.join(reports_dir, '%s_v3.md' % yesterday_str)):
+        reports = sorted([f.replace('_v3.md','') for f in os.listdir(reports_dir) if f.endswith('_v3.md')], reverse=True)
         if reports:
             yesterday_str = reports[0]
 
@@ -584,12 +584,15 @@ def build_report_lines():
             struct_s = synth.get('structure_status', '?')
             momentum_s = synth.get('momentum_status', '?')
             sig_summary = synth.get('signal_summary', '')
-            lines.append('**三层**: %s | 结构:%s | 动能:%s | %s | → **%s**' % (
+            lines.append('**操作级别**: %s | 结构:%s | 动能:%s | %s | → **%s**' % (
                 grade, struct_s, momentum_s, sig_summary, action))
             lines.append('')
     
         # ── 趋势（含评分+明细） ──
-        trend_parts = ['%s %d/16' % (trend_dir, trend_score)]
+        trend_parts = ['%s %d/14' % (trend_dir, trend_score)]
+        zone_label = t.get('zone_label', '')
+        if zone_label:
+            trend_parts.append('[%s]' % zone_label)
         if isinstance(trend_detail, list) and trend_detail:
             trend_parts.append(' | ' + ' '.join(trend_detail))
         lines.append('- **趋势**: %s' % ''.join(trend_parts))
@@ -763,7 +766,7 @@ def build_report_lines():
     lines.append('')
     
     # ════════════════ 四、战役状态追踪 ════════════════
-    OP_PATH = 'signals/tracking/operation_records.json'
+    OP_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'operation_records.json')
     if os.path.exists(OP_PATH):
         try:
             op_data = json.load(open(OP_PATH, 'r', encoding='utf-8'))
@@ -849,7 +852,7 @@ def build_report_lines():
     lines.append('> **注**: 全部12只标的均展示，无新信号的标注"近期无★信号"。')
     lines.append('')
     
-    bt_path = 'signals/tracking/backtest_report.json'
+    bt_path = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'backtest_report.json')
     bt_data = {}
     if os.path.exists(bt_path):
         bt_data = json.load(open(bt_path, 'r', encoding='utf-8'))
@@ -999,16 +1002,15 @@ def append_params_reference(lines):
     lines.append('> `fs`=频率稳定性：`<0.6`蓄力 → `0.6~1.5`正常 → `>1.5`方向切换 → `>1.8`循环破位')
     lines.append('> `er`=能量比：`<0.5`枯竭 → `0.5~1.5`正常 → `>1.5`增强 → `>2.0`能量爆发')
     lines.append('')
-    lines.append('### 0-16 趋势评分')
+    lines.append('### 0-14 趋势评分')
     lines.append('')
     lines.append('| 维度 | 分值 | 逻辑 |')
     lines.append('|------|:----:|------|')
-    lines.append('| EXPMA | 0~2 | e12>e50=2，粘合=1，空头=0 |')
-    lines.append('| MACD | 0~4 | 0轴+金叉死叉，强势>0.01% |')
-    lines.append('| MA排列 | 0~6 | 扣分制(浮点): 5/10/20区各拆价>MA(0.5)+短>长(0.5)，60/120/250长线整分(各1.0)，满分加成(+1) |')
-    lines.append('| 日线闭环 | 0~4 | 8维净值制: net=buy_level-sell_level，net≥6=4分，≥4=3分，≥2=2分，≥0=1分，<0=0分 |')
+    lines.append('| MACD | 0~4 | 0轴锚定·位置+交叉解耦，6种状态 |')
+    lines.append('| MA排列 | 0~6 | 链式递进5→10→20→60→120→250 |')
+    lines.append('| 日线闭环 | 0~4 | 波段累积扣分制·来时路，含30/60共振 |')
     lines.append('')
-    lines.append('> **方向**: `13~16`上涨 | `10~12`偏多 | `7~9`中性 | `4~6`偏空 | `0~3`下跌')
+    lines.append('> **方向**: `13~14`上涨 | `10~12`偏多 | `7~9`中性 | `4~6`偏空 | `0~3`下跌')
     lines.append('')
     lines.append('### 主导周期')
     lines.append('')
@@ -1020,7 +1022,7 @@ def append_params_reference(lines):
     lines.append('> ⬆升熵 | 趋势松动 → 趋势衰减 → 无序放大（结构溃散过程）')
     lines.append('> ➖平稳 | 无序震荡 / 方向不明')
     lines.append('')
-    lines.append('### ABCD 级别')
+    lines.append('### 操作级别说明（周期筛选）')
     lines.append('')
     lines.append('| 等级 | 条件 | 最小操作 |')
     lines.append('|:----:|------|:--------:|')
@@ -1042,7 +1044,7 @@ def append_params_reference(lines):
 # ═══════════════════════════════════════
 # 增量数据保存 — 积累型 analysis_history.json
 # ═══════════════════════════════════════
-ANALYSIS_HISTORY = 'signals/tracking/analysis_history.json'
+ANALYSIS_HISTORY = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'analysis_history.json')
 
 def save_analysis_history(data, date_str):
     """将当日完整分析快照增量追加到 analysis_history.json
@@ -1111,7 +1113,7 @@ if __name__ == "__main__":
     lines, date_str = build_report_lines()
     append_params_reference(lines)
     report = '\n'.join(lines)
-    out_path = 'reports/daily/%s_v3.md' % date_str
+    out_path = os.path.join(PROJECT_ROOT, 'reports', 'daily', '%s_v3.md' % date_str)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w', encoding='utf-8') as f:
         f.write(report)

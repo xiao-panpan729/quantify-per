@@ -209,3 +209,64 @@ NAME_MAP = {
     'sh600438': '通威股份',
     'sh601012': '隆基绿能',
 }
+
+# ========== 评分操作建议区 ==========
+# 基于 validate_scoring.py 回测验证（23,759条记录，2021-2026）
+# data: 8分+0.73% 9分+0.88% 10分+1.12% 11分+0.27%(虚高) 12分-1.95% 13分-2.87%
+SCORE_ZONES = {
+    'fragile_high': {
+        'min': 11, 'max': 14,
+        'label': '虚高警示',
+        'avg_5d_return': -0.87,
+        'desc': 'MACD+MA完美但闭环薄弱易反转，不追高，等分回落',
+        'color': '#ef4444',
+    },
+    'fragile_high_trap': {
+        'min': 11, 'max': 14,
+        'label': '高位陷阱',
+        'avg_5d_return': -1.50,
+        'desc': '高位二次冲高，之前已到过此分数区间后大幅回撤，再次冲高是陷阱，不追高',
+        'color': '#dc2626',
+    },
+    'fragile_high_uptrend': {
+        'min': 11, 'max': 14,
+        'label': '高位续涨',
+        'avg_5d_return': -0.30,
+        'desc': '从低位爬升到高分区间，趋势生长中，可做多但严格止损',
+        'color': '#f97316',
+    },
+    'sweet_spot': {
+        'min': 8, 'max': 10,
+        'label': '顺势窗口',
+        'avg_5d_return': 0.91,
+        'desc': '真实强势区，顺势做多窗口，评分最准区域',
+        'color': '#22c55e',
+    },
+    'neutral': {
+        'min': 3, 'max': 7,
+        'label': '中性等待',
+        'avg_5d_return': 0.29,
+        'desc': '无明确方向偏好，等待评分进入 sweet_spot 或 fragile_low 确认',
+        'color': '#f59e0b',
+    },
+    'fragile_low': {
+        'min': 0, 'max': 2,
+        'label': '筑底观察',
+        'avg_5d_return': 0.09,
+        'desc': '跌幅衰竭但非V反，不抄底，等评分回到3+确认',
+        'color': '#6b7280',
+    },
+}
+
+def get_score_zone(score):
+    """根据原始评分返回 zone key"""
+    for zone, cfg in sorted(SCORE_ZONES.items(),
+                            key=lambda x: x[1]['min'], reverse=True):
+        if cfg['min'] <= score <= cfg['max']:
+            return zone
+    return 'neutral'
+
+def get_score_label(score):
+    """根据原始评分返回中文标签"""
+    zone = get_score_zone(score)
+    return SCORE_ZONES.get(zone, {}).get('label', '')

@@ -139,16 +139,23 @@ def detect_entry_signals(item):
     action = adv.get('action', '')
     signal_strength = get_signal_strength(item)
 
-    # 1. 趋势评分（最高3分）
-    if trend_score >= 13:
+    # 1. 趋势评分（最高3分）— 基于 zone_advice 验证结论
+    zone_adv = t.get('zone_advice', '')
+    if zone_adv == 'sweet_spot':
         score += 3
-        reasons.append('趋势强(评分%d/16)' % trend_score)
-    elif trend_score >= 10:
+        reasons.append(f'趋势强(评分{trend_score}/14 sweet_spot)')
+    elif zone_adv == 'fragile_high_uptrend':
         score += 2
-        reasons.append('趋势偏多(评分%d/16)' % trend_score)
+        reasons.append(f'趋势虚高续涨(评分{trend_score}/14 高位续涨)')
+    elif zone_adv == 'fragile_high_trap':
+        score += 0
+        reasons.append(f'趋势虚高陷阱(评分{trend_score}/14 高位陷阱)')
+    elif zone_adv == 'fragile_high':
+        score += 1
+        reasons.append(f'趋势虚高(评分{trend_score}/14 虚高警示)')
     elif trend_score >= 7:
         score += 1
-        reasons.append('趋势中性(评分%d/16)' % trend_score)
+        reasons.append(f'趋势中性(评分{trend_score}/14)')
 
     # 2. 主导量级（最高2分）— min30+ 才是有效大级别开仓
     dom_order = {'min5': 0, 'min15': 1, 'min30': 2, 'min60': 3, 'daily': 4}
@@ -278,7 +285,7 @@ def detect_close_signal(item, hht_lookup):
 
     # 1. 趋势逆转
     if trend_score <= 3 and trend_dir in ('bearish', 'bearish_bias'):
-        reasons.append('趋势逆转(评分%d/16)' % trend_score)
+        reasons.append(f'趋势逆转(评分%d/14)' % trend_score)
 
     # 2. 日线级卖信号压倒买信号
     for pk in ['daily', 'min60']:
