@@ -101,14 +101,12 @@ def build_table(cycle, synth, hht_labels):
         if dominant.startswith('min'):
             dominant = dominant.replace('min', '')
 
-        # 分类判断
-        if adv_grade == 'actionable' or (adv_grade == 'observe_strong' and '做多' in (action or '')):
+        # 分类判断（基于四级分类 × 三级买侧）
+        if action in ('趋势加满', '趋势买', '震荡买', '抄底买', '反转加满'):
             cat = '可操作'
-        elif adv_grade == 'observe_strong':
-            cat = '强势追踪'
-        elif adv_grade == 'neutral_bias' or trend_dir == 'bullish_bias':
+        elif action.endswith('试错') or action in ('趋势试错', '震荡试错', '反弹试错', '筑底试错', '持有'):
             cat = '中性偏强'
-        elif adv_grade == 'observe':
+        elif action == '减仓':
             cat = '关注'
         else:
             cat = '观望'
@@ -139,13 +137,12 @@ def build_table(cycle, synth, hht_labels):
     stocks.sort(key=sort_key)
 
     # 组装表格
-    cat_labels_order = ['可操作', '强势追踪', '中性偏强', '关注', '观望']
+    cat_labels_order = ['可操作', '中性偏强', '关注', '观望']
     cat_descs = {
-        '可操作': ('🔴', '日线上涨+分钟闭环确认'),
-        '强势追踪': ('🟠', '多头趋势+高位加速区,持减仓等回调'),
-        '中性偏强': ('🟡', '日线横盘+分钟有信号'),
-        '关注': ('⚪', '等待转折确认'),
-        '观望': ('⚪', '弱势建议回避'),
+        '可操作': ('🔴', 'A级信号确认，共振加满/金叉买'),
+        '中性偏强': ('🟡', 'B级偏多，MA试错或持有观察'),
+        '关注': ('⚪', '减仓信号或方向不明，等待'),
+        '观望': ('⚪', '弱势建议回避/观望'),
     }
 
     hdr = '| 标的 收盘 | 日线趋势 | 分钟闭环 | 结构状态 | HHT | 主导周期 | 操作建议 |'

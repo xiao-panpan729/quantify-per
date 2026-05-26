@@ -195,7 +195,13 @@ def trend_cn(t):
 
 def advice_cn(a):
     M = {'加仓追击':'加仓追击','顺势做多':'顺势做多','持有(可轻仓跟)':'持有(可轻仓跟)','持有/减仓':'持有/减仓',
-         '高抛低吸':'高抛低吸','小仓做T':'小仓做T','观望':'观望','等待':'等待','不参与':'不参与'}
+         '高抛低吸':'高抛低吸','小仓做T':'小仓做T','观望':'观望','等待':'等待','不参与':'不参与',
+         '趋势加满':'趋势加满','趋势买':'趋势买','趋势试错':'趋势试错',
+         '震荡买':'震荡买','震荡试错':'震荡试错',
+         '反弹试错':'反弹试错',
+         '筑底试错':'筑底试错','抄底买':'抄底买','反转加满':'反转加满',
+         '减仓':'减仓','持有':'持有',
+         '观望（可反弹）':'观望(可反弹)','回避（等反转）':'回避(等反转)'}
     return M.get(a, a)
 
 def price_color_str(change_pct):
@@ -391,9 +397,11 @@ def build_report_lines():
             # 合成等级（A+/A-/A假/B/C/D）
             synth = _get_synth().get(c, {})
             synth_grade = synth.get('grade', '')
+            synth_action = synth.get('action', '')
             if synth_grade:
                 trend_dir = '%s %s' % (trend_dir, synth_grade)
-            rows.append('| %s | %s | %s | %s | %s | %s | %s | %s |' % (stock_cell, trend_dir, summary, best_pe, hht_tag, dc_str, dd_str, advice_cn(action)))
+            display_action = synth_action if synth_action else action
+            rows.append('| %s | %s | %s | %s | %s | %s | %s | %s |' % (stock_cell, trend_dir, summary, best_pe, hht_tag, dc_str, dd_str, advice_cn(display_action)))
         return rows
     
     # ════════════════ 正文开始 ════════════════
@@ -691,9 +699,10 @@ def build_report_lines():
         today_close = p.get('close', None)
         today_change = p.get('change_pct', None)
     
-        # 今日建议
+        # 今日建议（优先用 synthesised 三级标签）
         adv = item.get('advice', {})
-        today_action = adv.get('action', '?')
+        synth = _get_synth().get(code, {})
+        today_action = synth.get('action', adv.get('action', '?'))
         today_reason = adv.get('reason', '')
         wc_adv = adv.get('wait_condition', '')
     
@@ -722,16 +731,19 @@ def build_report_lines():
             if yest_action == '无记录':
                 actual = '(首日)'
                 verify_mark = '-'
-            elif chg >= 1.5 and yest_action in ('顺势做多', '加仓追击'):
+            elif chg >= 1.5 and yest_action in ('趋势加满', '趋势买', '震荡买', '抄底买', '反转加满',
+                                                  '顺势做多', '加仓追击', '共振加满', '金叉买'):
                 actual = '✅ 盈利 +%s%%' % ('%.1f' % abs(chg))
                 verify_mark = '命中'; verify_hits += 1
-            elif chg >= 0.3 and yest_action in ('高抛低吸', '高抛低吸/偏多', '持有(可轻仓跟)'):
+            elif chg >= 0.3 and yest_action in ('趋势试错', '震荡试错', '反弹试错', '筑底试错',
+                                                  '高抛低吸', '高抛低吸/偏多', '持有(可轻仓跟)', 'MA试错', '持有'):
                 actual = '✅ 小盈 +%s%%' % ('%.1f' % abs(chg))
                 verify_mark = '命中'; verify_hits += 1
-            elif chg >= -0.5 and yest_action in ('观望', '等待', '持有/减仓'):
+            elif chg >= -0.5 and yest_action in ('观望', '等待', '持有/减仓', '观望（可反弹）', '减仓'):
                 actual = '⚪ 横盘 %s' % chg_s
                 verify_mark = '中性'
-            elif chg <= -1.5 and yest_action in ('观望', '等待', '不参与', '关注抄底'):
+            elif chg <= -1.5 and yest_action in ('观望', '等待', '不参与', '关注抄底',
+                                                  '观望（可反弹）', '回避（等反转）'):
                 actual = '✅ 回避正确 %s' % chg_s
                 verify_mark = '命中'; verify_hits += 1
             elif chg <= -1.5:

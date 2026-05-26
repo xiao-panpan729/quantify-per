@@ -203,38 +203,65 @@ def determine_signal_direction(cycle_item):
 
 
 def determine_action(grade_label, signal_info, pe_state, trend_direction):
-    """决策树 → 买/卖/持有/减仓/加仓/观望/回避"""
+    """决策树 — 买侧四级分类(趋势/震荡/反弹/筑底) × 三级(试错/买/加满)
+
+    框架:
+      A类(趋势):  趋势试错 → 趋势买 → 趋势加满    三级全开
+      B类(震荡):  震荡试错 → 震荡买              最多到买，不加满
+      C类(反弹):  反弹试错                       只有试错
+      D类(筑底):  筑底试错 → 抄底买 → 反转加满   三级全开
+      A假:        观望(结构溃散)
+
+    卖侧只保留原减仓条件，等你设计三级卖体系。
+    """
     overall = signal_info['overall']
     m5m15 = signal_info['min5_min15']
-    per = signal_info['per_period']
 
-    if grade_label == 'A+':
-        if m5m15 == 'buy' and per.get('min5') == 'buy_bias' and per.get('min15') == 'buy_bias':
-            return '加仓'
+    # ── 卖侧（原条件，等你微调）──
+    if grade_label in ('A-',) and overall == 'sell':
+        return '减仓'
+    if grade_label == 'B' and pe_state == '升熵' and overall == 'sell':
+        return '减仓'
+
+    # ── 买侧四级分类 ──
+
+    # A类: 趋势行情 → 三级全开
+    if grade_label in ('A+', 'A-', 'A'):
+        if overall == 'buy' and m5m15 == 'buy' and pe_state != '升熵':
+            return '趋势加满'
         if overall == 'buy':
-            return '买'
+            return '趋势买'
+        if overall != 'sell':
+            return '趋势试错'
         return '持有'
 
-    if grade_label in ('A-',):
-        if overall == 'sell':
-            return '减仓'
-        return '持有'
-
-    if grade_label in ('A假',):
+    # A假: 结构溃散 → 不操作
+    if grade_label == 'A假':
         return '观望'
 
+    # B类: 震荡行情 → 最多到买
     if grade_label == 'B':
-        if pe_state == '降熵' and overall == 'buy':
-            return '持有'
-        if pe_state == '升熵' and overall == 'sell':
-            return '减仓'
+        if overall == 'buy' and pe_state == '降熵':
+            return '震荡买'
+        if overall != 'sell':
+            return '震荡试错'
         return '持有'
 
+    # C类: 反弹行情 → 仅试错
     if grade_label == 'C':
-        return '观望'
+        if overall == 'buy':
+            return '反弹试错'
+        return '观望（可反弹）'
 
+    # D类: 筑底行情 → 三级全开
     if grade_label == 'D':
-        return '回避'
+        if overall == 'buy' and m5m15 == 'buy' and pe_state == '降熵':
+            return '反转加满'
+        if overall == 'buy':
+            return '抄底买'
+        if overall != 'sell':
+            return '筑底试错'
+        return '回避（等反转）'
 
     return '观望'
 

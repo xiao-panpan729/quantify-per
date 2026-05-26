@@ -35,6 +35,7 @@ SIGNAL_GOLDEN = '金叉'
 SIGNAL_DEATH = '死叉'
 SIGNAL_STAR_BUY = '★买'
 SIGNAL_STAR_SELL = '★卖'
+SIGNAL_CCI_TOP_DIV = 'CCI顶背驰'
 
 
 # ========================================================================
@@ -293,6 +294,48 @@ def _check_strength_zone(code):
 #  离散信号检测 — 核心
 # ========================================================================
 
+def _find_window_start(all_rows, idx):
+    """
+    从 idx 往前找当前窗口的起点。
+    窗口起点定义：最近一次 MA5金叉 或 close上穿EXPMA黄线。
+    用于判断 CCI顶背驰 是否是该窗口内的唯一信号。
+    """
+    for i in range(idx - 1, max(idx - 80, -1), -1):
+        if i < 1:
+            break
+        curr = all_rows[i]
+        prev = all_rows[i - 1]
+        # MA5 金叉 (ma5 从下方上穿 ma10)
+        ma5_c = float(curr.get('ma5', 0) or 0)
+        ma10_c = float(curr.get('ma10', 0) or 0)
+        ma5_p = float(prev.get('ma5', 0) or 0)
+        ma10_p = float(prev.get('ma10', 0) or 0)
+        if ma5_p > 0 and ma10_p > 0 and ma5_c > 0 and ma10_c > 0:
+            if ma5_p <= ma10_p and ma5_c > ma10_c:
+                return i
+        # close 上穿 EXPMA 黄线
+        close_c = float(curr.get('close', 0) or 0)
+        ema50_c = float(curr.get('expma50', 0) or 0)
+        close_p = float(prev.get('close', 0) or 0)
+        ema50_p = float(prev.get('expma50', 0) or 0)
+        if ema50_p > 0 and ema50_c > 0 and close_p > 0 and close_c > 0:
+            if close_p <= ema50_p and close_c > ema50_c:
+                return i
+    return max(idx - 60, 0)
+
+
+def _count_cci_top_divergence(all_rows, start_idx, end_idx):
+    """统计 (start_idx, end_idx] 范围内 CCI顶背驰 出现次数"""
+    count = 0
+    for i in range(start_idx + 1, end_idx + 1):
+        if i >= len(all_rows):
+            break
+        cci_div = (all_rows[i].get('cci_divergence', '') or '').strip()
+        if cci_div == '顶背驰':
+            count += 1
+    return count
+
+
 def _detect_signals_on_latest(all_rows, only_new=True, lookback=1):
     """
     检测K线上的离散信号。
@@ -345,6 +388,12 @@ def _detect_signals_on_latest(all_rows, only_new=True, lookback=1):
         if has_star_sell and (not only_new or is_new_star_sell):
             sell_signals.append({'type': SIGNAL_STAR_SELL, 'price': price,
                                  'bar_ts': curr.get('timestamp', ''), 'idx': len(all_rows) - 1 - offset})
+        # ── CCI顶背驰 ──
+        has_cci_top = (curr.get('cci_divergence', '') or '').strip() == '顶背驰'
+        is_new_cci_top = has_cci_top and (prev.get('cci_divergence', '') or '').strip() != '顶背驰'
+        if has_cci_top and (not only_new or is_new_cci_top):
+            sell_signals.append({'type': SIGNAL_CCI_TOP_DIV, 'price': price,
+                                 'bar_ts': curr.get('timestamp', ''), 'idx': len(all_rows) - 1 - offset})
 
         # 找到了就停（取最近的信号）
         if buy_signals or sell_signals:
@@ -370,6 +419,8 @@ def _last_signal_bars(all_rows, signal_type, n=10):
         elif signal_type == SIGNAL_STAR_BUY and r.get('buy_signal', '').strip():
             match = True
         elif signal_type == SIGNAL_STAR_SELL and r.get('sell_signal', '').strip():
+            match = True
+        elif signal_type == SIGNAL_CCI_TOP_DIV and (r.get('cci_divergence', '') or '').strip() == '顶背驰':
             match = True
 
         if match:
@@ -588,10 +639,11 @@ def _check_cascade(signals_by_period, side='buy'):
 # ========================================================================
 
 class Monitor:
-    def __init__(self, interval=SCAN_INTERVAL, use_toast=True, entry_filter='ma'):
+    def __init__(self, interval=SCAN_INTERVAL, use_toast=True, entry_filter='ma', sell_filter='all'):
         self.interval = interval
         self.use_toast = use_toast
         self.entry_filter = entry_filter  # 'any'(测试用) | 'ma'(试错) | 'jincha'(买) | 'resonance'(买完) | 'all'(全显)
+        self.sell_filter = sell_filter    # 'none' | 'sell_t'(做T仅日志) | 'sell_reduce'(减仓通知) | 'all'(全部)
         self._last_alert = {}       # key: (code, alert_type) → bar_ts
         self._last_zone = {}        # code → zone string
         self._signal_memory = {}    # code → {period: {signal_bar_ts, price}} 用于级联追踪
@@ -678,10 +730,10 @@ class Monitor:
         # 入场：写入 SQLite 交易台账
         if signal.get('direction') == 'buy':
             trade_db.record_entry(record)
-        # 出场：★卖做T不结束交易，死叉/止损结束交易
+        # 出场：CCI顶背驰做T不结束交易，★卖减仓/死叉减仓结束交易
         elif signal.get('direction') == 'sell':
             exit_reason = signal.get('exit_reason', '')
-            if exit_reason == '★卖做T':
+            if exit_reason == 'CCI顶背驰做T':
                 trade_db.record_t_point(
                     signal['code'],
                     record['time'],
@@ -692,7 +744,7 @@ class Monitor:
                     signal['code'],
                     record['time'],
                     signal.get('price', 0),
-                    exit_reason or '死叉清仓',
+                    exit_reason or '减仓',
                 )
 
     # ─── 主扫描逻辑 ───
@@ -874,6 +926,79 @@ class Monitor:
                 all_new_buy = [s for s in all_new_buy if s.get('filter_level') == 'jincha']
             # 'all'模式: 全部保留，级别已标记; 'any'模式: 全部保留不过滤
 
+        # ──── Step 4.6: 卖侧出场过滤 — 两层体系: 做T(日志) / 减仓(通知) ────
+        if self.sell_filter != 'none' and all_new_sell:
+            min5_ps = signals_by_period.get('min5')
+            if min5_ps:
+                all_rows = min5_ps.get('all_rows', [])
+                for sig in all_new_sell:
+                    # 死叉 = 直接减仓级，可行动
+                    if sig['type'] == SIGNAL_DEATH:
+                        sig['filter_level'] = 'sell_reduce'
+                        sig['notify'] = True
+                        continue
+                    sig.setdefault('filter_level', '')
+                    sig.setdefault('notify', False)
+                    idx = sig.get('idx', -1)
+                    if idx < 0 or idx >= len(all_rows):
+                        continue
+                    bar = all_rows[idx]
+                    close = float(bar.get('close', 0) or 0)
+                    expma50 = float(bar.get('expma50', 0) or 0)
+
+                    # ── 做T层: CCI顶背驰 + close>EXPMA黄线 + single(窗口内唯一) → 日志 ──
+                    if sig['type'] == SIGNAL_CCI_TOP_DIV and sig.get('period') == 'min5':
+                        if not (expma50 > 0 and close > expma50):
+                            continue
+                        ws = _find_window_start(all_rows, idx)
+                        cci_count = _count_cci_top_divergence(all_rows, ws, idx)
+                        if cci_count > 1:
+                            continue
+                        sig['filter_level'] = 'sell_t'
+                        sig['notify'] = False
+                        continue
+
+                    # ── 减仓层: ★卖 + close<MA5 + 无金叉(20根) + 15分黄线下 → 通知 ──
+                    if sig.get('period') != 'min5' or sig['type'] != SIGNAL_STAR_SELL:
+                        continue
+                    ma5 = float(bar.get('ma5', 0) or 0)
+                    if not (ma5 > 0 and close < ma5):
+                        continue
+                    has_golden = False
+                    for j in range(20):
+                        pos = idx - j
+                        if pos < 0:
+                            break
+                        cross = (all_rows[pos].get('expma_cross', '') or '').strip()
+                        if cross == '金叉':
+                            has_golden = True
+                            break
+                        if cross == '死叉':
+                            break
+                    if has_golden:
+                        continue
+                    min15_rows = _load_csv(code, 'min15')
+                    min15_ok = False
+                    if min15_rows:
+                        last15 = min15_rows[-1]
+                        c15 = float(last15.get('close', 0) or 0)
+                        e50_15 = float(last15.get('expma50', 0) or 0)
+                        if e50_15 > 0:
+                            min15_ok = c15 < e50_15
+                    if not min15_ok:
+                        continue
+                    sig['filter_level'] = 'sell_reduce'
+                    sig['notify'] = True
+
+            # 根据sell_filter模式过滤信号
+            if self.sell_filter == 'sell_t':
+                all_new_sell = [s for s in all_new_sell if s.get('filter_level') == 'sell_t']
+            elif self.sell_filter == 'sell_reduce':
+                all_new_sell = [s for s in all_new_sell if s.get('filter_level') == 'sell_reduce']
+            elif self.sell_filter == 'none':
+                all_new_sell = []
+            # 'all': 全部保留（sell_t日志 + sell_reduce通知）
+
         # ──── Step 5: 决定是否弹窗 ────
         # 确定主导方向
         if direction in Direction.BULLISH_DIRS:
@@ -931,6 +1056,20 @@ class Monitor:
                 filter_tag = '[共振]'
             elif self.entry_filter == 'any':
                 pass  # 无标签，raw显示
+
+        if primary_side == 'sell':
+            if self.sell_filter == 'all':
+                levels = [s.get('filter_level', 'sell_t') for s in new_signals]
+                effective = [lv for lv in levels if lv in ('sell_reduce', 'sell_t')]
+                if not effective:
+                    self._save_state()
+                    return None
+                lv = 'sell_reduce' if 'sell_reduce' in effective else 'sell_t'
+                filter_tag = {'sell_reduce': '[减仓]', 'sell_t': '[做T]'}[lv]
+            elif self.sell_filter == 'sell_t':
+                filter_tag = '[做T]'
+            elif self.sell_filter == 'sell_reduce':
+                filter_tag = '[减仓]'
         if cascade['cascade_type']:
             title = f'★{side_label} {filter_tag}[{cascade["cascade_type"]}]'
             # 级联信号: 展示共振周期
@@ -981,9 +1120,23 @@ class Monitor:
         elif primary_side == 'sell' and new_signals:
             first_sell = new_signals[0]
             st = first_sell.get('type', '')
-            exit_reason = '死叉清仓' if st == SIGNAL_DEATH else ('★卖做T' if st == SIGNAL_STAR_SELL else st)
+            fl = first_sell.get('filter_level', '')
+            if fl == 'sell_t':
+                exit_reason = 'CCI顶背驰做T'
+            elif st == SIGNAL_DEATH:
+                exit_reason = '死叉减仓'
+            elif st == SIGNAL_STAR_SELL:
+                exit_reason = '★卖减仓'
+            else:
+                exit_reason = st
 
         self._save_state()
+
+        # 卖侧: sell_t 仅日志不弹窗, sell_reduce 弹通知
+        if primary_side == 'sell' and new_signals:
+            should_notify = any(s.get('notify', False) for s in new_signals)
+        else:
+            should_notify = True
 
         return {
             'code': code,
@@ -1002,6 +1155,7 @@ class Monitor:
             'filter_level': filter_tag,
             'entry_conditions': entry_conditions,
             'exit_reason': exit_reason,
+            'notify': should_notify,
             'details': [ps.get('details', []) for ps in signals_by_period.values()],
         }
 
@@ -1009,7 +1163,7 @@ class Monitor:
 
     def run(self):
         """主循环"""
-        print(f'[monitor] 启动 — 扫描间隔={self.interval}s  买侧过滤={self.entry_filter}')
+        print(f'[monitor] 启动 — 扫描间隔={self.interval}s  买侧过滤={self.entry_filter}  卖侧过滤={self.sell_filter}')
         universe = load_universe()
         print(f'[monitor] 候选池: {len(universe)} 只')
 
@@ -1023,7 +1177,8 @@ class Monitor:
                     try:
                         signal = self.scan_one(code, name)
                         if signal and signal.get('direction') != 'out':
-                            self._notify(signal)
+                            if signal.get('notify', True):
+                                self._notify(signal)
                             self._record(signal)
                             alerts_this_round += 1
                             print(f'  [{datetime.now().strftime("%H:%M:%S")}] {code} {name} '
@@ -1052,15 +1207,19 @@ def main():
     parser.add_argument('--filter', dest='entry_filter', type=str, default='ma',
                         choices=['any', 'ma', 'jincha', 'resonance', 'all'],
                         help='买侧过滤: any=裸★买(测试) ma=MA级(试错) jincha=金叉级(买) resonance=共振级(买完) all=三级同时弹')
+    parser.add_argument('--sell-filter', dest='sell_filter', type=str, default='all',
+                        choices=['none', 'sell_t', 'sell_reduce', 'all'],
+                        help='卖侧过滤: none=不监测 sell_t=做T(仅日志) sell_reduce=减仓(通知) all=全部')
     args = parser.parse_args()
 
     trade_db.init_db()
-    monitor = Monitor(interval=args.interval, use_toast=not args.no_toast, entry_filter=args.entry_filter)
+    monitor = Monitor(interval=args.interval, use_toast=not args.no_toast, entry_filter=args.entry_filter, sell_filter=args.sell_filter)
 
     if args.once:
         universe = load_universe()
         filter_label = {'any': '裸★买', 'ma': 'MA级(试错)', 'jincha': '金叉级(买)', 'resonance': '共振级(买完)', 'all': 'MA/金叉/共振三级'}[args.entry_filter]
-        print(f'[monitor] 快照扫描: {len(universe)} 只  买侧过滤: {filter_label}')
+        sell_filter_label = {'none': '不监测', 'sell_t': '做T(仅日志)', 'sell_reduce': '减仓(通知)', 'all': '做T+减仓'}[args.sell_filter]
+        print(f'[monitor] 快照扫描: {len(universe)} 只  买侧:{filter_label}  卖侧:{sell_filter_label}')
         print()
 
         out_stocks = []
