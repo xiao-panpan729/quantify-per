@@ -5,7 +5,7 @@ import csv
 import json
 import argparse
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from collections import defaultdict
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
@@ -238,147 +238,108 @@ def _has_cci_top_divergence(row):
     return (row.get('cci_divergence', '') or '').strip() == '顶背驰'
 
 
-def _check_ma10x20_cross(rows, i):
-    """当前bar MA10 刚刚上穿 MA20（事件，非状态）"""
-    if i < 1:
-        return False
-    try:
-        p10 = float(rows[i - 1].get('ma10', 0))
-        p20 = float(rows[i - 1].get('ma20', 0))
-        c10 = float(rows[i].get('ma10', 0))
-        c20 = float(rows[i].get('ma20', 0))
-        if p10 <= 0 or p20 <= 0 or c10 <= 0 or c20 <= 0:
-            return False
-        return p10 <= p20 and c10 > c20
-    except (ValueError, TypeError):
-        return False
-
-
-def _star_in_recent(rows, i, n=20):
-    """前N根bar内出现过★买（含当前）"""
-    for j in range(max(0, i - n), i + 1):
-        if _has_star_buy(rows[j]):
-            return True
-    return False
 
 
 # ── 入场模式定义 ──
 #   lambda(r): 状态模式（只看当前bar自身）
-#   字符串key: 事件模式（需要看前后bar上下文）
+#   None: 上下文模式（需要看前后bar上下文，由 _check_entry_ctx 处理）
 ENTRY_MODES = {
-    'any':                  lambda r: _has_star_buy(r) or _has_golden(r),
-    'star':                 lambda r: _has_star_buy(r),
-    'golden':               lambda r: _has_golden(r),
-    'star+golden':          lambda r: _has_star_buy(r) and _has_golden(r),
-    'star+ma5':             lambda r: _has_star_buy(r) and _ma_above(r, 'ma5', 'ma10'),
-    'star+ma5+ma10':        lambda r: _has_star_buy(r) and _ma_above(r, 'ma5', 'ma10') and _ma_above(r, 'ma10', 'ma20'),
-    'star+ma5+ma10+safe':   None,   # handled by _check_entry_ctx (无死叉事件 + 60分黄线上方)
-    'golden+ma5':           lambda r: _has_golden(r) and _ma_above(r, 'ma5', 'ma10'),
-    'golden+ma5+ma10':      lambda r: _has_golden(r) and _ma_above(r, 'ma5', 'ma10') and _ma_above(r, 'ma10', 'ma20'),
-    'star+golden+ma5':      lambda r: _has_star_buy(r) and _has_golden(r) and _ma_above(r, 'ma5', 'ma10'),
-    # ── 事件模式：MA10金叉MA20那一刻 + ★买在附近 ──
-    'ma10x20+star':         None,   # handled by _check_entry_ctx
-    'ma10x20+star+ma5':     None,
-    'star+ma5+ma10+safe+jincha': None,
+    # 基准 (MA链)
+    'star+ma5+ma10+safe':        None,   # MA级: ★买+MA链+无死叉+60分黄线上
+    'star+ma5+ma10+safe+jincha': None,   # 金叉级: MA级+EXPMA金叉
+
+    # PE门禁 (5分钟周期)
+    'star+ma5+ma10+safe+pe':     None,   # MA级+PE(5分)
+    'star+ma5+ma10+safe+jincha+pe': None, # 金叉级+PE(5分) ★金叉级最佳
+
+    # PE门禁 (日线周期)
+    'star+ma5+ma10+safe+pe_d':     None,  # MA级+PE(日线) ★MA级最佳
+    'star+ma5+ma10+safe+jincha+pe_d': None, # 金叉级+PE(日线)
+
+    # CCI速率 (叠加在MA链上, 冗余验证用)
+    'star+ma5+ma10+safe+cci_rate':     None,  # MA级+CCI速率
+    'star+ma5+ma10+safe+jincha+cci_rate': None,  # 金叉级+CCI速率
+    'star+ma5+ma10+safe+pe_d+cci_rate':    None,  # MA级+PE(日线)+CCI速率
+    'star+ma5+ma10+safe+jincha+pe+cci_rate': None,  # 金叉级+PE(5分)+CCI速率
+
+    # ★ CCI速率替代MA链 (核心对比: CCI速率能否独立工作?)
+    'star+cci_rate+safe':           None,  # CCI速率+60分黄线 (无MA链)
+    'star+cci_rate+safe+pe':        None,  # +PE(5分)
+    'star+cci_rate+safe+pe_d':      None,  # +PE(日线)
 }
 
-# 所有可用模式（含事件模式）
 ALL_ENTRY_MODES = list(ENTRY_MODES.keys())
 
 # ── 卖信号模式定义 ──
 SELL_MODES = {
-    'sell_any':                  lambda r: _has_star_sell(r),
-    'sell_death':                lambda r: (r.get('expma_cross', '') or '').strip() == '死叉',
-    'sell_ma_death':             lambda r: _has_star_sell(r) and not _ma_above(r, 'ma5', 'ma10'),
-    'sell_ma_death_safe':        None,
-    'sell_ma_death_safe_min5':   None,
-    'sell_ma_death_safe_min30':  None,
-    'sell_break_ma5':            lambda r: _has_star_sell(r) and _close_below(r, 'ma5'),
+    # 减仓卖: ★卖+close<MA5+无金叉+周期黄线下
     'sell_break_ma5_safe':       None,
     'sell_break_ma5_safe_min5':  None,
     'sell_break_ma5_safe_min30': None,
-    'sell_break_ma10':           lambda r: _has_star_sell(r) and _close_below(r, 'ma10'),
-    'sell_break_ma10_safe':      None,
-    'sell_break_ma10_safe_min5': None,
-    'sell_break_ma10_safe_min30': None,
-    # ── CCI背驰系列（第一层做T基准） ──
+    # CCI背驰系列（做T用）
     'sell_cci_div':                  lambda r: _has_star_sell(r) and _has_cci_top_divergence(r),
     'sell_cci_div_safe':             None,
     'sell_cci_div_break_ma5_safe':   None,
-    # ── 清仓级（第三层：最优组合+EXPMA死叉） ──
-    'sell_break_ma5_safe_death':     None,
 }
 ALL_SELL_MODES = list(SELL_MODES.keys())
 
 
-def _is_t_point(row):
-    """做T点：★卖"""
-    sell = (row.get('sell_signal', '') or '').strip()
-    return bool(sell)
-
-
 MIN60_CACHE = {}
 MIN15_CACHE = {}
+DAILY_PE_CACHE = {}  # {code: {date: pe_chg_5}}
 
 
-def _ma5_cross_above_ma10(rows, i):
-    """当前bar MA5 刚刚上穿 MA10"""
-    if i < 1:
-        return False
+def _pe_not_rising(row):
+    """PE非升熵 (降熵或平稳 ≥ -0.02) — 用入场bar的per-bar PE"""
     try:
-        p5, p10 = float(rows[i-1].get('ma5',0)), float(rows[i-1].get('ma10',0))
-        c5, c10 = float(rows[i].get('ma5',0)), float(rows[i].get('ma10',0))
-        if any(v <= 0 for v in (p5, p10, c5, c10)):
-            return False
-        return p5 <= p10 and c5 > c10
+        pe_chg = float(row.get('pe_chg_5', 0) or 0)
+        return pe_chg >= -0.02
     except (ValueError, TypeError):
-        return False
+        return True  # 无数据时放行
 
 
-def _ma5_cross_below_ma10(rows, i):
-    """当前bar MA5 刚刚下穿 MA10"""
-    if i < 1:
+def _cci_recovery_ok(rows, i, min_speed=5.0):
+    """CCI回弹速率门禁: 从最近极端低点(≤-100)恢复的速度 ≥ min_speed CCI点/根
+
+    衡量V型反转质量: 快速回弹=强需求, 慢速回弹=弱需求。
+    无极端低点时放行(没有超卖就不需要回弹验证)。
+    """
+    lookback = min(30, i)
+    cci_vals = []
+    for j in range(i - lookback, i + 1):
+        try:
+            cci_vals.append(float(rows[j].get('cci', 0) or 0))
+        except (ValueError, TypeError):
+            cci_vals.append(0)
+    if not cci_vals:
         return False
-    try:
-        p5, p10 = float(rows[i-1].get('ma5',0)), float(rows[i-1].get('ma10',0))
-        c5, c10 = float(rows[i].get('ma5',0)), float(rows[i].get('ma10',0))
-        if any(v <= 0 for v in (p5, p10, c5, c10)):
-            return False
-        return p5 >= p10 and c5 < c10
-    except (ValueError, TypeError):
-        return False
+    min_cci = min(cci_vals)
+    if min_cci > -100:
+        return True  # 无极端低点, 不需要回弹验证
+    min_pos = cci_vals.index(min_cci)
+    bars_from_min = len(cci_vals) - 1 - min_pos
+    if bars_from_min < 1:
+        return False  # 正在最低点, 尚未回弹
+    speed = (cci_vals[-1] - min_cci) / bars_from_min
+    return speed >= min_speed
 
 
-def _close_cross_above_ema50(rows, i):
-    """当前bar close 刚刚上穿 expma50"""
-    if i < 1:
-        return False
-    try:
-        pc = float(rows[i-1].get('close',0))
-        pe50 = float(rows[i-1].get('expma50',0))
-        cc = float(rows[i].get('close',0))
-        ce50 = float(rows[i].get('expma50',0))
-        if any(v <= 0 for v in (pc, pe50, cc, ce50)):
-            return False
-        return pc <= pe50 and cc > ce50
-    except (ValueError, TypeError):
-        return False
-
-
-def _close_cross_below_ema50(rows, i):
-    """当前bar close 刚刚下穿 expma50"""
-    if i < 1:
-        return False
-    try:
-        pc = float(rows[i-1].get('close',0))
-        pe50 = float(rows[i-1].get('expma50',0))
-        cc = float(rows[i].get('close',0))
-        ce50 = float(rows[i].get('expma50',0))
-        if any(v <= 0 for v in (pc, pe50, cc, ce50)):
-            return False
-        return pc >= pe50 and cc < ce50
-    except (ValueError, TypeError):
-        return False
+def _get_daily_pe_ok(code, bar_date):
+    """日线PE非升熵 (用daily CSV的pe_chg_5)"""
+    if code not in DAILY_PE_CACHE:
+        rows = _load_csv(code, 'daily')
+        if not rows:
+            DAILY_PE_CACHE[code] = {}
+            return True
+        DAILY_PE_CACHE[code] = {}
+        for r in rows:
+            d = r.get('date', '').strip()
+            try:
+                pe_chg = float(r.get('pe_chg_5', 0) or 0)
+                DAILY_PE_CACHE[code][d] = pe_chg >= -0.02
+            except (ValueError, TypeError):
+                DAILY_PE_CACHE[code][d] = True
+    return DAILY_PE_CACHE[code].get(bar_date, True)
 
 
 def _no_recent_death(rows, i, n=20):
@@ -464,30 +425,185 @@ def _get_period_below_ema50(period, code, bar_date):
     return PERIOD_CACHE[key].get(bar_date, False)
 
 
+# ── 共振级联缓存 ──
+RESONANCE_CACHE = {}  # {code: {date: resonance_type}}
+
+
+def _check_resonance(code, bar_date):
+    """检测15/30分钟共振: 返回 'double'(15+30) / 'single'(仅15或30) / ''
+
+    使用±1天窗口匹配, 对齐monitor实时级联检测。
+    15分和30分金叉不必精确同天, 差1天也算共振。
+    """
+    if code not in RESONANCE_CACHE:
+        RESONANCE_CACHE[code] = {}
+        for period in ('min15', 'min30'):
+            rows = _load_csv(code, period)
+            if rows:
+                for r in rows:
+                    d = r.get('date', '').strip()
+                    cross = (r.get('expma_cross', '') or '').strip()
+                    if cross == '金叉':
+                        RESONANCE_CACHE[code].setdefault(d, set()).add(period)
+
+    # ±1天窗口: 收集 entry_date 前后1天内的所有金叉周期
+    try:
+        dt = datetime.strptime(bar_date, '%Y%m%d')
+    except ValueError:
+        return ''
+    all_perms = set()
+    for offset in (-1, 0, 1):
+        d = (dt + timedelta(days=offset)).strftime('%Y%m%d')
+        all_perms.update(RESONANCE_CACHE[code].get(d, set()))
+
+    if 'min15' in all_perms and 'min30' in all_perms:
+        return 'double'
+    if all_perms:
+        return 'single'
+    return ''
+
+
+# ── Cascade回测（模拟 monitor.py _check_cascade 逻辑） ──
+_CASCADE_CSV_CACHE = {}  # {code+period: rows}
+
+
+def _cascade_load_csv(code, period):
+    """带缓存的CSV加载，避免重复读盘"""
+    key = f'{code}_{period}'
+    if key not in _CASCADE_CSV_CACHE:
+        rows = _load_csv(code, period, enrich=False)
+        if rows:
+            # 构建 timetsamp→row 的快速索引
+            ts_map = {}
+            for r in rows:
+                ts = r.get('timestamp', '').strip()
+                if ts:
+                    ts_map[ts] = r
+            _CASCADE_CSV_CACHE[key] = {'rows': rows, 'ts_map': ts_map}
+    return _CASCADE_CSV_CACHE.get(key, {})
+
+
+def _find_bar_by_ts(rows, target_ts):
+    """找到 timestamp <= target_ts 的最近bar"""
+    for i in range(len(rows) - 1, -1, -1):
+        ts = rows[i].get('timestamp', '').strip()
+        if ts and ts <= target_ts:
+            return i
+    return -1
+
+
+def _check_cascade_bt(min5_rows, entry_idx, code, m15_window=8, signal_type='golden'):
+    """向未来看: 入场后N根K线内15/30分是否有金叉/★买跟随
+
+    参数:
+        m15_window: 15分向未来看几根 (默认8)
+        signal_type: 'golden'=只检金叉, 'starbuy'=只检★买
+    min30固定6根。
+    返回: 'both' / 'min15_only' / 'min30_only' / ''
+    """
+    entry_ts = min5_rows[entry_idx].get('timestamp', '').strip()
+    if not entry_ts:
+        return ''
+
+    m15_check = _has_golden if signal_type == 'golden' else _has_star_buy
+    # 30分只用金叉（用户指定"金叉共振"）
+    m30_check = _has_golden
+
+    m15_found = False
+    m15_data = _cascade_load_csv(code, 'min15')
+    m15_rows = m15_data.get('rows', []) if m15_data else []
+    if m15_rows and entry_ts:
+        idx15 = _find_bar_by_ts(m15_rows, entry_ts)
+        if idx15 >= 0:
+            for j in range(idx15 + 1, min(len(m15_rows), idx15 + 1 + m15_window)):
+                if m15_check(m15_rows[j]):
+                    m15_found = True
+                    break
+
+    m30_found = False
+    m30_data = _cascade_load_csv(code, 'min30')
+    m30_rows = m30_data.get('rows', []) if m30_data else []
+    if m30_rows and entry_ts:
+        idx30 = _find_bar_by_ts(m30_rows, entry_ts)
+        if idx30 >= 0:
+            for j in range(idx30 + 1, min(len(m30_rows), idx30 + 1 + 6)):
+                if m30_check(m30_rows[j]):
+                    m30_found = True
+                    break
+
+    if m15_found and m30_found:
+        return 'both'
+    if m15_found:
+        return 'min15_only'
+    if m30_found:
+        return 'min30_only'
+    return ''
+
+
 def _check_entry_ctx(entry_mode, rows, i, row, code=None):
-    """上下文相关的入场检测（事件模式）"""
-    if entry_mode == 'ma10x20+star':
-        return _check_ma10x20_cross(rows, i) and _star_in_recent(rows, i, 20)
-    if entry_mode == 'ma10x20+star+ma5':
-        return _check_ma10x20_cross(rows, i) and _star_in_recent(rows, i, 20) and _ma_above(row, 'ma5', 'ma10')
-    if entry_mode == 'star+ma5+ma10+safe':
-        ok = _has_star_buy(row) and _ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')
-        if not ok:
+    """上下文相关的入场检测
+
+    模式名编码:
+      star+ma5+ma10+safe [+jincha] [+pe|pe_d] [+cci_rate]
+        - MA链: MA5>MA10>MA20 + 无死叉 + 60分黄线上
+      star+cci_rate+safe [+pe|pe_d]
+        - CCI速率替代MA链: CCI回弹速率≥5 + 60分黄线上 (无MA/死叉要求)
+        - jincha不适用(没有MA基础)
+      - pe: PE(5分)非升熵
+      - pe_d: PE(日线)非升熵
+    """
+    bar_date = row.get('date', '').strip()
+
+    # ── ★买必须 ──
+    if not _has_star_buy(row):
+        return False
+
+    # ── CCI速率模式: 用CCI回弹替代MA链 ──
+    if entry_mode.startswith('star+cci_rate'):
+        if not _cci_recovery_ok(rows, i):
             return False
-        bar_date = row.get('date', '').strip()
-        return _no_recent_death(rows, i, 20) and (_get_min60_above(code, bar_date) if code else True)
-    if entry_mode == 'star+ma5+ma10+safe+jincha':
-        ok = _has_star_buy(row) and _ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')
-        if not ok:
+        # 60分黄线上 (安全网)
+        if code and not _get_min60_above(code, bar_date):
             return False
-        bar_date = row.get('date', '').strip()
-        env_ok = _no_recent_death(rows, i, 20) and (_get_min60_above(code, bar_date) if code else True)
-        if not env_ok:
+        # PE门禁
+        has_pe_5m = '+pe' in entry_mode and '+pe_d' not in entry_mode
+        if has_pe_5m and not _pe_not_rising(row):
             return False
+        if '+pe_d' in entry_mode and code and not _get_daily_pe_ok(code, bar_date):
+            return False
+        return True
+
+    # ── MA链模式: MA5>10>20 + 无死叉 + 60分黄线 ──
+    ok = _ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')
+    if not ok:
+        return False
+
+    env_ok = _no_recent_death(rows, i, 20) and (_get_min60_above(code, bar_date) if code else True)
+    if not env_ok:
+        return False
+
+    # ── PE门禁 (5分钟周期, 不含+pe_d) ──
+    has_pe_5m = '+pe' in entry_mode and '+pe_d' not in entry_mode
+    if has_pe_5m and not _pe_not_rising(row):
+        return False
+
+    # ── PE门禁 (日线周期) ──
+    if '+pe_d' in entry_mode:
+        if code and not _get_daily_pe_ok(code, bar_date):
+            return False
+
+    # ── CCI回弹速率门禁 (MA链之上的附加条件) ──
+    if '+cci_rate' in entry_mode and not _cci_recovery_ok(rows, i):
+        return False
+
+    # ── 金叉门禁 ──
+    if '+jincha' in entry_mode:
         expma12 = float(row.get('expma12', 0) or 0)
         expma50 = float(row.get('expma50', 0) or 0)
-        return expma12 > expma50
-    return False
+        if not (expma12 > expma50):
+            return False
+
+    return True
 
 
 def _check_sell_ctx(sell_mode, rows, i, row, code=None):
@@ -509,42 +625,41 @@ def _check_sell_ctx(sell_mode, rows, i, row, code=None):
         base = sell_mode[:-6]
 
     # 提取基础条件
-    if base == 'sell_ma_death_safe':
-        ok = _has_star_sell(row) and not _ma_above(row, 'ma5', 'ma10')
-    elif base == 'sell_break_ma5_safe':
+    if base == 'sell_break_ma5_safe':
         ok = _has_star_sell(row) and _close_below(row, 'ma5')
-    elif base == 'sell_break_ma10_safe':
-        ok = _has_star_sell(row) and _close_below(row, 'ma10')
     elif base == 'sell_cci_div_safe':
         ok = _has_star_sell(row) and _has_cci_top_divergence(row)
     elif base == 'sell_cci_div_break_ma5_safe':
         ok = _has_star_sell(row) and _has_cci_top_divergence(row) and _close_below(row, 'ma5')
-    elif base == 'sell_break_ma5_safe_death':
-        ok = _has_star_sell(row) and _close_below(row, 'ma5')
     else:
         return False
 
     if not ok:
         return False
     bar_date = row.get('date', '').strip()
-    env_ok = _no_recent_golden(rows, i, 20) and (_get_period_below_ema50(period, code, bar_date) if code else True)
-    if not env_ok:
-        return False
-
-    # EXPMA死叉额外检查（清仓级）
-    if base == 'sell_break_ma5_safe_death':
-        expma12 = float(row.get('expma12', 0) or 0)
-        expma50 = float(row.get('expma50', 0) or 0)
-        if not (expma50 > 0 and expma12 < expma50):
-            return False
-
-    return True
+    return _no_recent_golden(rows, i, 20) and (_get_period_below_ema50(period, code, bar_date) if code else True)
 
 
-def _is_exit(row):
-    """清仓条件：死叉"""
+def _is_sell_reduce(rows, i, code=None):
+    """减仓卖出（与 monitor.py 对齐）：
+    路径1: 死叉 → 无条件出场
+    路径2: ★卖 + close<MA5 + 无金叉(20根) + 15分黄线下
+    """
+    row = rows[i]
     cross = (row.get('expma_cross', '') or '').strip()
-    return cross == '死叉'
+    if cross == '死叉':
+        return True
+
+    if not _has_star_sell(row):
+        return False
+    if not _close_below(row, 'ma5'):
+        return False
+    if not _no_recent_golden(rows, i, 20):
+        return False
+    bar_date = row.get('date', '').strip()
+    if code and not _get_period_below_ema50('min15', code, bar_date):
+        return False
+    return True
 
 
 def _entry_price(row):
@@ -553,18 +668,135 @@ def _entry_price(row):
 
 
 def _exit_price(row):
-    """出场价：(high + close) / 2"""
-    return (float(row['high']) + float(row['close'])) / 2
+    """出场价：收盘价"""
+    return float(row['close'])
+
+
+def _extract_entry_factors(row, entry_mode):
+    """从入场bar提取10维因子（per-bar滚动值，不依赖外部文件）
+
+    返回 dict，可直接 **spread 到 trade dict 中
+    """
+    f = {}
+
+    # ── F1: 入场级别 ──
+    f['f_entry_level'] = '金叉级' if 'jincha' in entry_mode else 'MA级'
+
+    # ── F2: MA链长 (5>10>20>60>120>250 连续对数) ──
+    ma_pairs = [('ma5', 'ma10'), ('ma10', 'ma20'), ('ma20', 'ma60'),
+                ('ma60', 'ma120'), ('ma120', 'ma250')]
+    chain = 0
+    for fast, slow in ma_pairs:
+        try:
+            if float(row.get(fast, 0) or 0) > float(row.get(slow, 0) or 0):
+                chain += 1
+            else:
+                break
+        except (ValueError, TypeError):
+            break
+    f['f_ma_chain'] = chain
+
+    # ── F3: CCI状态 ──
+    try:
+        cci = float(row.get('cci', 0) or 0)
+    except (ValueError, TypeError):
+        cci = 0
+    if cci <= -200:
+        f['f_cci_state'] = '极端低位'
+    elif cci < -100:
+        f['f_cci_state'] = '低位'
+    elif cci <= 100:
+        f['f_cci_state'] = '中位'
+    elif cci < 200:
+        f['f_cci_state'] = '高位'
+    else:
+        f['f_cci_state'] = '极端高位'
+
+    # ── F4: 量能状态 ──
+    vol_regime = '正常'
+    if (row.get('vol_堆', '') or '').strip():
+        vol_regime = '地量堆'
+    elif (row.get('vol_llv100', '') or '').strip():
+        vol_regime = '百日地量'
+    elif (row.get('vol_缩50', '') or '').strip():
+        vol_regime = '缩量50'
+    elif (row.get('vol_突放', '') or '').strip():
+        vol_regime = '放量突破'
+    elif (row.get('vol_梯度升', '') or '').strip():
+        vol_regime = '梯度放量'
+    f['f_vol_regime'] = vol_regime
+
+    # ── F5/6: 排列熵级别+趋势 ──
+    pe_level = (row.get('pe_level', '') or '').strip()
+    f['f_pe_level'] = pe_level if pe_level else '无数据'
+    try:
+        pe_chg = float(row.get('pe_chg_5', 0) or 0)
+        if pe_chg < -0.02:
+            f['f_pe_trend'] = '降熵'
+        elif pe_chg > 0.02:
+            f['f_pe_trend'] = '升熵'
+        else:
+            f['f_pe_trend'] = '平稳'
+    except (ValueError, TypeError):
+        f['f_pe_trend'] = '无数据'
+
+    # ── F7: 价格位置 (vs MA250 偏差) ──
+    try:
+        close = float(row['close'])
+        ma250 = float(row.get('ma250', 0) or 0)
+        if ma250 > 0:
+            ratio = close / ma250
+            if ratio > 1.30:
+                f['f_price_pos'] = '高位(>30%溢价)'
+            elif ratio < 0.85:
+                f['f_price_pos'] = '低位(<85%折价)'
+            else:
+                f['f_price_pos'] = '中位'
+        else:
+            f['f_price_pos'] = '无数据'
+    except (ValueError, TypeError):
+        f['f_price_pos'] = '无数据'
+
+    # ── F8: EXPMA白黄位置 ──
+    try:
+        close = float(row['close'])
+        e12 = float(row.get('expma12', 0) or 0)
+        e50 = float(row.get('expma50', 0) or 0)
+        if e12 > 0 and close > e12:
+            f['f_expma_pos'] = '白线上'
+        elif e50 > 0 and close > e50:
+            f['f_expma_pos'] = '白黄间'
+        elif e50 > 0:
+            f['f_expma_pos'] = '黄线下'
+        else:
+            f['f_expma_pos'] = '无数据'
+    except (ValueError, TypeError):
+        f['f_expma_pos'] = '无数据'
+
+    # ── F9: 当日★买/金叉状态 ──
+    has_buy = bool((row.get('buy_signal', '') or '').strip())
+    has_golden = (row.get('expma_cross', '') or '').strip() == '金叉'
+    if has_buy and has_golden:
+        f['f_signal_combo'] = '★买+金叉'
+    elif has_golden:
+        f['f_signal_combo'] = '金叉'
+    elif has_buy:
+        f['f_signal_combo'] = '★买'
+    else:
+        f['f_signal_combo'] = '无锚点'
+
+    return f
 
 
 def _calc_band_low(rows, entry_idx):
-    """计算开仓bar的波段最低点：前一个死叉到开仓bar之间的最低low"""
+    """计算开仓bar的波段最低点：最近金叉→开仓bar之间的最低low（本上涨波段的起点）"""
     best = float(rows[entry_idx]['low'])
     for i in range(entry_idx - 1, max(entry_idx - BAND_LOOKBACK, 0), -1):
         lo = float(rows[i]['low'])
         if lo < best:
             best = lo
-        if _is_exit(rows[i]):
+        cross = (rows[i].get('expma_cross', '') or '').strip()
+        if cross == '金叉':
             break
     return best
 
@@ -573,7 +805,7 @@ def _calc_band_low(rows, entry_idx):
 # 单标的回测
 # ══════════════════════════════════════════════════════════════════
 
-def backtest_stock(code, name, period, months=None, entry_mode='any'):
+def backtest_stock(code, name, period, months=None, entry_mode='star+ma5+ma10+safe'):
     """对单只标的单周期跑完整回测，返回 trade list"""
     rows = _load_csv(code, period)
     if not rows or len(rows) < SKIP_BARS:
@@ -588,8 +820,8 @@ def backtest_stock(code, name, period, months=None, entry_mode='any'):
     entry_idx = None
     entry_price_val = None
     band_low = None
-    t_point = None          # 做T点 (price, idx)
     entry_date = None
+    entry_factors = None
 
     for i in range(SKIP_BARS, len(rows)):
         r = rows[i]
@@ -619,11 +851,11 @@ def backtest_stock(code, name, period, months=None, entry_mode='any'):
                 entry_ts = r.get('timestamp', '').strip()
                 entry_price_val = _entry_price(r)
                 band_low = _calc_band_low(rows, i)
-                t_point = None
                 entry_date = bar_date
+                entry_factors = _extract_entry_factors(r, entry_mode)
         else:
             # ── 持仓中，检查平仓 ──
-            # 优先级: 止损 > 死叉 > ★卖
+            # 止损 或 减仓卖(★卖+close<MA5+safe / 死叉)
             exit_reason = None
             exit_price_val = None
 
@@ -632,15 +864,10 @@ def backtest_stock(code, name, period, months=None, entry_mode='any'):
                 exit_reason = '止损'
                 exit_price_val = band_low
 
-            # 2. 死叉清仓
-            elif _is_exit(r):
-                exit_reason = '死叉'
+            # 2. 减仓卖出
+            elif _is_sell_reduce(rows, i, code):
+                exit_reason = '减仓卖'
                 exit_price_val = _exit_price(r)
-
-            # 3. ★卖做T（不结束交易）
-            elif _is_t_point(r) and t_point is None:
-                t_point = (time_to_datetime(r.get('timestamp', '')), _exit_price(r), i)
-                # 继续持仓，不结束交易
 
             if exit_reason:
                 # 计算持仓期间统计
@@ -658,6 +885,17 @@ def backtest_stock(code, name, period, months=None, entry_mode='any'):
 
                 hold_bars = i - entry_idx
 
+                # 共振级联检测 (15+30分金叉)
+                resonance = _check_resonance(code, entry_date) if code else ''
+                # 向未来看: 入场后15分金叉跟随 (默认8根)
+                forward = _check_cascade_bt(rows, entry_idx, code) if code else ''
+                # 多窗口对比: 12/8/6/4 + ★买版
+                fwd_variants = {}
+                if code:
+                    for w in ('12', '8', '6', '4'):
+                        fwd_variants[f'm15_w{w}'] = _check_cascade_bt(rows, entry_idx, code, m15_window=int(w))
+                    fwd_variants['starbuy'] = _check_cascade_bt(rows, entry_idx, code, signal_type='starbuy')
+
                 trade = {
                     'code': code,
                     'name': name,
@@ -672,9 +910,12 @@ def backtest_stock(code, name, period, months=None, entry_mode='any'):
                     'mae_pct': round(mae, 2),
                     'hold_bars': hold_bars,
                     'exit_reason': exit_reason,
-                    'zone': zone if exit_reason == '死叉' else daily_zones.get(entry_date, 'weak'),
-                    't_price': round(t_point[1] / PRICE_F, 4) if t_point else None,
-                    't_date': t_point[0] if t_point else None,
+                    'zone': daily_zones.get(entry_date, 'weak'),
+                    'entry_mode': entry_mode,
+                    'f_resonance': resonance,
+                    'f_forward': forward,
+                    'f_forward_all': json.dumps(fwd_variants, ensure_ascii=False),
+                    **(entry_factors if entry_factors else {}),
                 }
                 trades.append(trade)
 
@@ -682,93 +923,16 @@ def backtest_stock(code, name, period, months=None, entry_mode='any'):
                 entry_idx = None
                 entry_price_val = None
                 band_low = None
-                t_point = None
+                entry_factors = None
 
     return trades
-
-
-# ══════════════════════════════════════════════════════════════════
-# 卖信号回测
-# ══════════════════════════════════════════════════════════════════
-
-def backtest_sell_stock(code, name, period, months=None, sell_mode='sell_any', lookahead=40):
-    """卖信号过滤效果回测：★卖后N根bar内的价格行为"""
-    rows = _load_csv(code, period)
-    if not rows or len(rows) < SKIP_BARS + lookahead:
-        return []
-
-    entry_fn = SELL_MODES.get(sell_mode)
-    is_ctx_mode = entry_fn is None
-
-    signals = []
-    for i in range(SKIP_BARS, len(rows) - lookahead):
-        r = rows[i]
-        bar_date = r.get('date', '').strip()
-
-        if months:
-            try:
-                d = datetime.strptime(bar_date, '%Y%m%d')
-                cutoff = datetime.now() - __import__('datetime').timedelta(days=months * 30)
-                if d < cutoff:
-                    continue
-            except Exception:
-                pass
-
-        # 检测卖信号
-        if is_ctx_mode:
-            ok = _check_sell_ctx(sell_mode, rows, i, r, code)
-        else:
-            ok = entry_fn(r)
-
-        if not ok:
-            continue
-
-        # 记录卖信号
-        entry_price = float(r['close'])
-
-        # 看未来N根bar：最大跌幅 / 最大反弹 / 是否出现死叉
-        max_drop = 0.0
-        max_rise = 0.0
-        has_death = False
-        death_bar_idx = None
-
-        for j in range(i + 1, i + lookahead + 1):
-            c = float(rows[j]['close'])
-            ret = (c - entry_price) / entry_price * 100
-
-            if ret < max_drop:
-                max_drop = ret
-            if ret > max_rise:
-                max_rise = ret
-
-            if not has_death:
-                cross = (rows[j].get('expma_cross', '') or '').strip()
-                if cross == '死叉':
-                    has_death = True
-                    death_bar_idx = j - i
-
-        signal = {
-            'code': code,
-            'name': name,
-            'period': period,
-            'date': bar_date,
-            'entry_price': round(entry_price / PRICE_F, 4),
-            'max_drop_pct': round(max_drop, 2),
-            'max_rise_pct': round(max_rise, 2),
-            'has_death': has_death,
-            'death_bar': death_bar_idx,
-            'success': max_drop <= -2.0 or has_death,
-        }
-        signals.append(signal)
-
-    return signals
 
 
 # ══════════════════════════════════════════════════════════════════
 # 买→卖配对回测
 # ══════════════════════════════════════════════════════════════════
 
-def backtest_pair(code, name, period, months=None, buy_mode='star+ma5+ma10+safe', sell_mode='sell_any'):
+def backtest_pair(code, name, period, months=None, buy_mode='star+ma5+ma10+safe', sell_mode='sell_break_ma5_safe'):
     """买信号入场 → 卖信号出场 配对回测
 
     buy_mode: ENTRY_MODES 中的入场模式
@@ -790,6 +954,7 @@ def backtest_pair(code, name, period, months=None, buy_mode='star+ma5+ma10+safe'
     entry_idx = None
     entry_price_val = None
     entry_date = None
+    entry_factors = None
 
     for i in range(SKIP_BARS, len(rows)):
         r = rows[i]
@@ -816,6 +981,7 @@ def backtest_pair(code, name, period, months=None, buy_mode='star+ma5+ma10+safe'
                 entry_idx = i
                 entry_price_val = float(r['close'])
                 entry_date = bar_date
+                entry_factors = _extract_entry_factors(r, buy_mode)
         else:
             # 卖信号出场
             if sell_is_ctx:
@@ -836,6 +1002,8 @@ def backtest_pair(code, name, period, months=None, buy_mode='star+ma5+ma10+safe'
                     mfe = max(mfe, (h - entry_price_val) / entry_price_val * 100)
                     mae = min(mae, (l - entry_price_val) / entry_price_val * 100)
 
+                forward = _check_cascade_bt(rows, entry_idx, code) if code else ''
+
                 trade = {
                     'code': code,
                     'name': name,
@@ -850,555 +1018,17 @@ def backtest_pair(code, name, period, months=None, buy_mode='star+ma5+ma10+safe'
                     'hold_bars': i - entry_idx,
                     'buy_mode': buy_mode,
                     'sell_mode': sell_mode,
+                    'f_forward': forward,
+                    **(entry_factors if entry_factors else {}),
                 }
                 trades.append(trade)
 
                 in_trade = False
                 entry_idx = None
                 entry_price_val = None
+                entry_factors = None
 
     return trades
-
-
-# ══════════════════════════════════════════════════════════════════
-# 做T配对回测：卖信号→买信号（逆向配对）
-# ══════════════════════════════════════════════════════════════════
-
-T_STOP_PCT = 2.0  # 做T创新高止损线
-
-
-def backtest_t_cycle(code, name, period, months=None, sell_signal='cci_div', buy_mode='star+ma5+ma10+safe',
-                      no_stop=False):
-    """做T完整周期回测：卖信号入场 → 买信号/止损出场
-
-    sell_signal: 'cci_div' | 'star_sell' | 'sell_reduce'
-    buy_mode: ENTRY_MODES key — 买回信号
-    no_stop: True=不设止损，纯信号到信号
-    """
-    rows = _load_csv(code, period)
-    if not rows or len(rows) < SKIP_BARS:
-        return []
-
-    daily_zones = _load_daily_zones(code)
-    buy_entry_fn = ENTRY_MODES.get(buy_mode)
-    buy_is_ctx = buy_entry_fn is None
-
-    # ── 卖信号检测 ──
-    if sell_signal == 'sell_reduce':
-        sell_is_ctx = True  # 需要上下文
-        sig_name = '减仓'
-    elif sell_signal == 'cci_div':
-        sell_is_ctx = False
-        sell_detect_fn = lambda r: _has_cci_top_divergence(r)
-    else:
-        sell_is_ctx = False
-        sell_detect_fn = lambda r: _has_star_sell(r)
-
-    trades = []
-    in_trade = False
-    sell_idx = None
-    sell_price = None
-
-    for i in range(SKIP_BARS, len(rows)):
-        r = rows[i]
-        bar_date = r.get('date', '').strip()
-        bar_close = float(r['close'])
-
-        if months:
-            try:
-                d = datetime.strptime(bar_date, '%Y%m%d')
-                cutoff = datetime.now() - __import__('datetime').timedelta(days=months * 30)
-                if d < cutoff:
-                    continue
-            except Exception:
-                pass
-
-        zone = daily_zones.get(bar_date, 'weak')
-
-        if not in_trade:
-            # 检测卖出信号
-            if sell_is_ctx:
-                ok = _has_star_sell(r) and _close_below(r, 'ma5') and \
-                     _no_recent_golden(rows, i, 20) and \
-                     (_get_period_below_ema50('min15', code, bar_date) if code else True)
-            else:
-                ok = sell_detect_fn(r)
-
-            if ok:
-                in_trade = True
-                sell_idx = i
-                sell_price = bar_close
-        else:
-            # 检测买回信号
-            buy_ok = False
-            if buy_is_ctx:
-                buy_ok = _check_entry_ctx(buy_mode, rows, i, r, code)
-            else:
-                buy_ok = buy_entry_fn(r)
-
-            # 止损（可选）
-            stop_hit = False
-            if not no_stop and (bar_close - sell_price) / sell_price * 100 >= T_STOP_PCT:
-                stop_hit = True
-
-            if buy_ok or stop_hit:
-                buyback_price = bar_close
-                ret_pct = (sell_price - buyback_price) / sell_price * 100
-
-                # 持仓期间最大偏移
-                mfe = 0.0
-                mae = 0.0
-                for j in range(sell_idx + 1, i + 1):
-                    l = float(rows[j]['low'])
-                    h = float(rows[j]['high'])
-                    mfe = max(mfe, (sell_price - l) / sell_price * 100)
-                    mae = min(mae, (sell_price - h) / sell_price * 100)
-
-                reason = '止损' if stop_hit else f'买回({buy_mode})'
-                trades.append({
-                    'code': code, 'name': name, 'period': period,
-                    'entry_date': rows[sell_idx].get('date', '').strip(),
-                    'exit_date': bar_date,
-                    'sell_price': round(sell_price / PRICE_F, 4),
-                    'buyback_price': round(buyback_price / PRICE_F, 4),
-                    'ret_pct': round(ret_pct, 2),
-                    'mfe_pct': round(mfe, 2),
-                    'mae_pct': round(mae, 2),
-                    'hold_bars': i - sell_idx,
-                    'exit_reason': reason,
-                })
-                in_trade = False
-                sell_idx = None
-                sell_price = None
-
-    return trades
-
-
-def print_t_cycle_report(all_trades, months, period, sell_signal, buy_mode):
-    """打印做T配对回测报告"""
-    sig_label = {'cci_div': 'CCI顶背驰', 'star_sell': '★卖'}.get(sell_signal, sell_signal)
-    buy_label = {'star+ma5+ma10+safe': 'MA试错', 'star+ma5+ma10+safe+jincha': '金叉'}.get(buy_mode, buy_mode)
-
-    print(f'\n{"="*100}')
-    print(f'  做T配对回测: {sig_label}卖出 → {buy_label}买回 — {months}个月 — {period}')
-    print(f'  (止损: 涨超{T_STOP_PCT}%创新高强制买回)')
-    print(f'{"="*100}')
-
-    if not all_trades:
-        print('\n  (无符合条件的做T配对)\n')
-        return
-
-    n = len(all_trades)
-    wins = [t for t in all_trades if t['ret_pct'] > 0]
-    wr = len(wins) / n * 100
-    avg_ret = sum(t['ret_pct'] for t in all_trades) / n
-    avg_hold = sum(t['hold_bars'] for t in all_trades) / n
-
-    # 按出场方式分组
-    by_reason = defaultdict(list)
-    for t in all_trades:
-        by_reason[t['exit_reason']].append(t)
-
-    avg_mfe = sum(t.get('mfe_pct', 0) for t in all_trades) / n
-    avg_mae = sum(t.get('mae_pct', 0) for t in all_trades) / n
-    print(f'\n  总配对: {n}笔  胜率: {wr:.1f}%  均收益: {avg_ret:+.2f}%  均持仓: {avg_hold:.0f}根  MFE:{avg_mfe:+.2f}%  MAE:{avg_mae:+.2f}%')
-    print(f'\n  {"出场方式":<20} {"笔数":>5} {"胜率":>7} {"均收益":>8} {"均持(根)":>9}')
-    print(f'  {"-"*55}')
-    for reason in sorted(by_reason):
-        items = by_reason[reason]
-        nn = len(items)
-        w = len([t for t in items if t['ret_pct'] > 0]) / nn * 100
-        a = sum(t['ret_pct'] for t in items) / nn
-        ah = sum(t['hold_bars'] for t in items) / nn
-        print(f'  {reason:<20} {nn:>5} {w:>6.1f}% {a:>+7.2f}% {ah:>8.0f}根')
-
-    # 收益分布
-    print(f'\n  {"收益分布":}')
-    bins = [(-100, -3), (-3, -2), (-2, -1), (-1, 0), (0, 1), (1, 2), (2, 5), (5, 100)]
-    for lo, hi in bins:
-        count = sum(1 for t in all_trades if lo <= t['ret_pct'] < hi)
-        bar = '#' * max(1, count * 3)
-        label = f'{lo}~{hi}%'
-        print(f'    {label:>10}: {count:>3} {bar}')
-
-    # 最近5笔
-    print(f'\n  最近5笔:')
-    for t in sorted(all_trades, key=lambda x: x['entry_date'], reverse=True)[:5]:
-        print(f'    {t["entry_date"]} {t["code"]:<12} 卖{t["sell_price"]:.2f} → {t["exit_reason"]}@{t["buyback_price"]:.2f}  {t["ret_pct"]:+.2f}%  持{t["hold_bars"]}根')
-
-    print()
-
-
-# ══════════════════════════════════════════════════════════════════
-# ★卖聚集效应回测（做T信号密集度）
-# ══════════════════════════════════════════════════════════════════
-
-CLUSTER_LOOKAHEAD = 20  # 做T看未来20根bar
-
-
-def backtest_sell_cluster(code, name, period, months=None, boundary='ma_death', signal_type='star_sell'):
-    """在上涨阶段窗口内统计做T信号的聚集效应
-
-    boundary:
-      - 'ma_death': 窗口 = MA5金叉MA10 → MA5死叉MA10
-      - 'expma_break': 窗口 = close上穿expma50 → close下穿expma50
-    signal_type:
-      - 'star_sell': ★卖
-      - 'cci_div': CCI顶背驰
-      - 'cci_cross_130': CCI从峰值(>200)跌破130
-    """
-    rows = _load_csv(code, period)
-    if not rows or len(rows) < SKIP_BARS + CLUSTER_LOOKAHEAD:
-        return []
-
-    # 选择窗口边界检测函数
-    if boundary == 'ma_death':
-        cross_up_fn = _ma5_cross_above_ma10
-        cross_down_fn = _ma5_cross_below_ma10
-        in_window_fn = lambda r: _ma_above(r, 'ma5', 'ma10')
-    else:  # 'expma_break'
-        cross_up_fn = _close_cross_above_ema50
-        cross_down_fn = _close_cross_below_ema50
-        in_window_fn = lambda r: float(r.get('close', 0)) > float(r.get('expma50', 0) or 0)
-
-    # 选择信号检测函数
-    if signal_type == 'cci_div':
-        has_signal_fn = _has_cci_top_divergence
-        sig_name = 'CCI顶背驰'
-    elif signal_type == 'cci_cross_130':
-        has_signal_fn = None  # 需要上下文，在循环中特殊处理
-        sig_name = 'CCI跌破130'
-    else:
-        has_signal_fn = _has_star_sell
-        sig_name = '★卖'
-
-    # 第一步：扫描信号，标注所属窗口
-    windows = []  # [(start_i, end_i, [signal_indices])]
-    current_start = None
-    current_sells = []
-    cci_was_above_200 = False  # 用于cci_cross_130
-
-    for i in range(SKIP_BARS, len(rows)):
-        r = rows[i]
-        bar_date = r.get('date', '').strip()
-
-        if months:
-            try:
-                d = datetime.strptime(bar_date, '%Y%m%d')
-                cutoff = datetime.now() - __import__('datetime').timedelta(days=months * 30)
-                if d < cutoff:
-                    continue
-            except Exception:
-                pass
-
-        if current_start is None:
-            if cross_up_fn(rows, i) or (in_window_fn(r) and not cross_down_fn(rows, i)):
-                current_start = i
-                current_sells = []
-                cci_was_above_200 = False
-        else:
-            # 窗口结束条件：死叉/下穿 或 窗口状态丢失
-            if cross_down_fn(rows, i) or not in_window_fn(r):
-                if current_sells:
-                    windows.append((current_start, i, current_sells))
-                current_start = None
-                current_sells = []
-                cci_was_above_200 = False
-            else:
-                # ── 信号检测 ──
-                detected = False
-                if signal_type == 'cci_cross_130':
-                    # CCI从峰值(>200)跌破130
-                    try:
-                        curr_cci = float(r.get('cci', 0))
-                        prev_cci = float(rows[i-1].get('cci', 0)) if i > 0 else 0
-                    except (ValueError, TypeError):
-                        curr_cci = 0
-                        prev_cci = 0
-                    if curr_cci > 200:
-                        cci_was_above_200 = True
-                    if cci_was_above_200 and prev_cci >= 130 and curr_cci < 130:
-                        detected = True
-                        cci_was_above_200 = False  # 重置，等下次再上200
-                else:
-                    detected = has_signal_fn(r)
-
-                if detected:
-                    current_sells.append(i)
-
-    # 处理最后一个未闭合窗口
-    if current_start is not None and current_sells:
-        windows.append((current_start, len(rows) - 1, current_sells))
-
-    # 第二步：对每个信号测量做T效果
-    results = []
-    for win_start, win_end, sell_indices in windows:
-        total_sells = len(sell_indices)
-        for rank, si in enumerate(sell_indices, 1):
-            if si >= len(rows) - CLUSTER_LOOKAHEAD:
-                continue
-            r = rows[si]
-            entry_price = float(r['close'])
-            bar_date = r.get('date', '').strip()
-
-            # 未来N根bar的最大跌幅/最大反弹
-            max_drop = 0.0
-            max_rise = 0.0
-            for j in range(si + 1, min(si + CLUSTER_LOOKAHEAD + 1, len(rows))):
-                c = float(rows[j]['close'])
-                ret = (c - entry_price) / entry_price * 100
-                if ret < max_drop:
-                    max_drop = ret
-                if ret > max_rise:
-                    max_rise = ret
-
-            # 窗口结束时的收益（结构最终走向）
-            win_close = float(rows[win_end]['close']) if win_end < len(rows) else float(rows[-1]['close'])
-            win_end_ret = (win_close - entry_price) / entry_price * 100
-
-            drop_gt_1pct = max_drop <= -1.0
-            drop_gt_2pct = max_drop <= -2.0
-
-            results.append({
-                'code': code,
-                'name': name,
-                'period': period,
-                'date': bar_date,
-                'entry_price': round(entry_price / PRICE_F, 4),
-                'max_drop': round(max_drop, 2),
-                'max_rise': round(max_rise, 2),
-                'win_end_ret': round(win_end_ret, 2),
-                'drop_gt_1pct': drop_gt_1pct,
-                'drop_gt_2pct': drop_gt_2pct,
-                'rank': rank,
-                'total_in_window': total_sells,
-                'window_bars': win_end - win_start,
-            })
-
-    return results
-
-
-def print_cluster_report(all_results, boundary, months, period, signal_type='star_sell'):
-    """打印做T信号聚集效应报告"""
-    if not all_results:
-        print('\n  (无符合条件的信号)\n')
-        return
-
-    sig_label = {'cci_div': 'CCI顶背驰', 'cci_cross_130': 'CCI跌破130', 'star_sell': '★卖'}.get(signal_type, '★卖')
-    boundary_label = {'ma_death': 'MA5>MA10→死叉', 'expma_break': 'close>EXPMA黄线→跌破'}[boundary]
-
-    print(f'\n{"="*100}')
-    print(f'  {sig_label}聚集效应 — {months}个月 — {period} — 窗口边界: {boundary_label}')
-    print(f'{"="*100}')
-
-    # ── 按排名分组 ──
-    by_rank = defaultdict(list)
-    for r in all_results:
-        by_rank[r['rank']].append(r)
-
-    print(f'\n  {"─"*80}')
-    print(f'  【按出现顺序】第N个{sig_label}的做T效果')
-    print(f'  {"排名":<10} {"信号数":>6} {"跌>1%":>8} {"跌>2%":>8} {"均跌幅":>8} {"均反弹":>8}')
-    print(f'  {"-"*60}')
-    for rank in sorted(by_rank):
-        items = by_rank[rank]
-        n = len(items)
-        d1 = len([s for s in items if s['drop_gt_1pct']])
-        d2 = len([s for s in items if s['drop_gt_2pct']])
-        avg_drop = sum(s['max_drop'] for s in items) / n
-        avg_rise = sum(s['max_rise'] for s in items) / n
-        print(f'  第{rank}个{sig_label}   {n:>5} {d1/n*100:>7.1f}% {d2/n*100:>7.1f}% {avg_drop:>+7.2f}% {avg_rise:>+7.2f}%')
-
-    # ── 按窗口内总数分组 ──
-    by_total = defaultdict(list)
-    for r in all_results:
-        by_total[r['total_in_window']].append(r)
-
-    print(f'\n  {"─"*80}')
-    print(f'  【按窗口信号密度】窗口内共N个{sig_label}时的做T效果')
-    print(f'  {"窗口内总数":<12} {"窗口数":>6} {"信号数":>6} {"跌>1%":>8} {"跌>2%":>8} {"均跌幅":>8} {"均反弹":>8}')
-    print(f'  {"-"*65}')
-    for total in sorted(by_total):
-        items = by_total[total]
-        n = len(items)
-        d1 = len([s for s in items if s['drop_gt_1pct']])
-        d2 = len([s for s in items if s['drop_gt_2pct']])
-        avg_drop = sum(s['max_drop'] for s in items) / n
-        avg_rise = sum(s['max_rise'] for s in items) / n
-        n_windows = len(set((s['code'], s['date'].split()[0] if ' ' in str(s.get('window_start','')) else '') for s in items))
-        # count unique windows using a simple heuristic
-        unique_wins = set()
-        for s in items:
-            unique_wins.add(f"{s['code']}_{s['date']}")
-        n_windows_approx = len(unique_wins)  # rough; per-signal unique date
-        # Better: count by start dates
-        print(f'  共{total}个{sig_label}      {n_windows_approx:>5} {n:>5} {d1/n*100:>7.1f}% {d2/n*100:>7.1f}% {avg_drop:>+7.2f}% {avg_rise:>+7.2f}%')
-
-    # ── 聚集 vs 单次 直接对比 ──
-    single = [s for s in all_results if s['total_in_window'] == 1]
-    clustered = [s for s in all_results if s['total_in_window'] >= 2]
-    clustered_3 = [s for s in all_results if s['total_in_window'] >= 3]
-
-    print(f'\n  {"─"*80}')
-    print(f'  【聚集 vs 单次 对比】')
-    for label, items in [(f'单次(窗口内仅1个{sig_label})', single),
-                          (f'聚集(窗口内≥2个{sig_label})', clustered),
-                          (f'强聚集(窗口内≥3个{sig_label})', clustered_3)]:
-        if not items:
-            continue
-        n = len(items)
-        d1 = len([s for s in items if s['drop_gt_1pct']])
-        d2 = len([s for s in items if s['drop_gt_2pct']])
-        avg_drop = sum(s['max_drop'] for s in items) / n
-        avg_rise = sum(s['max_rise'] for s in items) / n
-        print(f'  {label:<28} {n:>4}个信号  跌>1%:{d1/n*100:5.1f}%  跌>2%:{d2/n*100:5.1f}%  均跌幅:{avg_drop:+6.2f}%  均反弹:{avg_rise:+6.2f}%')
-
-    # ── 失败去向：单次信号的盈亏分布 ──
-    if single:
-        print(f'\n  {"─"*80}')
-        print(f'  【单次{sig_label}的盈亏去向】')
-        # 分类: 成功做T(跌>2%) / 勉强(跌1-2%) / 横盘(±1%) / 小卖飞(涨1-2%) / 大卖飞(涨>2%)
-        success = [s for s in single if s['max_drop'] <= -2.0]
-        marginal = [s for s in single if -2.0 < s['max_drop'] <= -1.0]
-        flat = [s for s in single if -1.0 < s['max_drop'] <= 0 and s['max_rise'] <= 1.0]
-        small_fly = [s for s in single if s['max_rise'] > 1.0 and s['max_rise'] <= 2.0 and s['max_drop'] > -2.0]
-        big_fly = [s for s in single if s['max_rise'] > 2.0 and s['max_drop'] > -2.0]
-        # 剩余: 跌<2% 但 涨>1% 其中 涨1-2%算小卖飞，涨>2%算大卖飞... 上面条件可能有重叠，用剩余兜底
-        for label, items, icon in [
-            ('成功做T(跌>2%)', success, 'o'),
-            ('勉强(跌1~2%)', marginal, '~'),
-            ('横盘(±1%内)', flat, '-'),
-            ('小卖飞(涨1~2%)', small_fly, '!'),
-            ('大卖飞(涨>2%)', big_fly, 'X'),
-        ]:
-            if not items:
-                continue
-            n = len(items)
-            pct = n / len(single) * 100
-            avg_d = sum(s['max_drop'] for s in items) / n
-            avg_r = sum(s['max_rise'] for s in items) / n
-            print(f'  [{icon}] {label:<22} {n:>4}个 ({pct:5.1f}%)  均跌幅:{avg_d:+6.2f}%  均反弹:{avg_r:+6.2f}%')
-
-        # ── 结构最终去向：信号到窗口结束的全程收益 ──
-        print(f'\n  {"─"*80}')
-        print(f'  【单次{sig_label}到窗口结束的结构最终去向】')
-        win_up = [s for s in single if s['win_end_ret'] > 2.0]
-        win_up_small = [s for s in single if 0 < s['win_end_ret'] <= 2.0]
-        win_down_small = [s for s in single if -2.0 < s['win_end_ret'] <= 0]
-        win_down = [s for s in single if s['win_end_ret'] <= -2.0]
-        for label, items, icon in [
-            ('结构转跌(跌>2% 做T成功)', win_down, 'o'),
-            ('结构小跌(跌0~2%)', win_down_small, '~'),
-            ('结构小涨(涨0~2%)', win_up_small, '!'),
-            ('结构续涨(涨>2% 卖飞)', win_up, 'X'),
-        ]:
-            if not items:
-                continue
-            n = len(items)
-            pct = n / len(single) * 100
-            avg_wr = sum(s['win_end_ret'] for s in items) / n
-            avg_bars = sum(s['window_bars'] for s in items) / n
-            print(f'  [{icon}] {label:<26} {n:>4}个 ({pct:5.1f}%)  均收益:{avg_wr:+6.2f}%  均窗口:{avg_bars:6.0f}根')
-
-    print()
-
-
-# ══════════════════════════════════════════════════════════════════
-# 跨周期共振标签
-# ══════════════════════════════════════════════════════════════════
-
-RESONANCE_CACHE = {}  # {(code, period): rows}
-
-
-def _tag_resonance(trades):
-    """为每笔 min5 交易打上 min15/min30 金叉共振标签"""
-    for t in trades:
-        t['resonance'] = 'n/a'
-        if t['period'] != 'min5':
-            continue
-
-        code = t['code']
-        entry_date = t['entry_date']
-
-        has_m15 = False
-        has_m30 = False
-
-        # min15
-        cache_key = (code, 'min15')
-        if cache_key not in RESONANCE_CACHE:
-            RESONANCE_CACHE[cache_key] = _load_csv(code, 'min15')
-        m15_rows = RESONANCE_CACHE[cache_key]
-        has_m15 = _expma_bullish_on_date(m15_rows, entry_date) if m15_rows else False
-
-        # min30
-        cache_key = (code, 'min30')
-        if cache_key not in RESONANCE_CACHE:
-            RESONANCE_CACHE[cache_key] = _load_csv(code, 'min30')
-        m30_rows = RESONANCE_CACHE[cache_key]
-        has_m30 = _expma_bullish_on_date(m30_rows, entry_date) if m30_rows else False
-
-        if has_m15 and has_m30:
-            t['resonance'] = 'm15+m30'
-        elif has_m15:
-            t['resonance'] = 'm15'
-        else:
-            t['resonance'] = 'none'
-
-
-def _expma_bullish_on_date(rows, date_str):
-    """检查指定日期是否有 expma12 > expma50（金叉状态）"""
-    for r in rows:
-        if r.get('date', '').strip() != date_str:
-            continue
-        try:
-            e12 = float(r.get('expma12', 0))
-            e50 = float(r.get('expma50', 0))
-            if e12 > 0 and e50 > 0 and e12 > e50:
-                return True
-        except (ValueError, TypeError):
-            continue
-    return False
-
-
-def _print_resonance(trades):
-    """打印共振分组统计"""
-    min5_trades = [t for t in trades if t['period'] == 'min5']
-    if not min5_trades:
-        return
-
-    groups = defaultdict(list)
-    for t in min5_trades:
-        groups[t.get('resonance', 'none')].append(t)
-
-    print(f'\n  ★ 跨周期共振分析 (min5入场 × 上级金叉状态)')
-    print(f'  {"共振级别":<16} {"笔数":>6} {"胜率":>7} {"均收益":>8} {"死叉胜率":>7} {"死叉均收":>8} {"止损笔数":>7}')
-    print(f'  {"-"*78}')
-    for level in ['m15+m30', 'm15', 'none']:
-        items = groups.get(level, [])
-        if not items:
-            continue
-        n = len(items)
-        wr = len([t for t in items if t['ret_pct'] > 0]) / n * 100
-        avg = sum(t['ret_pct'] for t in items) / n
-        dead = [t for t in items if t['exit_reason'] == '死叉']
-        dead_wr = len([t for t in dead if t['ret_pct'] > 0]) / len(dead) * 100 if dead else 0
-        dead_avg = sum(t['ret_pct'] for t in dead) / len(dead) if dead else 0
-        stop_n = len([t for t in items if t['exit_reason'] == '止损'])
-        label = {'m15+m30': '15分+30分双共振', 'm15': '仅15分金叉', 'none': '无上级共振'}.get(level, level)
-        print(f'  {label:<16} {n:>6} {wr:>6.1f}% {avg:>+7.2f}% {dead_wr:>6.1f}% {dead_avg:>+7.2f}% {stop_n:>7}')
-
-
-def time_to_datetime(ts_str):
-    """将 YYYYMMDDHHMM 转成可读字符串"""
-    try:
-        s = ts_str.strip()
-        if len(s) >= 12:
-            return f'{s[:4]}-{s[4:6]}-{s[6:8]} {s[8:10]}:{s[10:12]}'
-        elif len(s) >= 8:
-            return f'{s[:4]}-{s[4:6]}-{s[6:8]}'
-    except Exception:
-        pass
-    return ts_str
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -1427,18 +1057,11 @@ def summarize(trades, label=''):
         avg_mfe = sum(t['mfe_pct'] for t in items) / n
         avg_mae = sum(t['mae_pct'] for t in items) / n
 
-        # 有做T点 vs 无做T点
-        has_t = [t for t in items if t.get('t_price')]
-        no_t = [t for t in items if not t.get('t_price')]
-
         report[reason] = {
             'n': n, 'wr': round(wr, 1), 'avg_ret': round(avg_ret, 2),
             'max_ret': round(max_ret, 2), 'min_ret': round(min_ret, 2),
             'avg_hold': round(avg_hold, 1), 'avg_mfe': round(avg_mfe, 2),
             'avg_mae': round(avg_mae, 2),
-            'n_t': len(has_t), 'n_no_t': len(no_t),
-            'avg_ret_t': round(sum(t['ret_pct'] for t in has_t) / len(has_t), 2) if has_t else None,
-            'avg_ret_no_t': round(sum(t['ret_pct'] for t in no_t) / len(no_t), 2) if no_t else None,
         }
     return report
 
@@ -1460,33 +1083,62 @@ def print_report(all_trades, by_stock, label=''):
         print('\n  (无符合条件的交易)\n')
         return
 
-    print(f'\n  总交易: {len(total)} 笔  |  ', end='')
-    for reason in ['死叉', '止损', '全部']:
-        if reason in by_stock:
-            r = by_stock.get(reason, {})
-            if isinstance(r, dict) and r.get('n'):
-                wins = [t for t in total if t['ret_pct'] > 0]
-                overall_wr = len(wins) / len(total) * 100 if total else 0
     avg_all = sum(t['ret_pct'] for t in total) / len(total) if total else 0
-    print(f'平均收益: {avg_all:+.2f}%  |  ', end='')
     wr_all = len([t for t in total if t['ret_pct'] > 0]) / len(total) * 100 if total else 0
-    print(f'胜率: {wr_all:.1f}%')
+    print(f'\n  总交易: {len(total)} 笔  |  平均收益: {avg_all:+.2f}%  |  胜率: {wr_all:.1f}%')
 
     # ── 按出场方式 ──
     outcomes = defaultdict(list)
     for t in total:
         outcomes[t['exit_reason']].append(t)
 
-    for reason in ['止损', '死叉']:
-        items = outcomes.get(reason, [])
+    for reason in sorted(outcomes):
+        items = outcomes[reason]
         if not items:
             continue
         n = len(items)
         avg = sum(t['ret_pct'] for t in items) / n
         wr = len([t for t in items if t['ret_pct'] > 0]) / n * 100
-        label_map = {'死叉': '清仓(死叉)', '止损': '止损(破波段低点)'}
-        print(f'  {label_map.get(reason, reason)}: {n}笔  胜率{wr:.0f}%  均收益{avg:+.2f}%')
+        print(f'  {reason}: {n}笔  胜率{wr:.0f}%  均收益{avg:+.2f}%')
 
+    # ── 未来共振对比 (入场后15/30分是否有信号跟随) ──
+    has_fwd = [t for t in total if t.get('f_forward')]
+    no_fwd = [t for t in total if not t.get('f_forward')]
+    if has_fwd:
+        print(f'\n  +++ 未来共振: 入场后15/30分金叉/★买跟随 对比 +++')
+        print(f'  {"状态":<20} {"笔数":>5} {"胜率":>7} {"均收益":>8} {"均MFE":>7} {"均MAE":>7}')
+        print(f'  {"-"*60}')
+        for label, grp in [('有未来共振', has_fwd), ('无未来共振', no_fwd)]:
+            n = len(grp)
+            wr = len([t for t in grp if t['ret_pct'] > 0]) / n * 100
+            avg = sum(t['ret_pct'] for t in grp) / n
+            avg_mfe = sum(t['mfe_pct'] for t in grp) / n
+            avg_mae = sum(t['mae_pct'] for t in grp) / n
+            print(f'  {label:<20} {n:>5} {wr:>6.0f}% {avg:>+7.2f}% {avg_mfe:>+6.2f}% {avg_mae:>+6.2f}%')
+        # 子类型
+        for ftype in ['both', 'min15_only', 'min30_only']:
+            grp = [t for t in total if t.get('f_forward') == ftype]
+            if grp:
+                n = len(grp)
+                wr = len([t for t in grp if t['ret_pct'] > 0]) / n * 100
+                avg = sum(t['ret_pct'] for t in grp) / n
+                print(f'    └{ftype:<12} {n:>5} {wr:>6.0f}% {avg:>+7.2f}%')
+
+        # ── 多窗口/信号类型对比 ──
+        print(f'\n  +++ 15分窗口/信号类型 对比 +++')
+        print(f'  {"变体":<16} {"通过":>5} {"总笔":>5} {"通过率":>7} {"胜率(通过)":>10} {"均收(通过)":>9}')
+        print(f'  {"-"*60}')
+        variants = ['m15_w12', 'm15_w8', 'm15_w6', 'm15_w4', 'starbuy']
+        vlabels = {'m15_w12': '15分12根', 'm15_w8': '15分8根', 'm15_w6': '15分6根', 'm15_w4': '15分4根', 'starbuy': '★买版'}
+        for v in variants:
+            passed = [t for t in total if json.loads(t.get('f_forward_all', '{}')).get(v)]
+            n_pass = len(passed)
+            if n_pass == 0:
+                continue
+            wr = len([t for t in passed if t['ret_pct'] > 0]) / n_pass * 100
+            avg = sum(t['ret_pct'] for t in passed) / n_pass
+            rate = n_pass / len(total) * 100
+            print(f'  {vlabels.get(v, v):<16} {n_pass:>5} {len(total):>5} {rate:>6.1f}% {wr:>9.0f}% {avg:>+8.2f}%')
     # ── 收益分布 ──
     print(f'\n  收益分布:')
     bins = [(-100, -5), (-5, -2), (-2, 0), (0, 2), (2, 5), (5, 10), (10, 1000)]
@@ -1497,8 +1149,8 @@ def print_report(all_trades, by_stock, label=''):
         print(f'    {label:>10}: {count:>3} {bar}')
 
     # ── 按周期 ──
-    print(f'\n  {"周期":<8} {"笔数":>5} {"胜率":>7} {"均收益":>8} {"均持(根)":>9} {"有T":>5} {"T收益":>8} {"无T收益":>8}')
-    print(f'  {"-"*75}')
+    print(f'\n  {"周期":<8} {"笔数":>5} {"胜率":>7} {"均收益":>8} {"均持(根)":>9}')
+    print(f'  {"-"*48}')
     for period in PERIODS:
         pt = [t for t in total if t['period'] == period]
         if not pt:
@@ -1507,14 +1159,7 @@ def print_report(all_trades, by_stock, label=''):
         wr = len([t for t in pt if t['ret_pct'] > 0]) / n * 100
         avg = sum(t['ret_pct'] for t in pt) / n
         avg_h = sum(t['hold_bars'] for t in pt) / n
-        t_trades = [t for t in pt if t.get('t_price')]
-        nt_trades = [t for t in pt if not t.get('t_price')]
-        t_avg = sum(t['ret_pct'] for t in t_trades) / len(t_trades) if t_trades else None
-        nt_avg = sum(t['ret_pct'] for t in nt_trades) / len(nt_trades) if nt_trades else None
-        t_str = f'{t_avg:>+7.2f}%' if t_avg is not None else '       -'
-        nt_str = f'{nt_avg:>+7.2f}%' if nt_avg is not None else '       -'
-        print(f'  {period:<8} {n:>5} {wr:>6.0f}% {avg:>+7.2f}% {avg_h:>8.1f} '
-              f'{len(t_trades):>5} {t_str:>8} {nt_str:>8}')
+        print(f'  {period:<8} {n:>5} {wr:>6.0f}% {avg:>+7.2f}% {avg_h:>8.1f}')
 
     # ── 按标的 ──
     print(f'\n  {"标的":<12} {"笔数":>5} {"胜率":>7} {"均收益":>8} {"均MFE":>7} {"均MAE":>7}')
@@ -1534,13 +1179,12 @@ def print_report(all_trades, by_stock, label=''):
 
     # ── 最近交易明细 ──
     print(f'\n  最近10笔交易:')
-    print(f'  {"日期":<12} {"标的":<12} {"周期":<6} {"入场":>8} {"出场":>8} {"收益":>8} {"方式":<6} {"持根":>5} {"T价":>8}')
-    print(f'  {"-"*90}')
+    print(f'  {"日期":<12} {"标的":<12} {"周期":<6} {"入场":>8} {"出场":>8} {"收益":>8} {"方式":<6} {"持根":>5}')
+    print(f'  {"-"*78}')
     for t in sorted(total, key=lambda x: x['entry_date'], reverse=True)[:10]:
-        t_str = f'{t.get("t_price","")}' if t.get('t_price') else '-'
         print(f'  {t["entry_date"]:<12} {t["code"]:<12} {t["period"]:<6} '
               f'{t["entry_price"]:>8.2f} {t["exit_price"]:>8.2f} {t["ret_pct"]:>+7.2f}% '
-              f'{t["exit_reason"]:<6} {t["hold_bars"]:>5} {t_str:>8}')
+              f'{t["exit_reason"]:<6} {t["hold_bars"]:>5}')
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -1552,21 +1196,11 @@ def main():
     parser.add_argument('--code', type=str, help='单标的回测 (如 sh600176)')
     parser.add_argument('--period', type=str, choices=PERIODS, default='min5', help='单周期 (默认min5)')
     parser.add_argument('--months', type=int, default=6, help='回测时间范围(月, 默认6)')
-    parser.add_argument('--entry', type=str, choices=ALL_ENTRY_MODES, default='any',
+    parser.add_argument('--entry', type=str, choices=ALL_ENTRY_MODES, default='star+ma5+ma10+safe',
                         help=f'入场模式: {", ".join(ALL_ENTRY_MODES)}')
-    parser.add_argument('--compare', action='store_true', help='对比所有入场模式')
-    parser.add_argument('--sell-compare', action='store_true', help='对比所有卖信号过滤模式')
-    parser.add_argument('--pair', action='store_true', help='买→卖配对: MA/金叉 × 裸★卖/减仓 交叉统计')
-    parser.add_argument('--t-cycle', action='store_true', help='做T配对: CCI顶背驰/★卖 → MA试错/金叉买回')
-    parser.add_argument('--t-sell', type=str, choices=['cci_div', 'star_sell'], default='cci_div',
-                        help='做T卖出信号: cci_div=CCI顶背驰, star_sell=★卖')
-    parser.add_argument('--t-buy', type=str, choices=['star+ma5+ma10+safe', 'star+ma5+ma10+safe+jincha'], default='star+ma5+ma10+safe',
-                        help='做T买回信号: MA试错 / 金叉')
-    parser.add_argument('--cluster', action='store_true', help='做T信号聚集效应: 上涨窗口内信号密度与做T效果')
-    parser.add_argument('--cluster-signal', type=str, choices=['star_sell', 'cci_div', 'cci_cross_130'], default='star_sell',
-                        help='聚集信号类型: star_sell=★卖, cci_div=CCI顶背驰, cci_cross_130=CCI>200峰值后跌破130')
-    parser.add_argument('--cluster-boundary', type=str, choices=['ma_death', 'expma_break', 'both'], default='both',
-                        help='聚集窗口边界: ma_death=MA5金叉→死叉, expma_break=close上穿→下穿expma50, both=两种都跑')
+    parser.add_argument('--compare', action='store_true', help='对比入场模式 (MA级 vs 金叉级)')
+    parser.add_argument('--sell-compare', action='store_true', help='对比卖信号模式 (用 MA级入场 + 不同卖模式)')
+    parser.add_argument('--pair', action='store_true', help='买→卖配对: MA级/金叉级 × 减仓卖/CCI做T 交叉统计')
     parser.add_argument('--universe', type=str, choices=['volume_leader', 'tracking'], default='volume_leader',
                         help='标的范围: volume_leader=量领强者, tracking=14只跟踪标的')
     parser.add_argument('--save', action='store_true', help='保存结果到JSON')
@@ -1590,10 +1224,9 @@ def main():
     # ── compare 模式 ──
     if args.compare:
         comp_universe = load_tracking_universe() if args.universe == 'tracking' else universe
-        mode_names = [m for m in ALL_ENTRY_MODES if m != 'any']
         all_mode_results = {}
 
-        for mode in mode_names:
+        for mode in ALL_ENTRY_MODES:
             all_trades = []
             for stock in comp_universe:
                 code, name = stock['code'], stock['name']
@@ -1605,83 +1238,72 @@ def main():
                 n = len(all_trades)
                 wr = len([t for t in all_trades if t['ret_pct'] > 0]) / n * 100
                 avg = sum(t['ret_pct'] for t in all_trades) / n
-                dead_trades = [t for t in all_trades if t['exit_reason'] == '死叉']
-                dead_n = len(dead_trades)
-                dead_wr = len([t for t in dead_trades if t['ret_pct'] > 0]) / dead_n * 100 if dead_n else 0
-                dead_avg = sum(t['ret_pct'] for t in dead_trades) / dead_n if dead_n else 0
                 stop_trades = [t for t in all_trades if t['exit_reason'] == '止损']
                 stop_n = len(stop_trades)
-                stop_avg = sum(t['ret_pct'] for t in stop_trades) / stop_n if stop_n else 0
+                reduce_trades = [t for t in all_trades if t['exit_reason'] == '减仓卖']
+                reduce_n = len(reduce_trades)
+                reduce_wr = len([t for t in reduce_trades if t['ret_pct'] > 0]) / reduce_n * 100 if reduce_n else 0
                 all_mode_results[mode] = {
                     'n': n, 'wr': wr, 'avg': avg,
-                    'dead_n': dead_n, 'dead_wr': dead_wr, 'dead_avg': dead_avg,
-                    'stop_n': stop_n, 'stop_avg': stop_avg,
+                    'stop_n': stop_n, 'reduce_n': reduce_n, 'reduce_wr': reduce_wr,
                 }
 
-        # 打印对比表
         print(f'\n{"="*100}')
         print(f'  入场模式对比 — {args.months}个月 — {args.period}')
         print(f'{"="*100}')
-        print(f'  {"模式":<16} {"总笔数":>6} {"总胜率":>7} {"总均收":>8} {"死叉笔数":>7} {"死叉胜率":>7} {"死叉均收":>8} {"止损笔数":>7} {"止损均收":>8}')
-        print(f'  {"-"*98}')
-        for mode in mode_names:
+        print(f'  {"模式":<28} {"总笔数":>6} {"总胜率":>7} {"总均收":>8} {"减仓笔数":>7} {"减仓胜率":>7} {"止损笔数":>7}')
+        print(f'  {"-"*85}')
+        for mode in ALL_ENTRY_MODES:
             r = all_mode_results.get(mode)
             if not r:
                 continue
-            print(f'  {mode:<16} {r["n"]:>6} {r["wr"]:>6.1f}% {r["avg"]:>+7.2f}% '
-                  f'{r["dead_n"]:>7} {r["dead_wr"]:>6.1f}% {r["dead_avg"]:>+7.2f}% '
-                  f'{r["stop_n"]:>7} {r["stop_avg"]:>+7.2f}%')
+            print(f'  {mode:<28} {r["n"]:>6} {r["wr"]:>6.1f}% {r["avg"]:>+7.2f}% '
+                  f'{r["reduce_n"]:>7} {r["reduce_wr"]:>6.1f}% {r["stop_n"]:>7}')
         print()
         return
 
-    # ── sell-compare 模式 ──
+    # ── sell-compare 模式：用 MA级入场 + 不同卖模式 ──
     if args.sell_compare:
         sc_universe = load_tracking_universe() if args.universe == 'tracking' else universe
-        ulabel = '14只跟踪标的' if args.universe == 'tracking' else '量领强者'
         print(f'\n{"="*100}')
-        print(f'  卖信号过滤模式对比 [{ulabel}] — {args.months}个月 — {args.period}')
+        print(f'  卖信号模式对比 (MA级入场) — {args.months}个月 — {args.period}')
         print(f'{"="*100}')
-        print(f'  {"模式":<18} {"信号数":>6} {"命中率":>7} {"均跌幅":>8} {"死叉率":>7} {"假信号率":>8} {"均反弹":>8}')
+        print(f'  {"卖模式":<28} {"笔数":>5} {"胜率":>7} {"均收益":>8} {"均持(根)":>9} {"均MFE":>7} {"均MAE":>7}')
         print(f'  {"-"*82}')
-        for mode in ALL_SELL_MODES:
-            all_signals = []
+        for sell_mode in ALL_SELL_MODES:
+            all_trades = []
             for stock in sc_universe:
                 code, name = stock['code'], stock['name']
                 for period in periods_to_run:
-                    sigs = backtest_sell_stock(code, name, period, months=args.months, sell_mode=mode)
-                    all_signals.extend(sigs)
-            if not all_signals:
+                    trades = backtest_pair(code, name, period, months=args.months,
+                                           buy_mode='star+ma5+ma10+safe', sell_mode=sell_mode)
+                    all_trades.extend(trades)
+            if not all_trades:
                 continue
-            n = len(all_signals)
-            success_n = len([s for s in all_signals if s['success']])
-            hit_rate = success_n / n * 100
-            avg_drop = sum(s['max_drop_pct'] for s in all_signals) / n
-            death_n = len([s for s in all_signals if s['has_death']])
-            death_rate = death_n / n * 100
-            false_n = len([s for s in all_signals if s['max_rise_pct'] > 2.0])
-            false_rate = false_n / n * 100
-            avg_rise = sum(s['max_rise_pct'] for s in all_signals) / n
-            print(f'  {mode:<18} {n:>6} {hit_rate:>6.1f}% {avg_drop:>+7.2f}% '
-                  f'{death_rate:>6.1f}% {false_rate:>7.1f}% {avg_rise:>+7.2f}%')
+            n = len(all_trades)
+            wr = len([t for t in all_trades if t['ret_pct'] > 0]) / n * 100
+            avg = sum(t['ret_pct'] for t in all_trades) / n
+            avg_hold = sum(t['hold_bars'] for t in all_trades) / n
+            avg_mfe = sum(t['mfe_pct'] for t in all_trades) / n
+            avg_mae = sum(t['mae_pct'] for t in all_trades) / n
+            print(f'  {sell_mode:<28} {n:>5} {wr:>6.1f}% {avg:>+7.2f}% {avg_hold:>8.1f} {avg_mfe:>+6.2f}% {avg_mae:>+6.2f}%')
         print()
         return
 
     # ── pair 模式：买→卖配对 交叉统计 ──
     if args.pair:
         combos = [
-            ('star+ma5+ma10+safe',       'sell_any',            'MA试错→裸★卖'),
-            ('star+ma5+ma10+safe',       'sell_break_ma5_safe', 'MA试错→减仓'),
-            ('star+ma5+ma10+safe',       'sell_death',          'MA试错→死叉'),
-            ('star+ma5+ma10+safe+jincha', 'sell_any',           '金叉→裸★卖'),
-            ('star+ma5+ma10+safe+jincha', 'sell_break_ma5_safe', '金叉→减仓'),
-            ('star+ma5+ma10+safe+jincha', 'sell_death',         '金叉→死叉'),
+            ('star+ma5+ma10+safe',       'sell_break_ma5_safe',       'MA级→减仓卖'),
+            ('star+ma5+ma10+safe',       'sell_break_ma5_safe_min5',  'MA级→减仓卖(min5)'),
+            ('star+ma5+ma10+safe',       'sell_break_ma5_safe_min30', 'MA级→减仓卖(min30)'),
+            ('star+ma5+ma10+safe',       'sell_cci_div_safe',         'MA级→CCI做T'),
+            ('star+ma5+ma10+safe+jincha', 'sell_break_ma5_safe',      '金叉级→减仓卖'),
+            ('star+ma5+ma10+safe+jincha', 'sell_cci_div_safe',        '金叉级→CCI做T'),
         ]
         print(f'\n{"="*100}')
         print(f'  买→卖配对回测 — {args.months}个月 — {args.period}')
-        print(f'  (MA试错=★买+MA5>10>20+无死叉+60分黄线  金叉=MA试错+EXPMA金叉)')
-        print(f'  (裸★卖=★卖  减仓=★卖+close<MA5+无金叉+15分黄线下)')
         print(f'{"="*100}')
-        print(f'  {"组合":<20} {"笔数":>5} {"胜率":>7} {"均收益":>8} {"均持(根)":>9} {"均MFE":>7} {"均MAE":>7}')
+        print(f'  {"组合":<24} {"笔数":>5} {"胜率":>7} {"均收益":>8} {"均持(根)":>9} {"均MFE":>7} {"均MAE":>7}')
         print(f'  {"-"*75}')
         for buy_mode, sell_mode, label in combos:
             all_trades = []
@@ -1699,46 +1321,13 @@ def main():
             avg_hold = sum(t['hold_bars'] for t in all_trades) / n
             avg_mfe = sum(t['mfe_pct'] for t in all_trades) / n
             avg_mae = sum(t['mae_pct'] for t in all_trades) / n
-            print(f'  {label:<20} {n:>5} {wr:>6.1f}% {avg:>+7.2f}% {avg_hold:>8.1f} {avg_mfe:>+6.2f}% {avg_mae:>+6.2f}%')
+            print(f'  {label:<24} {n:>5} {wr:>6.1f}% {avg:>+7.2f}% {avg_hold:>8.1f} {avg_mfe:>+6.2f}% {avg_mae:>+6.2f}%')
         print()
-        return
-
-    # ── t-cycle 模式：做T配对回测 ──
-    if args.t_cycle:
-        tc_universe = load_tracking_universe() if args.universe == 'tracking' else universe
-        combos = [
-            ('sell_reduce', 'star', '减仓→★买(无止损)'),
-        ]
-        for sell_sig, buy_mode, label in combos:
-            all_trades = []
-            for stock in tc_universe:
-                code, name = stock['code'], stock['name']
-                for period in periods_to_run:
-                    trades = backtest_t_cycle(code, name, period, months=args.months,
-                                             sell_signal=sell_sig, buy_mode=buy_mode, no_stop=True)
-                    all_trades.extend(trades)
-            print_t_cycle_report(all_trades, args.months, args.period, sell_sig, buy_mode)
-        return
-
-    # ── cluster 模式：做T信号聚集效应 ──
-    if args.cluster:
-        cluster_universe = load_tracking_universe() if args.universe == 'tracking' else universe
-        boundaries = ['ma_death', 'expma_break'] if args.cluster_boundary == 'both' else [args.cluster_boundary]
-        for boundary in boundaries:
-            all_results = []
-            for stock in cluster_universe:
-                code, name = stock['code'], stock['name']
-                for period in periods_to_run:
-                    results = backtest_sell_cluster(code, name, period, months=args.months,
-                                                   boundary=boundary, signal_type=args.cluster_signal)
-                    all_results.extend(results)
-            print_cluster_report(all_results, boundary, args.months, args.period, args.cluster_signal)
         return
 
     # ── 普通模式 ──
     all_trades = []
     by_period = defaultdict(list)
-    by_stock = {}
 
     for stock in universe:
         code, name = stock['code'], stock['name']
@@ -1751,21 +1340,15 @@ def main():
         print(f'\n[backtest] 未找到符合条件的交易（{args.months}个月内）')
         return
 
-    # 跨周期共振标签（仅 min5）
-    _tag_resonance(all_trades)
-
     # 分组统计
+    by_stock = {}
     by_stock['全部'] = summarize(all_trades).get('全部', {})
-    for reason in ['死叉', '止损']:
-        subset = [t for t in all_trades if t['exit_reason'] == reason]
-        by_stock[reason] = summarize(subset).get(reason, {})
 
     # 输出报告
     label = f'{args.months}个月 [{args.entry}]'
     if args.code:
         label += f' [{args.code}]'
     print_report(all_trades, by_stock, label)
-    _print_resonance(all_trades)
 
     # 详细交易列表
     if args.detail and all_trades:
@@ -1773,11 +1356,10 @@ def main():
         print(f'  全部交易明细 ({len(all_trades)}笔)')
         print(f'{"="*90}')
         for t in sorted(all_trades, key=lambda x: x['entry_date'], reverse=True):
-            t_info = f' T@{t["t_price"]}' if t.get('t_price') else ''
             print(f'  {t["entry_date"]} {t["code"]:<12} {t["period"]} '
                   f'入场{t["entry_price"]:.2f} → {t["exit_reason"]}@{t["exit_price"]:.2f} '
                   f'{t["ret_pct"]:+.2f}% (MFE{t["mfe_pct"]:+.1f}% MAE{t["mae_pct"]:+.1f}%) '
-                  f'持{t["hold_bars"]}根{t_info}')
+                  f'持{t["hold_bars"]}根')
 
     # 保存
     if args.save:

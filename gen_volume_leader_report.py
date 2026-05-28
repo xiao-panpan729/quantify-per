@@ -49,8 +49,41 @@ def _load_csv(code, period='min5'):
         return list(reader)
 
 
+def _pe_not_rising_5m(row):
+    """5分钟PE非升熵 (pe_chg_5 >= -0.02)"""
+    try:
+        return float(row.get('pe_chg_5', 0) or 0) >= -0.02
+    except (ValueError, TypeError):
+        return True  # 无数据放行
+
+
+DAILY_PE_CACHE = {}
+
+def _daily_pe_ok(code, bar_date):
+    """日线PE非升熵 (用daily CSV的pe_chg_5)"""
+    if code not in DAILY_PE_CACHE:
+        rows = _load_csv(code, 'daily')
+        if not rows:
+            DAILY_PE_CACHE[code] = {}
+            return True
+        DAILY_PE_CACHE[code] = {}
+        for r in rows:
+            d = r.get('date', '').strip()
+            try:
+                pe_chg = float(r.get('pe_chg_5', 0) or 0)
+                DAILY_PE_CACHE[code][d] = pe_chg >= -0.02
+            except (ValueError, TypeError):
+                DAILY_PE_CACHE[code][d] = True
+    return DAILY_PE_CACHE[code].get(bar_date, True)
+
+
 def compute_filter_level(code):
-    """从5分钟信号CSV计算当前 filter level: None / 'ma' / 'jincha' / 'resonance'"""
+    """从5分钟信号CSV计算当前 filter level: None / 'ma' / 'jincha' / 'resonance'
+
+    PE门禁 (基于回测验证):
+    - MA级: 日线PE升熵 → 不展示 (MA级最佳=+pe_d, 均收益+0.96%)
+    - 金叉级/共振级: 5分钟PE升熵 → 不展示 (金叉级最佳=+pe, 胜率+10.2%)
+    """
     rows = _load_csv(code, 'min5')
     if not rows or len(rows) < 2:
         return None
@@ -98,11 +131,20 @@ def compute_filter_level(code):
     if not min60_ok:
         return None
 
+    bar_date = star.get('date', '').strip()
+
     # 5分钟EXPMA金叉？
     expma12 = float(star.get('expma12', 0) or 0)
     expma50 = float(star.get('expma50', 0) or 0)
     if not (expma12 > expma50):
+        # ── MA级: 日线PE门禁 ──
+        if not _daily_pe_ok(code, bar_date):
+            return None  # 日线混沌, MA级也不做
         return 'ma'  # MA级(试错)
+
+    # ── 金叉级以上: 5分钟PE门禁 ──
+    if not _pe_not_rising_5m(star):
+        return None  # 微观结构混沌, 金叉也不可靠
 
     # 共振检测：15分 + 30分金叉
     min15 = _load_csv(code, 'min15')
@@ -156,7 +198,7 @@ def build_summary_table(cycle_items, synth_data, names):
         'bearish_bias': '偏空', 'bearish': '下跌',
     }
 
-    FILTER_LABEL = {'ma': 'MA(试错)', 'jincha': '金叉(买)', 'resonance': '共振(买完)'}
+    FILTER_LABEL = {'ma': 'MA级(试错)', 'jincha': '金叉级(买)', 'resonance': '共振级(买完)'}
 
     for item in cycle_items:
         code = item.get('code', '')

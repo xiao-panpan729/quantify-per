@@ -73,6 +73,7 @@ def analyze_trend_pe(raw_rows, lookback=60):
     default = {'pe_front': 0.5, 'pe_back': 0.5, 'pe_ratio': 1.0,
                'pe_level': 'mid', 'pe_phase': '数据不足', 'pe_velocity': '--',
                'trending': False, 'label': '数据不足',
+               'tl_dir': '--',
                'pe_trajectory': None}
 
     if not raw_rows or len(raw_rows) < 20:
@@ -236,7 +237,8 @@ def _analyze_pe_legacy(raw_rows, lookback=60):
     if len(trend_vals) < lookback * 0.5:
         return {'pe_front': 0.5, 'pe_back': 0.5, 'pe_ratio': 1.0,
                 'pe_level': 'mid', 'pe_phase': '数据不足', 'pe_velocity': '--',
-                'trending': False, 'label': '数据不足', 'pe_trajectory': None}
+                'trending': False, 'label': '数据不足', 'tl_dir': '--',
+                'pe_trajectory': None}
 
     half = len(trend_vals) // 2
     front = trend_vals[:half]

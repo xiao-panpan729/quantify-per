@@ -63,7 +63,7 @@ python tools/volume_leader_screener.py --top 50 --update-rank --sync-universe --
 python update_volume_leaders.py           # ★成交量领导者信号计算（6周期，全量+增量）
 python update_volume_leaders.py sh603986  # 只更新指定标的
 python gen_volume_leader_report.py       # ★成交量领导者 AI 日报 → reports/volume_leader/
-python tools/volume_leader/monitor.py --filter all   # 三级同时弹: MA(试错)/金叉(买)/共振(买完)
+python tools/volume_leader/monitor.py --filter all   # 三级同时弹: MA级(试错)/金叉级(买)/共振级(买完)
 python tools/volume_leader/monitor.py               # 默认 MA级(试错)
 python tools/volume_leader/monitor.py --filter resonance  # 仅共振级(买完)
 python tools/volume_leader/monitor.py --once --no-toast  # 单轮扫描（测试用）

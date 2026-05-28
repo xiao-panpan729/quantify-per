@@ -17,6 +17,14 @@ def _conn():
     return c
 
 
+def _add_column_if_missing(c, table, col_name, col_def):
+    """安全加列，忽略已存在错误"""
+    try:
+        c.execute(f'ALTER TABLE {table} ADD COLUMN {col_name} {col_def}')
+    except sqlite3.OperationalError:
+        pass  # 列已存在
+
+
 def init_db():
     """建表（幂等）"""
     c = _conn()
@@ -38,6 +46,9 @@ def init_db():
             expma_cross TEXT,
             close_price REAL,
             volume REAL,
+
+            -- 止损
+            band_low REAL,
 
             -- 60分钟环境
             min60_above_expma50 INTEGER DEFAULT 0,
@@ -75,6 +86,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_trades_filter ON trades(filter_level);
         CREATE INDEX IF NOT EXISTS idx_trades_entry_time ON trades(entry_time);
     ''')
+    # 迁移：旧库无 band_low 列
+    _add_column_if_missing(c, 'trades', 'band_low', 'REAL')
     c.commit()
     c.close()
 
@@ -104,6 +117,7 @@ def record_entry(entry):
         conditions.get('expma_cross'),
         conditions.get('close_price'),
         conditions.get('volume'),
+        conditions.get('band_low'),
         1 if conditions.get('min60_above_expma50') else 0,
         entry.get('zone', ''),
         cascade,
@@ -115,8 +129,8 @@ def record_entry(entry):
         INSERT INTO trades (entry_time, code, name, entry_price,
             filter_level, entry_type, period,
             bar_ts, ma5, ma10, ma20, expma12, expma50, expma_cross, close_price, volume,
-            min60_above_expma50, zone, cascade_type, resonance_detail, t_points)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            band_low, min60_above_expma50, zone, cascade_type, resonance_detail, t_points)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ''', row)
     trade_id = cur.lastrowid
     c.commit()

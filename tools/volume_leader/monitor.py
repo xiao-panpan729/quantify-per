@@ -4,7 +4,7 @@ import os
 import time
 import csv
 import json
-from datetime import datetime, date
+from datetime import datetime, timedelta
 from collections import OrderedDict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -13,11 +13,12 @@ from tools.volume_leader.shared import (
     load_universe, append_trade,
     LOOKBACK_BARS, MIN_PRICE_FACTOR,
 )
-from tools.volume_leader.fetcher import fetch_today_5min
+from tools.volume_leader.fetcher import fetch_today_5min, fetch_1min_pytdx
 from tools.volume_leader import trade_db
 
 import signal_engine as se
-from signal_engine import _calc_signals_from_arrays, _calc_pe_rolling, calc_volume_indicators, TREND_PERIOD_MIN_SHORT, TREND_PERIOD_MIN
+from signal_engine import (_calc_signals_from_arrays, _calc_pe_rolling, calc_volume_indicators,
+                           TREND_PERIOD_MIN_SHORT, TREND_PERIOD_MIN, read_bars_lc1)
 from cycle_engine.indicators import extract_anchors, signal_quality, analyze_trend_pe
 from cycle_engine.constants import Direction
 
@@ -28,7 +29,12 @@ PRICE_LIMIT_5_15 = 0.01      # 5→15分钟级联涨幅限制 1%
 PRICE_LIMIT_15_30 = 0.02     # 15→30分钟级联涨幅限制 2%
 MIN60_BREAK_BARS = 3         # 60分钟破黄线几根后判定出局
 STATE_PATH = 'signals/tracking/monitor_state.json'
+PE_GATE_LOG = 'signals/tracking/pe_gate_log.jsonl'  # PE门禁误杀追踪
 DAILY_DIRECTION_CACHE = {}
+MIN1_CACHE = {}  # code → {'rows': [...], 'last_ts': str}  1分钟信号内存缓存
+DAILY_PE_CACHE = {}  # code → {date_str: bool}  日线PE非升熵缓存
+
+
 
 # ─── 信号类型定义 ───
 SIGNAL_GOLDEN = '金叉'
@@ -83,6 +89,167 @@ def _load_daily_direction(code):
         direction = Direction.BULLISH
     DAILY_DIRECTION_CACHE[code] = direction
     return direction
+
+
+def _daily_pe_ok(code):
+    """日线PE非升熵 (最新一根日线的pe_chg_5 ≥ -0.02)"""
+    if code in DAILY_PE_CACHE:
+        return DAILY_PE_CACHE[code]
+    rows = _load_csv(code, 'daily')
+    if not rows or len(rows) < 2:
+        DAILY_PE_CACHE[code] = True
+        return True
+    last = rows[-1]
+    try:
+        pe_chg = float(last.get('pe_chg_5', 0) or 0)
+        ok = pe_chg >= -0.02
+    except (ValueError, TypeError):
+        ok = True
+    DAILY_PE_CACHE[code] = ok
+    return ok
+
+
+# ─── 共振检测缓存（同日/异日共振） ───
+_RESONANCE_CACHE = {}  # code → {date: set('min15'|'min30')}
+
+
+def _check_resonance(code, bar_date):
+    """检测15+30金叉共振: 返回 'same_day'(同日) / 'cross_day'(异日) / ''
+
+    ±1天窗口匹配, 对齐 backtest.py。《实验#4》15+30双共振77.1%胜率。
+    同日(offset=0) 100%胜率, 异日(offset≠0但窗口内) 并入±1天。
+    """
+    if code not in _RESONANCE_CACHE:
+        _RESONANCE_CACHE[code] = {}
+        for period in ('min15', 'min30'):
+            rows = _load_csv(code, period)
+            if rows:
+                for r in rows:
+                    d = r.get('date', '').strip()
+                    cross = (r.get('expma_cross', '') or '').strip()
+                    if cross == '金叉' and d:
+                        _RESONANCE_CACHE[code].setdefault(d, set()).add(period)
+
+    try:
+        dt = datetime.strptime(bar_date, '%Y%m%d')
+    except ValueError:
+        return ''
+
+    # 先检查严格同一天
+    same_day = _RESONANCE_CACHE[code].get(bar_date, set())
+    if 'min15' in same_day and 'min30' in same_day:
+        return 'same_day'
+
+    # ±1天窗口
+    all_perms = set()
+    for offset in (-1, 1):
+        d = (dt + timedelta(days=offset)).strftime('%Y%m%d')
+        all_perms.update(_RESONANCE_CACHE[code].get(d, set()))
+
+    if 'min15' in all_perms and 'min30' in all_perms:
+        return 'cross_day'
+    return ''
+
+
+def _log_pe_gate_kill(code, name, bar, bar_ts, would_be_level, fail_reason, pe_val):
+    """记录被PE门禁过滤的信号，供事后验证是否误杀"""
+    from tools.volume_leader.shared import MIN_PRICE_FACTOR
+    close_raw = float(bar.get('close', 0) or 0)
+    price = close_raw / MIN_PRICE_FACTOR if close_raw > 100 else close_raw
+    record = {
+        'time': bar_ts,
+        'code': code,
+        'name': name,
+        'price': round(price, 3),
+        'would_be_level': would_be_level,
+        'fail_reason': fail_reason,
+        'pe_val': round(pe_val, 4),
+        'ma5': round(float(bar.get('ma5', 0) or 0) / MIN_PRICE_FACTOR, 3),
+        'ma10': round(float(bar.get('ma10', 0) or 0) / MIN_PRICE_FACTOR, 3),
+        'ma20': round(float(bar.get('ma20', 0) or 0) / MIN_PRICE_FACTOR, 3),
+        'verified': None,
+        'verified_at': None,
+        'verified_result': None,
+    }
+    with open(PE_GATE_LOG, 'a', encoding='utf-8') as f:
+        f.write(json.dumps(record, ensure_ascii=False) + '\n')
+
+
+def _load_1min_signals(code):
+    """加载1分钟信号: pytdx(今天实时) + 历史.lc1(暖机) → 内存算信号 → 缓存
+
+    缓存策略: 先轻量拉pytdx查最新时间戳, 未变则直接返回缓存。
+    时间戳变了才读.lc1 + 合并 + 重算信号。
+    不写CSV, 不污染数据。
+    """
+    from tools.volume_leader.shared import code_to_market
+    market, code6, _ = code_to_market(code)
+    mkt = code[:2]
+    lc1_path = f'C:/zd_cjzq/vipdoc/{mkt}/minline/{code}.lc1'
+
+    # 1. 轻量拉pytdx今天数据, 用于缓存判定
+    today_df = fetch_1min_pytdx(market, code6)
+
+    if today_df is not None and len(today_df) > 0:
+        latest_ts = str(int(today_df.iloc[-1]['timestamp']))
+    else:
+        # 非交易时间，用.lc1文件修改时间做缓存key
+        try:
+            latest_ts = str(int(os.path.getmtime(lc1_path)))
+        except OSError:
+            latest_ts = '0'
+
+    # 2. 缓存命中 — 直接返回
+    cache = MIN1_CACHE.get(code)
+    if cache and cache.get('last_ts') == latest_ts and cache.get('rows'):
+        return cache['rows']
+
+    # 3. 缓存未命中: 读历史.lc1 + 合并pytdx + 算信号
+    try:
+        hist_bars = read_bars_lc1(lc1_path)
+    except Exception:
+        return None
+    if not hist_bars or len(hist_bars) < 250:
+        return None
+
+    HIST_N = min(550, len(hist_bars))
+    hist_bars = hist_bars[-HIST_N:]
+
+    # 合并今天实时数据
+    all_bars = list(hist_bars)
+    if today_df is not None and len(today_df) > 0:
+        existing_ts = {b[0] for b in all_bars}
+        for _, row in today_df.iterrows():
+            ts = int(row['timestamp'])
+            if ts in existing_ts:
+                continue
+            all_bars.append((
+                ts,
+                int(row['open'] * MIN_PRICE_FACTOR),
+                int(row['high'] * MIN_PRICE_FACTOR),
+                int(row['low'] * MIN_PRICE_FACTOR),
+                int(row['close'] * MIN_PRICE_FACTOR),
+                int(row['amount']),
+                int(row['volume']),
+                0,
+            ))
+
+    # 4. 算信号
+    opens = [float(b[1]) for b in all_bars]
+    highs = [float(b[2]) for b in all_bars]
+    lows = [float(b[3]) for b in all_bars]
+    closes = [float(b[4]) for b in all_bars]
+    vols = [b[6] for b in all_bars]
+    amts = [b[5] for b in all_bars]
+    timestamps = [b[0] for b in all_bars]
+
+    rows = _calc_signals_from_arrays(
+        opens, highs, lows, closes, vols, amts, timestamps, TREND_PERIOD_MIN_SHORT)
+    if rows:
+        rows = _calc_pe_rolling(rows)
+
+    MIN1_CACHE[code] = {'rows': rows, 'last_ts': latest_ts}
+    return rows
 
 
 def _rows_to_arrays(rows):
@@ -324,6 +491,19 @@ def _find_window_start(all_rows, idx):
     return max(idx - 60, 0)
 
 
+def _calc_entry_band_low(all_rows, entry_idx, lookback=80):
+    """入场时计算波段最低点：最近金叉→开仓bar之间的最低low（本上涨波段起点）"""
+    best = float(all_rows[entry_idx]['low'])
+    for i in range(entry_idx - 1, max(entry_idx - lookback, -1), -1):
+        lo = float(all_rows[i]['low'])
+        if lo < best:
+            best = lo
+        cross = (all_rows[i].get('expma_cross', '') or '').strip()
+        if cross == '金叉':
+            break
+    return best
+
+
 def _count_cci_top_divergence(all_rows, start_idx, end_idx):
     """统计 (start_idx, end_idx] 范围内 CCI顶背驰 出现次数"""
     count = 0
@@ -492,6 +672,7 @@ def _scan_one_period(code, name, hist_rows, today_df, direction, period, trend_p
         'details': details,
         'direction': direction,
         'all_rows': all_rows,
+        'hist_len': len(hist_rows),
     }
 
 
@@ -504,13 +685,12 @@ def _check_cascade(signals_by_period, side='buy'):
     检测多周期金叉/★买 的级联传导，带价格涨幅约束。
 
     规则：
-    - 5分钟先出金叉/★买 → 15分钟内也出 → 涨幅 < 1% → 5+15共振
     - 15分钟先出金叉/★买 → 30分钟内也出 → 涨幅 < 2% → 15+30共振
-    - 三周期全部满足 → triple共振
+    - min5已在金叉级信号中保证，不再重复检查（冗余）
 
     Returns dict:
-        {cascade_type: '5+15'|'15+30'|'triple'|None,
-         periods_confirmed: ['min5','min15',...],
+        {cascade_type: '15+30'|None,
+         periods_confirmed: ['min15','min30'],
          price_ok: bool,
          detail: str}
     """
@@ -522,17 +702,14 @@ def _check_cascade(signals_by_period, side='buy'):
     # 收集各周期最近的相关信号
     has_signal = {}
     signal_info = {}
-    # 不同周期不同回溯: min5=12根(1h), min15=8根(2h), min30=6根(3h)
-    LOOKBACK_MAP = {'min5': 12, 'min15': 8, 'min30': 6}
-    for period in ['min5', 'min15', 'min30']:
+    LOOKBACK_MAP = {'min15': 8, 'min30': 6}
+    for period in ['min15', 'min30']:
         ps = signals_by_period.get(period)
         if not ps:
             has_signal[period] = False
             continue
 
-        # 检查最新K线有没有相关信号
         sig_list = ps.get('buy_signals' if side == 'buy' else 'sell_signals', [])
-        # 也检查 all_rows 中最近几根是否有信号（用于已出现过的级联）
         all_rows = ps.get('all_rows', [])
         recent_signals = []
         for st in check_types:
@@ -561,47 +738,10 @@ def _check_cascade(signals_by_period, side='buy'):
     price_ok = True
     detail_parts = []
 
-    m5_ok = has_signal.get('min5', False)
     m15_ok = has_signal.get('min15', False)
     m30_ok = has_signal.get('min30', False)
 
-    if m5_ok and m15_ok and m30_ok:
-        # 检查 5→15 价格约束
-        p5 = signal_info['min5']['price']
-        p15 = signal_info['min15']['price']
-        p30 = signal_info['min30']['price']
-        chg_5_15 = abs(p15 - p5) / p5 if p5 > 0 else 0
-        chg_15_30 = abs(p30 - p15) / p15 if p15 > 0 else 0
-
-        if chg_5_15 <= PRICE_LIMIT_5_15 and chg_15_30 <= PRICE_LIMIT_15_30:
-            cascade_type = 'triple'
-            periods_confirmed = ['min5', 'min15', 'min30']
-            detail_parts.append(f'三重共振 5→15:{chg_5_15*100:.1f}% 15→30:{chg_15_30*100:.1f}%')
-        elif chg_5_15 <= PRICE_LIMIT_5_15:
-            cascade_type = '5+15'
-            periods_confirmed = ['min5', 'min15']
-            detail_parts.append(f'5+15共振({chg_5_15*100:.1f}%) 30分超涨幅({chg_15_30*100:.1f}%>{PRICE_LIMIT_15_30*100:.0f}%)')
-        elif chg_15_30 <= PRICE_LIMIT_15_30:
-            cascade_type = '15+30'
-            periods_confirmed = ['min15', 'min30']
-            detail_parts.append(f'15+30共振({chg_15_30*100:.1f}%) 5分超涨幅({chg_5_15*100:.1f}%>{PRICE_LIMIT_5_15*100:.0f}%)')
-        else:
-            price_ok = False
-            detail_parts.append(f'价格涨幅超限 5→15:{chg_5_15*100:.1f}% 15→30:{chg_15_30*100:.1f}%')
-
-    elif m5_ok and m15_ok:
-        p5 = signal_info['min5']['price']
-        p15 = signal_info['min15']['price']
-        chg = abs(p15 - p5) / p5 if p5 > 0 else 0
-        if chg <= PRICE_LIMIT_5_15:
-            cascade_type = '5+15'
-            periods_confirmed = ['min5', 'min15']
-            detail_parts.append(f'5+15共振 涨幅{chg*100:.1f}%')
-        else:
-            price_ok = False
-            detail_parts.append(f'5→15涨幅{chg*100:.1f}% > 1% 不追')
-
-    elif m15_ok and m30_ok:
+    if m15_ok and m30_ok:
         p15 = signal_info['min15']['price']
         p30 = signal_info['min30']['price']
         chg = abs(p30 - p15) / p15 if p15 > 0 else 0
@@ -613,25 +753,62 @@ def _check_cascade(signals_by_period, side='buy'):
             price_ok = False
             detail_parts.append(f'15→30涨幅{chg*100:.1f}% > 2% 不追')
 
-    elif m5_ok and m30_ok:
-        p5 = signal_info['min5']['price']
-        p30 = signal_info['min30']['price']
-        chg = abs(p30 - p5) / p5 if p5 > 0 else 0
-        if chg <= PRICE_LIMIT_15_30:
-            cascade_type = '5+30'
-            periods_confirmed = ['min5', 'min30']
-            detail_parts.append(f'5+30跨级共振 涨幅{chg*100:.1f}%')
-
     return {
         'cascade_type': cascade_type,
         'periods_confirmed': periods_confirmed,
         'price_ok': price_ok,
         'detail': ' | '.join(detail_parts) if detail_parts else '',
-        'has_5min': m5_ok,
         'has_15min': m15_ok,
         'has_30min': m30_ok,
         'signal_prices': {p: signal_info[p]['price'] for p in signal_info},
     }
+
+
+def _detect_signals_catchup(all_rows, hist_len):
+    """补扫模式：扫描所有新bar（索引 >= hist_len）上是否有新出现的信号。
+
+    与 _detect_signals_on_latest 的区别：
+    - 不只看最新一根，而是遍历所有新bar
+    - 只检查"新出现"的信号（prev没有该信号）
+    - 返回所有找到的信号（不提前break）
+    """
+    if not all_rows or len(all_rows) < 2 or hist_len >= len(all_rows):
+        return {'buy_signals': [], 'sell_signals': []}
+
+    buy_signals = []
+    sell_signals = []
+
+    for i in range(hist_len, len(all_rows)):
+        curr = all_rows[i]
+        prev = all_rows[i - 1]
+
+        curr_close = float(curr.get('close', 0))
+        price = curr_close / MIN_PRICE_FACTOR if curr_close > 100 else curr_close
+
+        # 金叉（新出现）
+        if curr.get('expma_cross', '') == '金叉' and prev.get('expma_cross', '') != '金叉':
+            buy_signals.append({'type': SIGNAL_GOLDEN, 'price': price,
+                                'bar_ts': curr.get('timestamp', ''), 'idx': i})
+        # 死叉（新出现）
+        if curr.get('expma_cross', '') == '死叉' and prev.get('expma_cross', '') != '死叉':
+            sell_signals.append({'type': SIGNAL_DEATH, 'price': price,
+                                 'bar_ts': curr.get('timestamp', ''), 'idx': i})
+        # ★买（新出现）
+        if bool(curr.get('buy_signal', '').strip()) and not bool(prev.get('buy_signal', '').strip()):
+            buy_signals.append({'type': SIGNAL_STAR_BUY, 'price': price,
+                                'bar_ts': curr.get('timestamp', ''), 'idx': i})
+        # ★卖（新出现）
+        if bool(curr.get('sell_signal', '').strip()) and not bool(prev.get('sell_signal', '').strip()):
+            sell_signals.append({'type': SIGNAL_STAR_SELL, 'price': price,
+                                 'bar_ts': curr.get('timestamp', ''), 'idx': i})
+        # CCI顶背驰（新出现）
+        curr_div = (curr.get('cci_divergence', '') or '').strip()
+        prev_div = (prev.get('cci_divergence', '') or '').strip()
+        if curr_div == '顶背驰' and prev_div != '顶背驰':
+            sell_signals.append({'type': SIGNAL_CCI_TOP_DIV, 'price': price,
+                                 'bar_ts': curr.get('timestamp', ''), 'idx': i})
+
+    return {'buy_signals': buy_signals, 'sell_signals': sell_signals}
 
 
 # ========================================================================
@@ -647,6 +824,7 @@ class Monitor:
         self._last_alert = {}       # key: (code, alert_type) → bar_ts
         self._last_zone = {}        # code → zone string
         self._signal_memory = {}    # code → {period: {signal_bar_ts, price}} 用于级联追踪
+        self._active_stocks = {}    # code → {name, filter_level, added_ts, no_signal_count} 高频监控活跃池
         self._load_state()
 
         if use_toast:
@@ -668,8 +846,14 @@ class Monitor:
                 self._last_alert = {tuple(k.split('|')): v for k, v in state.get('alerts', {}).items()}
                 self._last_zone = state.get('zones', {})
                 self._signal_memory = state.get('signal_memory', {})
+                self._last_scan_ts = state.get('last_scan_ts', {})
+                self._active_stocks = state.get('active_stocks', {})
             except Exception:
-                pass
+                self._last_scan_ts = {}
+                self._active_stocks = {}
+        else:
+            self._last_scan_ts = {}
+            self._active_stocks = {}
 
     def _save_state(self):
         """持久化当前状态"""
@@ -677,6 +861,8 @@ class Monitor:
             'alerts': {'|'.join(k): v for k, v in self._last_alert.items()},
             'zones': self._last_zone,
             'signal_memory': self._signal_memory,
+            'last_scan_ts': self._last_scan_ts,
+            'active_stocks': self._active_stocks,
         }
         json.dump(state, open(STATE_PATH, 'w', encoding='utf-8'))
 
@@ -723,6 +909,7 @@ class Monitor:
             'zone': signal.get('zone', ''),
             'detail': signal.get('detail', ''),
             'filter_level': signal.get('filter_level', ''),
+            'resonance_tag': signal.get('resonance_tag', ''),
             'entry_conditions': entry_conds,
         }
         append_trade(record)
@@ -746,6 +933,105 @@ class Monitor:
                     signal.get('price', 0),
                     exit_reason or '减仓',
                 )
+
+    # ─── 活跃标的高频监控 ───
+
+    def _activate_stock(self, code, name, filter_level):
+        """加入高频监控活跃池"""
+        now_ts = time.time()
+        if code not in self._active_stocks:
+            print(f'  [活跃] {code} {name} 加入高频监控({filter_level}级)')
+        self._active_stocks[code] = {
+            'name': name,
+            'filter_level': filter_level,
+            'added_ts': now_ts,
+            'no_signal_count': 0,
+        }
+        self._save_state()
+
+    def _deactivate_stock(self, code):
+        """从高频监控活跃池移除"""
+        info = self._active_stocks.pop(code, None)
+        if info:
+            print(f'  [活跃] {code} {info["name"]} 移出高频监控')
+            self._save_state()
+
+    def _fast_scan(self, code, name):
+        """轻量级快扫描：检查 vol 结构 + 60分趋势 + 信号状态，不调 _merge_and_compute"""
+        # ─── a) 成交量结构: 从 today_5min raw 数据算 vr5 + 梯度 ───
+        vol_status = ''
+        vr5 = 0
+        try:
+            import pandas as pd
+            today_5min = fetch_today_5min(code)
+            if today_5min is not None and len(today_5min) >= 3:
+                vol = today_5min['volume'].values
+                vol_ma5 = vol[-5:].mean() if len(vol) >= 5 else vol.mean()
+                vr5 = vol[-1] / vol_ma5 if vol_ma5 > 0 else 1
+                vol_down = all(vol[i] < vol[i-1] for i in range(-min(3, len(vol)), 0))
+                if vr5 < 0.6:
+                    vol_status = '缩量回调' if not vol_down else '梯度缩量'
+                elif vr5 > 1.5:
+                    vol_status = '放量'
+                else:
+                    vol_status = '量平'
+                if vol_down and vr5 < 1.0:
+                    vol_status = '梯度缩量'
+        except Exception:
+            vol_status = '?'
+
+        # ─── b) 60分趋势: 检查黄线是否完好 ───
+        trend_ok = False
+        expma50_val = 0
+        try:
+            rows = _load_csv(code, 'min60')
+            if rows:
+                r = rows[-1]
+                c = float(r.get('close', 0) or 0)
+                e50 = float(r.get('expma50', 0) or 0)
+                if c > 0 and e50 > 0:
+                    c_price = c / MIN_PRICE_FACTOR if c > 100 else c
+                    e50_price = e50 / MIN_PRICE_FACTOR if e50 > 100 else e50
+                    trend_ok = c_price > e50_price
+                    expma50_val = e50_price
+        except Exception:
+            pass
+        trend_status = '黄线完好' if trend_ok else '黄线破损'
+
+        # ─── c) 信号状态: ★买之后是否有★卖/死叉 ───
+        has_exit_signal = False
+        info = self._signal_memory.get(code, {}).get('min5', {})
+        buy_bar = info.get('last_buy_bar', '')
+        if buy_bar and code in self._signal_memory:
+            for period in ('min5', 'min15', 'min30'):
+                p_info = self._signal_memory[code].get(period, {})
+                sell_bar = p_info.get('last_sell_bar', '')
+                if sell_bar and sell_bar > buy_bar:
+                    has_exit_signal = True
+                    break
+
+        # ─── d) 组合标签 ───
+        vol_shrink = '缩量' in vol_status
+        if has_exit_signal:
+            label = '🔴 趋势转弱减仓'
+        elif not trend_ok:
+            label = '🔶 趋势走弱关注'
+        elif vol_shrink:
+            label = '✅ 结构完好持有'
+        else:
+            label = '⚠️ 量价背离警惕'
+
+        active_min = 0
+        try:
+            added = self._active_stocks.get(code, {}).get('added_ts', 0)
+            if added:
+                active_min = int((time.time() - added) / 60)
+        except Exception:
+            pass
+
+        print(f'  [高频] {code} {name} | {label} | vol:{vr5:.2f} {vol_status} | '
+              f'{trend_status}:{expma50_val:.3f} | 活跃{active_min}m')
+        return label
 
     # ─── 主扫描逻辑 ───
 
@@ -791,6 +1077,12 @@ class Monitor:
         today_5min = fetch_today_5min(code)
         if today_5min is None or len(today_5min) == 0:
             return None
+
+        # 记录扫描进度（用于开机补扫判断）
+        if not force:
+            last_bar_ts = str(int(float(today_5min.iloc[-1]['timestamp'])))
+            _last_scan_catchup_ts = self._last_scan_ts.get(code, '')
+            self._last_scan_ts[code] = last_bar_ts
 
         direction = _load_daily_direction(code)
 
@@ -868,6 +1160,65 @@ class Monitor:
                 self._signal_memory[code][period]['last_sell_bar'] = all_sell[0]['bar_ts']
                 self._signal_memory[code][period]['last_sell_price'] = all_sell[0]['price']
 
+        # ──── Step 4.3: 开机补扫（如果有多根未扫描过的bar，全部检查一遍） ────
+        if not force:
+            _catchup_new_bars = 0
+            _catchup_last_ts = _last_scan_catchup_ts
+            if _catchup_last_ts:
+                for _, row in today_5min.iterrows():
+                    ts = str(int(float(row['timestamp'])))
+                    if ts > _catchup_last_ts:
+                        _catchup_new_bars += 1
+            else:
+                _catchup_new_bars = len(today_5min)
+            if _catchup_new_bars > 1:
+                for period, ps in signals_by_period.items():
+                    _all_rows = ps.get('all_rows', [])
+                    _hist_len = ps.get('hist_len', 0)
+                    if not _all_rows or _hist_len >= len(_all_rows):
+                        continue
+                    _catchup = _detect_signals_catchup(_all_rows, _hist_len)
+                    for _sig in _catchup.get('buy_signals', []):
+                        _type = f'{period}_{_sig["type"]}'
+                        if self._is_new_alert(code, _type, _sig['bar_ts']):
+                            _sig['_catchup'] = True
+                            all_new_buy.append({**_sig, 'period': period})
+                    for _sig in _catchup.get('sell_signals', []):
+                        _type = f'{period}_{_sig["type"]}'
+                        if self._is_new_alert(code, _type, _sig['bar_ts']):
+                            _sig['_catchup'] = True
+                            all_new_sell.append({**_sig, 'period': period})
+        # ──── Step 4.4: 1分钟 CCI顶背驰 检测(做T信号) ────
+        min1_rows = _load_1min_signals(code)
+        if min1_rows and len(min1_rows) >= 250:
+            MIN1_SKIP = min(200, len(min1_rows) // 3)
+            for offset in range(5):  # 最近5根1分钟bar
+                idx = len(min1_rows) - 1 - offset
+                if idx < MIN1_SKIP:
+                    continue
+                r = min1_rows[idx]
+                cci_div = (r.get('cci_divergence', '') or '').strip()
+                if cci_div != '顶背驰':
+                    continue
+                # 确保是新出现的(前一根bar不是顶背驰)
+                prev_r = min1_rows[idx - 1] if idx > 0 else {}
+                if (prev_r.get('cci_divergence', '') or '').strip() == '顶背驰':
+                    continue
+                close_price = float(r.get('close', 0))
+                price = close_price / MIN_PRICE_FACTOR if close_price > 100 else close_price
+                bar_ts = r.get('timestamp', '')
+                alert_type = 'min1_CCI顶背驰'
+                if not self._is_new_alert(code, alert_type, bar_ts):
+                    continue
+                all_new_sell.append({
+                    'type': '1m_CCI顶背驰',
+                    'price': price,
+                    'bar_ts': bar_ts,
+                    'period': 'min1',
+                    'filter_level': 'sell_t_1m',
+                    'notify': False,
+                })
+
         # ──── Step 4.5: 买侧入场过滤 — 三级体系: MA / 金叉 / 共振 ────
         if self.entry_filter in ('any', 'ma', 'jincha', 'resonance', 'all') and all_new_buy:
             min5_ps = signals_by_period.get('min5')
@@ -908,13 +1259,38 @@ class Monitor:
                         min60_ok = c60 > e50_60
                     if not min60_ok:
                         continue
+
+                    # PE门禁: MA级 → 日线PE非升熵 (回测验证: 均收益+0.96%)
+                    if not _daily_pe_ok(code):
+                        # 记录被过滤信号，供事后验证
+                        daily_rows = _load_csv(code, 'daily')
+                        dpe = float(daily_rows[-1].get('pe_chg_5', 0) or 0) if daily_rows else 0
+                        _log_pe_gate_kill(code, name, bar, sig.get('bar_ts', ''),
+                                          'ma', 'daily_pe_rising', dpe)
+                        continue
+
                     sig['filter_level'] = 'ma'  # ← MA级通过（试错）
 
                     # 条件4：5分钟EXPMA金叉 → 升级金叉级（买）
                     expma12 = float(bar.get('expma12', 0) or 0)
                     expma50 = float(bar.get('expma50', 0) or 0)
                     if expma12 > expma50:
-                        sig['filter_level'] = 'jincha'
+                        # PE门禁: 金叉级 → 5分钟PE非升熵 (回测验证: 胜率+10.2%)
+                        pe_chg_5m = float(bar.get('pe_chg_5', 0) or 0)
+                        if pe_chg_5m >= -0.02:  # 非升熵
+                            sig['filter_level'] = 'jincha'
+                        else:
+                            # 记录被PE过滤的金叉级信号
+                            _log_pe_gate_kill(code, name, bar, sig.get('bar_ts', ''),
+                                              'jincha', 'min5_pe_rising', pe_chg_5m)
+                        # 5min PE升熵 → 不升级, 保留MA级
+
+                    # ── ±1天共振检测（由回测验证，不参与弹窗决策，仅标签） ──
+                    bar_date = bar.get('date', '').strip()
+                    if bar_date:
+                        rt = _check_resonance(code, bar_date)
+                        if rt:
+                            sig['resonance_tag'] = '同日共振' if rt == 'same_day' else '异日共振'
 
             # 根据模式过滤信号
             if self.entry_filter == 'ma':
@@ -992,12 +1368,69 @@ class Monitor:
 
             # 根据sell_filter模式过滤信号
             if self.sell_filter == 'sell_t':
-                all_new_sell = [s for s in all_new_sell if s.get('filter_level') == 'sell_t']
+                all_new_sell = [s for s in all_new_sell if s.get('filter_level') in ('sell_t', 'sell_t_1m')]
             elif self.sell_filter == 'sell_reduce':
                 all_new_sell = [s for s in all_new_sell if s.get('filter_level') == 'sell_reduce']
             elif self.sell_filter == 'none':
                 all_new_sell = []
             # 'all': 全部保留（sell_t日志 + sell_reduce通知）
+
+        # ──── Step 4.7: 补扫信号详细日志 ────
+        try:
+            if _catchup_new_bars > 1:
+                _catchup_buys = [s for s in all_new_buy if s.get('_catchup')]
+                _catchup_sells = [s for s in all_new_sell if s.get('_catchup')]
+                if _catchup_buys or _catchup_sells:
+                    parts = []
+                    # 买侧详细
+                    buy_detail = []
+                    for s in _catchup_buys:
+                        lv = s.get('filter_level', '')
+                        if lv in ('ma', 'jincha', 'resonance'):
+                            lv_label = {'ma': 'MA', 'jincha': '金叉', 'resonance': '共振'}[lv]
+                            buy_detail.append(f'{s["type"]}({lv_label}级)')
+                        else:
+                            buy_detail.append(s['type'])
+                    if buy_detail:
+                        parts.append('买:' + ','.join(buy_detail))
+                    # 卖侧详细
+                    sell_detail = []
+                    for s in _catchup_sells:
+                        lv = s.get('filter_level', '')
+                        if lv in ('sell_reduce', 'sell_t'):
+                            lv_label = {'sell_reduce': '减仓', 'sell_t': '做T'}[lv]
+                            sell_detail.append(f'{s["type"]}({lv_label})')
+                        else:
+                            sell_detail.append(s['type'])
+                    if sell_detail:
+                        parts.append('卖:' + ','.join(sell_detail))
+                    print(f'  [补扫] {code} {name}: {_catchup_new_bars}根遗漏bar, {", ".join(parts)}')
+        except Exception as _e:
+            pass
+
+        # ──── Step 4.8: 持仓止损检查 ────
+        if self.sell_filter != 'none':
+            open_entries = trade_db.get_open_entries(code)
+            if open_entries:
+                entry = open_entries[0]
+                band_low_val = entry.get('band_low')
+                if band_low_val is not None and band_low_val > 0:
+                    min5_ps = signals_by_period.get('min5')
+                    if min5_ps:
+                        all_rows_5m = min5_ps.get('all_rows', [])
+                        if all_rows_5m:
+                            latest_bar = all_rows_5m[-1]
+                            latest_low = float(latest_bar.get('low', 0) or 0)
+                            if latest_low > 0 and latest_low < band_low_val:
+                                price = latest_low / MIN_PRICE_FACTOR if latest_low > 100 else latest_low
+                                all_new_sell.append({
+                                    'type': '止损',
+                                    'price': round(price, 4),
+                                    'bar_ts': latest_bar.get('timestamp', ''),
+                                    'period': 'min5',
+                                    'filter_level': 'sell_reduce',
+                                    'notify': True,
+                                })
 
         # ──── Step 5: 决定是否弹窗 ────
         # 确定主导方向
@@ -1009,6 +1442,12 @@ class Monitor:
             buy_total = sum(ps.get('buy_level', 0) for ps in signals_by_period.values())
             sell_total = sum(ps.get('sell_level', 0) for ps in signals_by_period.values())
             primary_side = 'buy' if buy_total >= sell_total else 'sell'
+
+        # 止损信号强制优先，覆盖日线方向
+        if primary_side == 'buy' and all_new_sell:
+            has_stop = any(s.get('type') == '止损' for s in all_new_sell)
+            if has_stop:
+                primary_side = 'sell'
 
         new_signals = all_new_buy if primary_side == 'buy' else all_new_sell
 
@@ -1055,39 +1494,51 @@ class Monitor:
             elif self.entry_filter == 'resonance':
                 filter_tag = '[共振]'
             elif self.entry_filter == 'any':
-                pass  # 无标签，raw显示
+                filter_tag = '[any]'
 
         if primary_side == 'sell':
             if self.sell_filter == 'all':
                 levels = [s.get('filter_level', 'sell_t') for s in new_signals]
-                effective = [lv for lv in levels if lv in ('sell_reduce', 'sell_t')]
+                effective = [lv for lv in levels if lv in ('sell_reduce', 'sell_t', 'sell_t_1m')]
                 if not effective:
                     self._save_state()
                     return None
-                lv = 'sell_reduce' if 'sell_reduce' in effective else 'sell_t'
-                filter_tag = {'sell_reduce': '[减仓]', 'sell_t': '[做T]'}[lv]
+                lv = 'sell_reduce' if 'sell_reduce' in effective else ('sell_t' if 'sell_t' in effective else 'sell_t_1m')
+                filter_tag = {'sell_reduce': '[减仓]', 'sell_t': '[做T]', 'sell_t_1m': '[做T]'}[lv]
             elif self.sell_filter == 'sell_t':
                 filter_tag = '[做T]'
             elif self.sell_filter == 'sell_reduce':
                 filter_tag = '[减仓]'
+
+        # 提取共振标签（同日/异日，由回测数据验证，纯显示不参与弹窗决策）
+        resonance_tag = ''
+        if primary_side == 'buy' and new_signals:
+            for s in new_signals:
+                rt = s.get('resonance_tag', '')
+                if rt:
+                    resonance_tag = rt
+                    break
+
         if cascade['cascade_type']:
             title = f'★{side_label} {filter_tag}[{cascade["cascade_type"]}]'
-            # 级联信号: 展示共振周期
             signal_types = ' + '.join(cascade['periods_confirmed'])
-            if cascade['cascade_type']:
-                signal_types += f' 共振'
+            signal_types += f' 共振'
+        elif resonance_tag:
+            title = f'★{side_label} {filter_tag}[{resonance_tag}]'
+            signal_types = resonance_tag
         elif new_signals:
             periods_str = ','.join(s['period'] for s in new_signals)
             title = f'★{side_label} {filter_tag}[{periods_str}]'
             signal_types = ','.join(f'{s["period"]}.{s["type"]}' for s in new_signals)
         else:
-            # 无新的离散信号但级联检测到历史信号共振
             signal_types = ''
             title = f'★{side_label} {filter_tag}'
 
         detail_parts = [zone_info['detail']]
         if restored:
             detail_parts.insert(0, '【恢复关注】')
+        if resonance_tag:
+            detail_parts.append(f'{resonance_tag}(±1天窗口)')
         if cascade['detail']:
             detail_parts.append(cascade['detail'])
 
@@ -1105,6 +1556,7 @@ class Monitor:
             idx = first_sig.get('idx', -1)
             if 0 <= idx < len(min5_rows):
                 bar = min5_rows[idx]
+                band_low = _calc_entry_band_low(min5_rows, idx)
                 entry_conditions = {
                     'bar_ts': int(bar.get('timestamp', 0) or 0),
                     'ma5': round(float(bar.get('ma5', 0) or 0), 4),
@@ -1116,12 +1568,13 @@ class Monitor:
                     'close_price': round(float(bar.get('close', 0) or 0), 4),
                     'volume': int(float(bar.get('volume', 0) or 0)),
                     'min60_above_expma50': zone_info.get('min60_ok', False),
+                    'band_low': round(band_low, 4),
                 }
         elif primary_side == 'sell' and new_signals:
             first_sell = new_signals[0]
             st = first_sell.get('type', '')
             fl = first_sell.get('filter_level', '')
-            if fl == 'sell_t':
+            if fl in ('sell_t', 'sell_t_1m'):
                 exit_reason = 'CCI顶背驰做T'
             elif st == SIGNAL_DEATH:
                 exit_reason = '死叉减仓'
@@ -1153,6 +1606,7 @@ class Monitor:
             'zone': zone,
             'restored': restored,
             'filter_level': filter_tag,
+            'resonance_tag': resonance_tag,
             'entry_conditions': entry_conditions,
             'exit_reason': exit_reason,
             'notify': should_notify,
@@ -1162,15 +1616,20 @@ class Monitor:
     # ─── 主循环 ───
 
     def run(self):
-        """主循环"""
+        """主循环 — 全量300s扫描 + 活跃标的高频60s快扫描"""
         print(f'[monitor] 启动 — 扫描间隔={self.interval}s  买侧过滤={self.entry_filter}  卖侧过滤={self.sell_filter}')
         universe = load_universe()
         print(f'[monitor] 候选池: {len(universe)} 只')
+        if self._active_stocks:
+            print(f'[monitor] 活跃池: {len(self._active_stocks)} 只 (高频监控)')
+            for c, info in self._active_stocks.items():
+                print(f'   {c} {info["name"]} ({info["filter_level"]}级)')
 
         while True:
             cycle_start = time.time()
             alerts_this_round = 0
 
+            # ─── 全量扫描（所有标的） ───
             try:
                 for stock in universe:
                     code, name = stock['code'], stock['name']
@@ -1183,6 +1642,18 @@ class Monitor:
                             alerts_this_round += 1
                             print(f'  [{datetime.now().strftime("%H:%M:%S")}] {code} {name} '
                                   f'{signal["title"]} {signal.get("signal_types","")}')
+                            # 买信号 → 加入活跃池
+                            if signal.get('direction') == 'buy' and signal.get('filter_level'):
+                                self._activate_stock(code, name, signal['filter_level'])
+                            # 卖信号 → 从活跃池移除（已无持仓需要守护）
+                            elif signal.get('direction') == 'sell' and code in self._active_stocks:
+                                self._deactivate_stock(code)
+                        elif code in self._active_stocks:
+                            # 活跃标的本轮无买信号 → 递增计数
+                            info = self._active_stocks[code]
+                            info['no_signal_count'] = info.get('no_signal_count', 0) + 1
+                            if info['no_signal_count'] >= 3:
+                                self._deactivate_stock(code)
                     except Exception as e:
                         continue
 
@@ -1195,7 +1666,26 @@ class Monitor:
             elapsed = time.time() - cycle_start
             print(f'[monitor] 本轮 {alerts_this_round}条信号, {elapsed:.1f}s, '
                   f'下次扫描 {self.interval}s 后')
-            time.sleep(max(1, self.interval - elapsed))
+
+            # ─── 活跃标的高频快扫描子循环 ───
+            if self._active_stocks:
+                fast_count = 0
+                while time.time() - cycle_start < self.interval - 10:
+                    for code, info in list(self._active_stocks.items()):
+                        try:
+                            self._fast_scan(code, info['name'])
+                        except Exception:
+                            pass
+                    fast_count += 1
+                    sleep_remain = self.interval - (time.time() - cycle_start) - 5
+                    if sleep_remain > 10:
+                        time.sleep(min(55, sleep_remain))
+                    else:
+                        break
+                if fast_count:
+                    print(f'[monitor] 高频监控 {len(self._active_stocks)}只活跃标的, {fast_count}轮快扫')
+            else:
+                time.sleep(max(1, self.interval - elapsed))
 
 
 def main():

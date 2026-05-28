@@ -115,6 +115,50 @@ def fetch_5min_lc5(market, code6):
         return None
 
 
+def fetch_1min_pytdx(market, code6):
+    """主通道：pytdx 拉 1 分钟线，仅返回今天的 bar"""
+    if not PYTDX_AVAILABLE:
+        return None
+    api = TdxHq_API()
+    try:
+        if not api.connect(PYTDX_HOST, PYTDX_PORT):
+            return None
+        # category=8 = KLINE_TYPE_1MIN
+        data = api.get_security_bars(8, market, code6, 0, 800)
+        if not data:
+            return None
+        df = api.to_df(data)
+        if df is None or len(df) == 0:
+            return None
+        api.disconnect()
+
+        df = df[df['datetime'].apply(_is_today)].copy()
+        if len(df) == 0:
+            return None
+
+        df['timestamp'] = df['datetime'].apply(
+            lambda t: int(t.strftime('%Y%m%d%H%M')) if isinstance(t, pd.Timestamp) else int(t.replace('-', '').replace(' ', '').replace(':', '')[:12])
+        )
+        df['date'] = df['datetime'].apply(
+            lambda t: int(t.strftime('%Y%m%d')) if isinstance(t, pd.Timestamp) else int(t.replace('-', '')[:8])
+        )
+        df['open'] = df['open'].astype(float).round(4)
+        df['high'] = df['high'].astype(float).round(4)
+        df['low'] = df['low'].astype(float).round(4)
+        df['close'] = df['close'].astype(float).round(4)
+        df['volume'] = (df['vol'] if 'vol' in df.columns else df['volume']).astype(float)
+        df['amount'] = df['amount'].astype(float)
+
+        return df[['timestamp', 'date', 'open', 'high', 'low', 'close', 'volume', 'amount']]
+    except Exception as e:
+        print(f'  [pytdx-1min] {market}{code6} 失败: {e}')
+        try:
+            api.disconnect()
+        except Exception:
+            pass
+        return None
+
+
 def fetch_today_5min(code):
     """获取指定标的的今日5分钟数据，先 pytdx 后 lc5"""
     from tools.volume_leader.shared import code_to_market

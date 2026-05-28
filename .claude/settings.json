@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python tools/volume_leader/scan_resonance.py --code sh601991 --months 24)",
+      "Bash(python -c ' *)",
+      "Bash(python -c 'from pytdx.reader import TdxDailyBarReader; r=TdxDailyBarReader\\(\\); *)",
+      "Bash(python -c 'from pytdx.reader import TdxMinBarReader; r=TdxMinBarReader\\(\\); *)",
+      "Bash(python d:/quantify-per/tools/volume_leader/experiments/test_multi_period_resonance.py)",
+      "Bash(python tools/volume_leader/experiments/test_multi_period_resonance.py)",
+      "Bash(python cycle_engine.py)",
+      "Bash(iconv -f gbk -t utf-8)",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('tools/volume_leader/backtest.py', doraise=True\\); print\\('backtest.py OK'\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('tools/volume_leader/trade_db.py', doraise=True\\); print\\('trade_db.py OK'\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('tools/volume_leader/monitor.py', doraise=True\\); print\\('monitor.py OK'\\)\")",
+      "Bash(python -c \"from tools.volume_leader.monitor import Monitor, _find_same_day_resonance, _calc_entry_band_low; print\\('Imports OK'\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('tools/volume_leader/monitor.py', doraise=True\\); py_compile.compile\\('tools/volume_leader/backtest.py', doraise=True\\); py_compile.compile\\('tools/volume_leader/trade_db.py', doraise=True\\); print\\('All OK'\\)\")",
+      "Bash(python -c \"from tools.volume_leader.monitor import _detect_signals_catchup, Monitor; print\\('导入成功'\\)\")",
+      "Bash(python -c \"import json; u=json.load\\(open\\('d:/quantify-per/signals/tracking/volume_leader_universe.json'\\)\\); print\\(len\\(u['universe']\\)\\); print\\(u['universe'][:5]\\)\")",
+      "Bash(python tools/volume_leader/monitor.py --once --filter all)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('tools/volume_leader/monitor.py','r',encoding='utf-8'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")",
+      "Bash(grep -c \"\\\\.md$\")",
+      "Bash(cat > *)",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('tools/volume_leader/backtest.py', doraise=True\\); print\\('OK'\\)\")",
+      "Bash(python tools/volume_leader/backtest.py --entry star+ma5+ma10+safe+jincha --months 12)",
+      "Bash(python tools/volume_leader/backtest.py --entry star+ma5+ma10+safe --months 12)",
+      "Bash(python tools/volume_leader/backtest.py --period min15 --entry star+ma5+ma10+safe --months 12)",
+      "Bash(python tools/volume_leader/backtest.py --entry star+ma5+ma10+safe+pe_d --months 12)",
+      "Bash(python tools/volume_leader/backtest.py --entry star+ma5+ma10+safe+jincha+pe --months 12)",
+      "Bash(cd /d)",
+      "Bash(python -c \"import sys; sys.path.insert\\(0, '/d/quantify-per'\\); exec\\(open\\('operation_tracker.py'\\).read\\(\\).split\\('if __name__'\\)[1]\\)\" --status)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}
