@@ -677,6 +677,89 @@ def _scan_one_period(code, name, hist_rows, today_df, direction, period, trend_p
 
 
 # ========================================================================
+#  向未来看 — min15金叉pending确认队列
+# ========================================================================
+
+def _ts_to_datetime(ts_str):
+    """YYYYMMDDHHMM → datetime"""
+    try:
+        return datetime.strptime(ts_str.strip(), '%Y%m%d%H%M')
+    except (ValueError, AttributeError):
+        return None
+
+def _deadline_ts(entry_ts_str):
+    """entry_ts + 1小时 → YYYYMMDDHHMM 字符串"""
+    dt = _ts_to_datetime(entry_ts_str)
+    if dt is None:
+        return ''
+    return (dt + timedelta(hours=1)).strftime('%Y%m%d%H%M')
+
+def _find_first_bar_after(rows, after_ts):
+    """在rows(timestamp已排序)中找到第一个 timestamp > after_ts 的索引"""
+    for i, r in enumerate(rows):
+        ts = r.get('timestamp', '').strip()
+        if ts and ts > after_ts:
+            return i
+    return -1
+
+def _check_pending_lookforward_one(code, name, pending):
+    """检查单条pending: min15金叉是否已在入场后出现
+
+    返回: 'confirmed'=已通知, 'timeout'=超时丢弃, 'waiting'=继续等待
+    """
+    if pending.get('notified'):
+        return 'confirmed'
+
+    entry_ts = pending.get('entry_ts', '')
+    deadline = pending.get('deadline', '')
+    if not entry_ts or not deadline:
+        return 'timeout'
+
+    # 先扫描min15金叉（从entry_ts到deadline窗口内）
+    m15_rows = _load_csv(code, 'min15')
+    if m15_rows:
+        start_idx = _find_first_bar_after(m15_rows, entry_ts)
+        if start_idx >= 0:
+            for i in range(start_idx, len(m15_rows)):
+                bar_ts = m15_rows[i].get('timestamp', '').strip()
+                if bar_ts > deadline:
+                    break  # 超过1小时窗口，不再扫描
+                cross = (m15_rows[i].get('expma_cross', '') or '').strip()
+                if cross == '金叉':
+                    # 确认！通知+写库
+                    pending['notified'] = True
+                    print(f'\n{"━" * 55}')
+                    print(f' ★ [向未来看共振]  {name} ({code})')
+                    print(f' 原信号: ★买 @{pending["entry_price"]} ({entry_ts})')
+                    print(f' 确认: min15金叉在入场后出现 → 共振级确认 ({bar_ts})')
+                    print(f'{"━" * 55}\n')
+
+                    # 写JSONL日志
+                    record = {
+                        'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'code': code,
+                        'name': name,
+                        'price': pending.get('entry_price', 0),
+                        'direction': 'buy',
+                        'signal_types': '★买+15分金叉(向未来看)',
+                        'filter_level': 'resonance',
+                        'detail': f'向未来看共振: ★买@{entry_ts} 后min15金叉@{bar_ts} 确认',
+                        'cascade_type': 'forward_15',
+                        'periods_confirmed': ['min15'],
+                        'entry_conditions': {},
+                    }
+                    append_trade(record)
+                    return 'confirmed'
+
+    # 未找到金叉 → 检查是否超时
+    now_str = datetime.now().strftime('%Y%m%d%H%M')
+    if now_str > deadline:
+        return 'timeout'
+
+    return 'waiting'
+
+
+# ========================================================================
 #  多周期共振 + 价格约束
 # ========================================================================
 
@@ -825,6 +908,8 @@ class Monitor:
         self._last_zone = {}        # code → zone string
         self._signal_memory = {}    # code → {period: {signal_bar_ts, price}} 用于级联追踪
         self._active_stocks = {}    # code → {name, filter_level, added_ts, no_signal_count} 高频监控活跃池
+        self._pending_lookforward = {}  # code → [{entry_ts, entry_price, bar_date, deadline, notified, name}]
+        self._bought = set()    # 记录已发买信号的code → 卖信号只对已买的标的生效
         self._load_state()
 
         if use_toast:
@@ -876,21 +961,41 @@ class Monitor:
         return True
 
     def _notify(self, signal):
-        """弹窗通知"""
-        title = signal.get('title', '★信号')
-        body = (
-            f"{signal['code']} {signal['name']}\n"
-            f"价格: {signal.get('price', '?')}\n"
-            f"{signal.get('detail', '')}\n"
-            f"信号: {signal.get('signal_types', '')}\n"
-            f"质量: 买{signal.get('buy_level', 0)}/卖{signal.get('sell_level', 0)}"
-        )
+        """终端输出信号通知（清晰可读，弹窗可选）"""
+        direction = signal.get('direction', '')
+        side_label = '★买' if direction == 'buy' else '★卖' if direction == 'sell' else '●'
+        filter_tag = signal.get('filter_level', '')
+        code = signal['code']
+        name = signal['name']
+        price = signal.get('price', 0)
+        signal_types = signal.get('signal_types', '')
+        buy_level = signal.get('buy_level', 0)
+        sell_level = signal.get('sell_level', 0)
+        zone = signal.get('zone', '')
+        detail = signal.get('detail', '')
+        now = datetime.now().strftime('%H:%M:%S')
+
+        print(f'\n{"━" * 55}')
+        print(f' {side_label} {filter_tag}  {name} ({code})')
+        print(f' 时间: {now}  |  价格: {price}')
+        if signal_types:
+            print(f' 信号: {signal_types}')
+        if detail:
+            print(f' 详情: {detail}')
+        print(f' 质量: 买{buy_level} 卖{sell_level}  |  区域: {zone}')
+        print(f'{"━" * 55}\n')
+
+        # 弹窗（默认关闭，--toast 参数启用）
         if self._toast_ok:
+            title = signal.get('title', '★信号')
+            body = (
+                f"{code} {name}\n"
+                f"价格: {price}\n"
+                f"{detail}\n"
+                f"信号: {signal_types}\n"
+                f"质量: 买{buy_level}/卖{sell_level}"
+            )
             self._toaster.show_toast(title, body, duration=10, threaded=True)
-        else:
-            print(f'\n═══ {title} ══════════')
-            print(body)
-            print('═══════════════════════\n')
 
     def _record(self, signal):
         """写入 JSONL + SQLite 交易台账"""
@@ -933,6 +1038,49 @@ class Monitor:
                     signal.get('price', 0),
                     exit_reason or '减仓',
                 )
+
+    # ─── 向未来看 pending 确认队列 ───
+
+    def _enqueue_pending(self, code, name, entry_bar_ts, entry_price, bar_date):
+        """MA级通过时加入pending队列，等待min15金叉确认"""
+        if code not in self._pending_lookforward:
+            self._pending_lookforward[code] = []
+        for p in self._pending_lookforward[code]:
+            if p.get('entry_ts') == entry_bar_ts:
+                return
+        deadline = _deadline_ts(entry_bar_ts)
+        if not deadline:
+            return
+        self._pending_lookforward[code].append({
+            'entry_ts': entry_bar_ts,
+            'entry_price': entry_price,
+            'bar_date': bar_date,
+            'deadline': deadline,
+            'notified': False,
+            'name': name,
+        })
+        print(f'  [向未来看] {code} {name} 入队等待15分金叉确认 ({entry_bar_ts})')
+
+    def _check_pending(self, code, name):
+        """检查本标的pending队列中是否有已确认的向未来看共振"""
+        if code not in self._pending_lookforward:
+            return
+        pending_list = self._pending_lookforward[code]
+        to_remove = []
+        for pending in pending_list:
+            status = _check_pending_lookforward_one(code, name, pending)
+            if status == 'timeout':
+                to_remove.append(pending)
+                print(f'  [向未来看] {code} {name} pending超时移除 ({pending.get("entry_ts", "")})')
+            elif status == 'confirmed':
+                pass
+        for p in to_remove:
+            pending_list.remove(p)
+        notified = [p for p in pending_list if p.get('notified')]
+        for p in notified:
+            pending_list.remove(p)
+        if not pending_list:
+            del self._pending_lookforward[code]
 
     # ─── 活跃标的高频监控 ───
 
@@ -1269,21 +1417,31 @@ class Monitor:
                                           'ma', 'daily_pe_rising', dpe)
                         continue
 
+                    # 条件5: 日线Zone过滤 — close > expma50 (strong/secondary)
+                    dz_rows = _load_csv(code, 'daily')
+                    if dz_rows and len(dz_rows) > 1:
+                        last_d = dz_rows[-1]
+                        try:
+                            c_d = float(last_d.get('close', 0) or 0)
+                            e50_d = float(last_d.get('expma50', 0) or 0)
+                            if not (c_d > e50_d):
+                                continue
+                        except (ValueError, TypeError):
+                            pass
+
                     sig['filter_level'] = 'ma'  # ← MA级通过（试错）
+                    self._bought.add(code)  # 记录已买 → 卖信号只对此类标的生效
+
+                    # ── 向未来看pending入队: 等待15分金叉确认 ──
+                    self._enqueue_pending(code, name, sig.get('bar_ts', ''),
+                                          sig.get('price', 0), bar.get('date', '').strip())
 
                     # 条件4：5分钟EXPMA金叉 → 升级金叉级（买）
+                    # 按层层递进: ★买→MA理顺(MA级)→5分钟EXPMA金叉(金叉级)→15分钟金叉(共振级)
                     expma12 = float(bar.get('expma12', 0) or 0)
                     expma50 = float(bar.get('expma50', 0) or 0)
                     if expma12 > expma50:
-                        # PE门禁: 金叉级 → 5分钟PE非升熵 (回测验证: 胜率+10.2%)
-                        pe_chg_5m = float(bar.get('pe_chg_5', 0) or 0)
-                        if pe_chg_5m >= -0.02:  # 非升熵
-                            sig['filter_level'] = 'jincha'
-                        else:
-                            # 记录被PE过滤的金叉级信号
-                            _log_pe_gate_kill(code, name, bar, sig.get('bar_ts', ''),
-                                              'jincha', 'min5_pe_rising', pe_chg_5m)
-                        # 5min PE升熵 → 不升级, 保留MA级
+                        sig['filter_level'] = 'jincha'
 
                     # ── ±1天共振检测（由回测验证，不参与弹窗决策，仅标签） ──
                     bar_date = bar.get('date', '').strip()
@@ -1304,6 +1462,9 @@ class Monitor:
 
         # ──── Step 4.6: 卖侧出场过滤 — 两层体系: 做T(日志) / 减仓(通知) ────
         if self.sell_filter != 'none' and all_new_sell:
+            # 未发过买信号的标的，不处理卖信号（避免没买就弹减仓）
+            if code not in self._bought:
+                all_new_sell = []
             min5_ps = signals_by_period.get('min5')
             if min5_ps:
                 all_rows = min5_ps.get('all_rows', [])
@@ -1431,6 +1592,9 @@ class Monitor:
                                     'filter_level': 'sell_reduce',
                                     'notify': True,
                                 })
+
+        # ──── Step 4.9: 向未来看pending确认检查 ────
+        self._check_pending(code, name)
 
         # ──── Step 5: 决定是否弹窗 ────
         # 确定主导方向
@@ -1640,8 +1804,6 @@ class Monitor:
                                 self._notify(signal)
                             self._record(signal)
                             alerts_this_round += 1
-                            print(f'  [{datetime.now().strftime("%H:%M:%S")}] {code} {name} '
-                                  f'{signal["title"]} {signal.get("signal_types","")}')
                             # 买信号 → 加入活跃池
                             if signal.get('direction') == 'buy' and signal.get('filter_level'):
                                 self._activate_stock(code, name, signal['filter_level'])
@@ -1692,7 +1854,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description='实时 ★买/★卖 监控')
     parser.add_argument('--interval', type=int, default=SCAN_INTERVAL, help='扫描间隔(秒)')
-    parser.add_argument('--no-toast', action='store_true', help='禁用系统通知')
+    parser.add_argument('--toast', action='store_true', help='启用系统弹窗通知（默认只终端输出）')
     parser.add_argument('--once', action='store_true', help='只扫一轮')
     parser.add_argument('--filter', dest='entry_filter', type=str, default='ma',
                         choices=['any', 'ma', 'jincha', 'resonance', 'all'],
@@ -1703,7 +1865,7 @@ def main():
     args = parser.parse_args()
 
     trade_db.init_db()
-    monitor = Monitor(interval=args.interval, use_toast=not args.no_toast, entry_filter=args.entry_filter, sell_filter=args.sell_filter)
+    monitor = Monitor(interval=args.interval, use_toast=args.toast, entry_filter=args.entry_filter, sell_filter=args.sell_filter)
 
     if args.once:
         universe = load_universe()

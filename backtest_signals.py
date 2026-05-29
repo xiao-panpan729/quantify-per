@@ -1,34 +1,37 @@
 # -*- coding: utf-8 -*-
 """
-信号级回测引擎 v3.3 — 三种统计方式
+信号级回测引擎 v4.0 — 基于 monitor 三级过滤 (MA级/金叉级/共振级)
 
-核心:
-  [低点] 低点不破合并（多个区间→合并为一个趋势段）
-  [50%]  回调不超过50%合并
-  [★信号] 每个原始★信号独立计算 → 向后找不破该信号低点的最大区间
+核心逻辑:
+  以 min5 ★买 为锚点 → 检查当时环境条件 → 分类到 MA级/金叉级/共振级/弃牌
+  → 跟踪至 ★卖 出场 → 按级别统计胜率
 
-v3.3 — 2026-05-06
+v4.0 — 2026-05-28
 """
 
 import csv, json, sqlite3, shutil, os, sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import PROJECT_ROOT
 from cycle_engine.utils import safe_float
+
 BASE = Path(PROJECT_ROOT)
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
 BACKTEST_OUT = BASE / 'signals' / 'tracking' / 'backtest_report.json'
 BACKTEST_DB  = BASE / 'signals' / 'tracking' / 'backtest_trades.db'
 BACKTEST_ARC = BASE / 'signals' / 'backtest_archive'
 CYCLE_REPORT = BASE / 'signals' / 'tracking' / 'cycle_report.json'
-PERIODS = ['min1', 'min5', 'min15', 'min30', 'min60', 'daily']
-PERIOD_CN = {'min1':'1分钟','min5':'5分钟','min15':'15分钟','min30':'30分钟','min60':'60分钟','daily':'日线'}
-MAX_BARS = 2000
+PERIODS = ['min5', 'min15', 'min30', 'min60', 'daily']
+PERIOD_CN = {'min5':'5分钟','min15':'15分钟','min30':'30分钟','min60':'60分钟','daily':'日线'}
+MIN_PRICE_FACTOR = 10000   # 分钟线原始值/10000
+DAY_PRICE_FACTOR = 1000    # 日线原始值/1000
 
+# ========== 数据加载 ==========
 
 def read_csv(code, period):
+    """读取信号 CSV，返回 dict list"""
     f = SNAPSHOT_DIR / code / f'{period}_signals.csv'
     if not f.exists(): return []
     rows = []
@@ -37,229 +40,753 @@ def read_csv(code, period):
     return rows
 
 
-def trend_dir(code):
+def _find_row_by_ts(rows, target_ts):
+    """在 rows 中找到 timestamp <= target_ts 的最近一条"""
+    target = int(target_ts)
+    best = None
+    for r in rows:
+        ts = int(r.get('timestamp', 0) or 0)
+        if ts <= target:
+            best = r
+        else:
+            break
+    return best
+
+
+def _find_daily_by_date(rows, date_str):
+    """在日线 rows 中找到匹配 date 的 bar"""
+    for r in rows:
+        if r.get('date', '').strip() == date_str:
+            return r
+    return None
+
+
+# ========== 核心分类逻辑 ==========
+
+
+def _daily_structure_uptrend(daily_rows, date_str):
+    """日线结构上涨趋势检查：低点抬高+高点抬高（近20根 vs 前20根）"""
+    idx = -1
+    for i, r in enumerate(daily_rows):
+        if r.get('date', '').strip() == date_str:
+            idx = i
+            break
+    if idx < 40:
+        return True  # 数据不足，默认通过
+    fac = DAY_PRICE_FACTOR
     try:
-        data = json.load(open(CYCLE_REPORT, 'r', encoding='utf-8'))
-        for item in data:
-            if item['code'] == code:
-                return item.get('trend', {}).get('direction', 'neutral')
-    except: pass
-    return 'neutral'
+        cur_low = min(float(daily_rows[k].get('low', 0) or 0) for k in range(idx-19, idx+1)) / fac
+        prev_low = min(float(daily_rows[k].get('low', 0) or 0) for k in range(idx-39, idx-19)) / fac
+        cur_high = max(float(daily_rows[k].get('high', 0) or 0) for k in range(idx-19, idx+1)) / fac
+        prev_high = max(float(daily_rows[k].get('high', 0) or 0) for k in range(idx-39, idx-19)) / fac
+    except (ValueError, TypeError):
+        return True
+    low_ok = cur_low > prev_low
+    high_ok = cur_high > prev_high
+    return low_ok and high_ok
 
 
-def extract_raw_closes(rows, entry_field, entry_target, exit_field, exit_target):
+def _try_ma_entry(bar, idx, min5_rows, period_data, delay_window=0):
     """
-    提取每个★信号的原始区间数据（保留全程收盘价序列）
-    O(n) 单次遍历：预收集 entry/exit 位置，避免重复扫描
+    MA级入场检查（独立版本，不升级金叉级）。
+    delay_window=0 → 严格版（★买当根MA排列）
+    delay_window=12 → 延期版（12根内等待MA排好）
+    返回 (entry_idx, entry_price) 或 None
     """
-    # 预收集所有 entry 和 exit 位置
-    entries = []
-    exits = []
-    for idx, r in enumerate(rows):
-        if r.get(entry_field, '').strip() == entry_target:
-            entries.append(idx)
-        if r.get(exit_field, '').strip() == exit_target:
-            exits.append(idx)
+    date_str = bar.get('date', '').strip()
+    ts_str = bar.get('timestamp', '').strip()
+    ts = int(ts_str) if ts_str else 0
+    daily_rows = period_data.get('daily', [])
+    min60_rows = period_data.get('min60', [])
+    entry_idx = idx
 
-    cycles = []
-    exit_ptr = 0
-    for ei in entries:
-        erow = rows[ei]
-        try: entry_price = float(erow.get('raw_close', 0))
-        except: entry_price = 0
-        if entry_price <= 0: continue
-        if entry_price >= 100000: continue
+    try:
+        close_raw = float(bar.get('close', 0) or 0)
+    except (ValueError, TypeError):
+        return None
+    if close_raw <= 0:
+        return None
+    entry_price = _factor_price(close_raw)
 
-        # 找该 entry 之后最近的 exit
-        while exit_ptr < len(exits) and exits[exit_ptr] <= ei:
-            exit_ptr += 1
-        if exit_ptr < len(exits):
-            xi = exits[exit_ptr]
-        else:
-            xi = min(ei + 500, len(rows) - 1)
-        if xi <= ei: continue
-
-        closes = []
-        for r in rows[ei:xi + 1]:
+    # ── 1. MA排列检查 ──
+    try:
+        ma5 = float(bar.get('ma5', 0) or 0)
+        ma10 = float(bar.get('ma10', 0) or 0)
+        ma20 = float(bar.get('ma20', 0) or 0)
+    except (ValueError, TypeError):
+        return None
+    if not (ma5 > ma10 > ma20):
+        if delay_window == 0:
+            return None  # 严格版：当根不通过即弃
+        # 延期版：向后扫描
+        saved = False
+        for offset in range(1, min(delay_window + 1, len(min5_rows) - idx)):
+            nr = min5_rows[idx + offset]
             try:
-                v = float(r.get('raw_close', 0))
-                if v >= 100000: continue
-                closes.append(v)
-            except: pass
-        if len(closes) < 2: continue
+                nma5 = float(nr.get('ma5', 0) or 0)
+                nma10 = float(nr.get('ma10', 0) or 0)
+                nma20 = float(nr.get('ma20', 0) or 0)
+                if nma5 > nma10 > nma20:
+                    bar = nr
+                    entry_idx = idx + offset
+                    date_str = bar.get('date', '').strip()
+                    ts = int(bar.get('timestamp', '0') or '0')
+                    close_raw = float(bar.get('close', 0) or 0)
+                    entry_price = _factor_price(close_raw)
+                    saved = True
+                    break
+            except (ValueError, TypeError):
+                pass
+        if not saved:
+            return None
 
-        cycles.append({
-            'entry_i': ei, 'entry_time': rows[ei].get('timestamp', ''),
-            'close': closes, 'entry_price': closes[0],
-            'min_seq': min(closes), 'max_seq': max(closes),
-        })
-    return cycles
+    # ── 2. 15分钟无死叉（代替原来5分钟20根检查） ──
+    if _has_death_cross_15min(period_data, ts):
+        return None
 
-
-# ========== 合并1: 低点不破合并（多个原始区间→合并段） ==========
-
-def do_merge(segments):
-    merged = []
-    for seg in segments:
-        entry = seg[0]['entry_price']
-        exit_price = seg[-1]['close'][-1]
-        max_c = max(c['max_seq'] for c in seg)
-        min_c = min(c['min_seq'] for c in seg)
-        total_bars = sum(len(c['close']) for c in seg)
-
-        merged.append({
-            'entry_time': seg[0]['entry_time'],
-            'exit_time': seg[-1]['entry_time'],
-            'entry': entry, 'exit': exit_price,
-            'max': max_c, 'min': min_c,
-            'max_gain': (max_c - entry) / entry * 100 if entry else 0,
-            'max_loss': (min_c - entry) / entry * 100 if entry else 0,
-            'retreat': (min_c - max(max_c, entry)) / max(max_c, entry) * 100 if max(max_c, entry) else 0,
-            'total_pct': (exit_price - entry) / entry * 100 if entry else 0,
-            'bars': total_bars, 'segments': len(seg),
-        })
-    return merged
-
-
-def merge_low_higher(raw_cycles, is_buy=True):
-    """低点不破合并"""
-    if len(raw_cycles) < 2:
-        return do_merge([raw_cycles]) if raw_cycles else raw_cycles
-    segs = [[raw_cycles[0]]]
-    for c in raw_cycles[1:]:
-        seg_min = min(x['min_seq'] for x in segs[-1])
-        mb = sum(len(x['close']) for x in segs[-1]) + len(c['close'])
-        ok = c['min_seq'] >= seg_min if is_buy else c['max_seq'] <= max(x['max_seq'] for x in segs[-1])
-        segs[-1].append(c) if ok and mb <= MAX_BARS else segs.append([c])
-    return do_merge(segs)
-
-
-def merge_retrace50(raw_cycles, is_buy=True):
-    """50%回调合并"""
-    if len(raw_cycles) < 2:
-        return do_merge([raw_cycles]) if raw_cycles else raw_cycles
-    segs = [[raw_cycles[0]]]
-    for c in raw_cycles[1:]:
-        last = segs[-1][-1]
-        mb = sum(len(x['close']) for x in segs[-1]) + len(c['close'])
-        if is_buy:
-            prev_gain = last['max_seq'] - last['entry_price']
-            fifty = last['max_seq'] - prev_gain * 0.5 if prev_gain > 0 else last['entry_price']
-            ok = (c['min_seq'] > fifty and c['max_seq'] >= last['entry_price'])
+    # ── 3. 60分黄线上 ──
+    if min60_rows:
+        m60bar = _find_row_by_ts(min60_rows, ts)
+        if m60bar:
+            try:
+                c60 = float(m60bar.get('close', 0) or 0)
+                e50_60 = float(m60bar.get('expma50', 0) or 0)
+                if not (c60 > e50_60):
+                    return None
+            except (ValueError, TypeError):
+                pass
         else:
-            prev_loss = last['entry_price'] - last['min_seq']
-            fifty = last['min_seq'] + prev_loss * 0.5 if prev_loss > 0 else last['entry_price']
-            ok = (c['max_seq'] < fifty and c['min_seq'] <= last['entry_price'])
-        segs[-1].append(c) if ok and mb <= MAX_BARS else segs.append([c])
-    return do_merge(segs)
+            return None
+    else:
+        return None
+
+    # ── 4. PE门禁 ──
+    if daily_rows:
+        dbar = _find_daily_by_date(daily_rows, date_str)
+        if dbar:
+            try:
+                pe_chg = float(dbar.get('pe_chg_5', 0) or 0)
+                if pe_chg < -0.02:
+                    return None
+            except (ValueError, TypeError):
+                pass
+
+    # ── 5. 日线Zone ──
+    if daily_rows:
+        dbar = _find_daily_by_date(daily_rows, date_str)
+        if dbar:
+            try:
+                c_d = float(dbar.get('close', 0) or 0)
+                e50_d = float(dbar.get('expma50', 0) or 0)
+                if not (c_d > e50_d):
+                    return None
+            except (ValueError, TypeError):
+                pass
+    else:
+        return None
+
+    # ── 6. 日线结构检查 ──
+    if not _daily_structure_uptrend(daily_rows, date_str):
+        return None
+
+    # ── 7. 低点抬高结构检查 ──
+    gc_positions = []
+    for k in range(entry_idx - 1, max(entry_idx - 80, 0), -1):
+        cross = (min5_rows[k].get('expma_cross', '') or '').strip()
+        if cross == '金叉':
+            gc_positions.append(k)
+            if len(gc_positions) >= 2:
+                break
+    if len(gc_positions) >= 2:
+        fac = MIN_PRICE_FACTOR
+        cur_low = min(float(min5_rows[k].get('low', 0) or 0) for k in range(gc_positions[0], entry_idx + 1))
+        prev_low = min(float(min5_rows[k].get('low', 0) or 0) for k in range(gc_positions[1], gc_positions[0] + 1))
+        if (cur_low / fac) < (prev_low / fac):
+            return None
+
+    return entry_idx, entry_price
 
 
-# ========== 合并3: 基于每个★信号的"低点不破区间" ==========
-
-def per_signal_low_not_broken(raw_cycles, is_buy=True):
+def _try_jincha_entry(bar, idx, min5_rows, period_data, scan_window=30):
     """
-    每个原始★信号单独计算：
-    以该信号entry为起点，向前找后续所有不破它entry低点的信号区间，
-    合并为一个完整区间，计算该信号的涨幅。
-    即：每个信号独立向未来延伸，低点被破才终止。
+    金叉级独立入场：★买触发 → 扫描N根内出金叉 → 金叉bar收盘入场。
+    环境过滤在★买时判断，入场价=金叉bar close。
+    不依赖MA排列检查，独立于MA级。
+    返回 (entry_idx, entry_price) 或 None
     """
-    n = len(raw_cycles)
-    per_results = []
-    for i in range(n):
-        sig = raw_cycles[i]
-        entry = sig['entry_price']
-        low_water = sig['min_seq']  # 初始低点
-        
-        # 从i开始向后合并所有不破low_water的区间
-        low_water = sig['min_seq']   # 买方向：追踪最低低点
-        high_water = sig['max_seq']   # 卖方向：追踪最低高点
-        merged_close = list(sig['close'])
-        j = i + 1
-        while j < n:
-            next_sig = raw_cycles[j]
-            if is_buy:
-                # 买方向：后续信号的低点不能突破已合并段中最低的低点
-                if next_sig['min_seq'] < low_water:
+    date_str = bar.get('date', '').strip()
+    ts_str = bar.get('timestamp', '').strip()
+    ts = int(ts_str) if ts_str else 0
+    daily_rows = period_data.get('daily', [])
+    min60_rows = period_data.get('min60', [])
+
+    # ── 环境检查（在★买时判断） ──
+
+    # A. 15分钟无死叉（代替原来5分钟20根检查）
+    if _has_death_cross_15min(period_data, ts):
+        return None
+
+    # B. 60分黄线上
+    if min60_rows:
+        m60bar = _find_row_by_ts(min60_rows, ts)
+        if m60bar:
+            try:
+                c60 = float(m60bar.get('close', 0) or 0)
+                e50_60 = float(m60bar.get('expma50', 0) or 0)
+                if not (c60 > e50_60):
+                    return None
+            except (ValueError, TypeError):
+                pass
+        else:
+            return None
+    else:
+        return None
+
+    # C. PE门禁
+    if daily_rows:
+        dbar = _find_daily_by_date(daily_rows, date_str)
+        if dbar:
+            try:
+                pe_chg = float(dbar.get('pe_chg_5', 0) or 0)
+                if pe_chg < -0.02:
+                    return None
+            except (ValueError, TypeError):
+                pass
+
+    # D. 日线Zone
+    if daily_rows:
+        dbar = _find_daily_by_date(daily_rows, date_str)
+        if dbar:
+            try:
+                c_d = float(dbar.get('close', 0) or 0)
+                e50_d = float(dbar.get('expma50', 0) or 0)
+                if not (c_d > e50_d):
+                    return None
+            except (ValueError, TypeError):
+                pass
+    else:
+        return None
+
+    # E. 日线结构检查
+    if not _daily_structure_uptrend(daily_rows, date_str):
+        return None
+
+    # ── 扫描金叉 ──
+    for offset in range(1, min(scan_window + 1, len(min5_rows) - idx)):
+        nr = min5_rows[idx + offset]
+        cross = (nr.get('expma_cross', '') or '').strip()
+        if cross == '金叉':
+            jincha_idx = idx + offset
+
+            # 结构检查：低点抬高（从金叉位置看）
+            gc_positions = [jincha_idx]
+            for k in range(jincha_idx - 1, max(jincha_idx - 80, 0), -1):
+                cross2 = (min5_rows[k].get('expma_cross', '') or '').strip()
+                if cross2 == '金叉':
+                    gc_positions.append(k)
+                    if len(gc_positions) >= 2:
+                        break
+            if len(gc_positions) >= 2:
+                fac = MIN_PRICE_FACTOR
+                cur_low = min(float(min5_rows[k].get('low', 0) or 0) for k in range(gc_positions[0], jincha_idx + 1))
+                prev_low = min(float(min5_rows[k].get('low', 0) or 0) for k in range(gc_positions[1], gc_positions[0] + 1))
+                if (cur_low / fac) < (prev_low / fac):
+                    continue  # 低点降低，找下一个金叉
+
+            # 入场价：金叉bar close
+            gc_close_raw = float(nr.get('close', 0) or 0)
+            entry_price = _factor_price(gc_close_raw)
+            return jincha_idx, entry_price
+
+    return None
+
+
+def classify_buy_signal(code, min5_bar, min5_idx, min5_rows, period_data, ma_delay_window=12):
+    """
+    对 min5 某根 ★买 bar 执行 monitor 的三级过滤分类。
+    与 monitor.py Step 4.5 一致: MA级只检查 60分位置(非日线强势)。
+
+    ma_delay_window: ★买后多少根K线内MA排列理顺算有效入场（默认12根≈60分钟）
+        实验#24验证：30分钟内排好158笔胜率63.3%，30-60分钟138笔胜率60.1%
+        均高于原MA级当根通过的50.0%胜率。
+
+    Returns:
+        filter_level: 'discard' | 'ma' | 'jincha' | 'resonance'
+        reason: str
+        entry_price: float
+        entry_idx: int (实际入场bar index，启用追赶期时可能与min5_idx不同)
+    """
+    bar = min5_bar
+    date_str = bar.get('date', '').strip()
+    ts_str = bar.get('timestamp', '').strip()
+    ts = int(ts_str) if ts_str else 0
+    daily_rows = period_data.get('daily', [])
+    min60_rows = period_data.get('min60', [])
+    min15_rows = period_data.get('min15', [])
+    min30_rows = period_data.get('min30', [])
+    entry_idx = min5_idx
+
+    try:
+        close_raw = float(bar.get('close', 0) or 0)
+    except (ValueError, TypeError):
+        return 'discard', '价格异常', 0, min5_idx
+    if close_raw <= 0:
+        return 'discard', '价格异常', 0, min5_idx
+    close = close_raw / MIN_PRICE_FACTOR if close_raw > 100 else close_raw
+    entry_price = close
+
+    # ── 1. MA 排列检查 (MA级基本条件) ──
+    try:
+        ma5 = float(bar.get('ma5', 0) or 0)
+        ma10 = float(bar.get('ma10', 0) or 0)
+        ma20 = float(bar.get('ma20', 0) or 0)
+    except (ValueError, TypeError):
+        return 'discard', 'MA数据异常', entry_price, min5_idx
+    if not (ma5 > ma10 > ma20):
+        # ★买当根排列不通过 → MA排列追赶期: 向后扫描N根
+        saved = False
+        for offset in range(1, min(ma_delay_window + 1, len(min5_rows) - min5_idx)):
+            nr = min5_rows[min5_idx + offset]
+            try:
+                nma5 = float(nr.get('ma5', 0) or 0)
+                nma10 = float(nr.get('ma10', 0) or 0)
+                nma20 = float(nr.get('ma20', 0) or 0)
+                if nma5 > nma10 > nma20:
+                    # 用MA理顺的bar替换原★买bar
+                    bar = nr
+                    entry_idx = min5_idx + offset
+                    date_str = bar.get('date', '').strip()
+                    ts_str = bar.get('timestamp', '').strip()
+                    ts = int(ts_str) if ts_str else 0
+                    close_raw = float(bar.get('close', 0) or 0)
+                    entry_price = close_raw / MIN_PRICE_FACTOR if close_raw > 100 else close_raw
+                    saved = True
                     break
-                low_water = min(low_water, next_sig['min_seq'])
-            else:
-                # 卖方向：后续信号的高点不能突破已合并段中最低的高点
-                # (高点必须持续降低，反弹突破high_water则结构破坏)
-                if next_sig['max_seq'] > high_water:
+            except (ValueError, TypeError):
+                pass
+        if not saved:
+            return 'discard', f'MA排列不满足(追赶{ma_delay_window}根未排好)', entry_price, min5_idx
+
+    # ── 2. 20根内无死叉 (用entry_idx替代min5_idx，追赶期后检查新入场位置) ──
+    has_death = False
+    for j in range(min(20, entry_idx)):
+        pos = entry_idx - j
+        if pos < 0: break
+        cross = (min5_rows[pos].get('expma_cross', '') or '').strip()
+        if cross == '死叉':
+            has_death = True
+            break
+        if cross == '金叉':
+            break
+    if has_death:
+        return 'discard', '20根内存在死叉', entry_price, entry_idx
+
+    # ── 3. 60分钟在expma50黄线上方 (与monitor一致) ──
+    min60_ok = False
+    if min60_rows:
+        m60bar = _find_row_by_ts(min60_rows, ts)
+        if m60bar:
+            try:
+                c60 = float(m60bar.get('close', 0) or 0)
+                e50_60 = float(m60bar.get('expma50', 0) or 0)
+                min60_ok = c60 > e50_60
+            except (ValueError, TypeError):
+                pass
+    if not min60_ok:
+        return 'discard', '60分在黄线下', entry_price, entry_idx
+
+    # ── 4. PE门禁: MA级 → 日线PE非升熵 (pe_chg_5 >= -0.02) ──
+    if daily_rows:
+        dbar = _find_daily_by_date(daily_rows, date_str)
+        if dbar:
+            try:
+                pe_chg = float(dbar.get('pe_chg_5', 0) or 0)
+                if pe_chg < -0.02:
+                    return 'discard', f'PE门禁(pe_chg_5={pe_chg:.3f})', entry_price, entry_idx
+            except (ValueError, TypeError):
+                pass
+
+    # ── 5. 日线Zone过滤: close > expma50 (仅strong/secondary zone入场) ──
+    zone_ok = False
+    if daily_rows:
+        dbar = _find_daily_by_date(daily_rows, date_str)
+        if dbar:
+            try:
+                c_d = float(dbar.get('close', 0) or 0)
+                e50_d = float(dbar.get('expma50', 0) or 0)
+                zone_ok = c_d > e50_d
+            except (ValueError, TypeError):
+                pass
+    if not zone_ok:
+        return 'discard', '日线Zone过滤', entry_price, entry_idx
+
+    # ── 5.5 日线结构检查：低点抬高+高点抬高（确认上涨趋势大环境） ──
+    if not _daily_structure_uptrend(daily_rows, date_str):
+        return 'discard', '日线结构过滤(低点未抬高+高点未抬高)', entry_price, entry_idx
+
+    # ── 6. 结构检查：低点抬高（金叉分段对比） ──
+    # 找入场前最近两个金叉，比较当前段低点 >= 上一段低点
+    # 找不到两个金叉则默认通过（不做结构检查）
+    gc_positions = []
+    for k in range(entry_idx - 1, max(entry_idx - 80, 0), -1):
+        cross = (min5_rows[k].get('expma_cross', '') or '').strip()
+        if cross == '金叉':
+            gc_positions.append(k)
+            if len(gc_positions) >= 2:
+                break
+
+    if len(gc_positions) >= 2:
+        cur_low = min(float(min5_rows[k].get('low', 0) or 0) for k in range(gc_positions[0], entry_idx + 1))
+        prev_low = min(float(min5_rows[k].get('low', 0) or 0) for k in range(gc_positions[1], gc_positions[0] + 1))
+        fac = MIN_PRICE_FACTOR
+        if (cur_low / fac) < (prev_low / fac):
+            return 'discard', '结构检查(低点降低)', entry_price, entry_idx
+
+# ── 7. 升级检查: 5分钟EXPMA金叉 → 金叉级（买） ──
+    # 按层层递进: ★买→MA理顺(MA级)→5分钟EXPMA金叉(金叉级)→15分钟金叉(共振级)
+    filter_level = 'ma'
+    reason = 'MA级'
+    expma12 = float(bar.get('expma12', 0) or 0)
+    expma50 = float(bar.get('expma50', 0) or 0)
+
+    if expma12 > expma50:
+        filter_level = 'jincha'
+        reason = '金叉级'
+        # 金叉级入场价用金叉bar的close
+        for k in range(entry_idx, max(entry_idx - 30, 0), -1):
+            cross = (min5_rows[k].get('expma_cross', '') or '').strip()
+            if cross == '金叉':
+                gc_close = float(min5_rows[k].get('close', 0) or 0)
+                entry_price = _factor_price(gc_close)
+                entry_idx = k
+                break
+
+
+        # ── 共振检查: 15/30分K线内都有金叉/★买（近50根） ──
+        m15_signal = False
+        m30_signal = False
+        if min15_rows:
+            near_idx = -1
+            for j in range(len(min15_rows)):
+                cts = int(min15_rows[j].get('timestamp', 0) or 0)
+                if cts <= ts:
+                    near_idx = j
+            if near_idx >= 0:
+                for j in range(max(0, near_idx - 49), near_idx + 1):
+                    cross = (min15_rows[j].get('expma_cross', '') or '').strip()
+                    bs = min15_rows[j].get('buy_signal', '').strip()
+                    if cross == '金叉' or bs:
+                        m15_signal = True
+                        break
+        if min30_rows:
+            near_idx = -1
+            for j in range(len(min30_rows)):
+                cts = int(min30_rows[j].get('timestamp', 0) or 0)
+                if cts <= ts:
+                    near_idx = j
+            if near_idx >= 0:
+                for j in range(max(0, near_idx - 49), near_idx + 1):
+                    cross = (min30_rows[j].get('expma_cross', '') or '').strip()
+                    bs = min30_rows[j].get('buy_signal', '').strip()
+                    if cross == '金叉' or bs:
+                        m30_signal = True
+                        break
+        if m15_signal and m30_signal:
+            filter_level = 'resonance'
+            reason = '共振级(15+30双信号)'
+
+    return filter_level, reason, entry_price, entry_idx
+
+
+def _factor_price(v):
+    """分钟线原始值→实价，日线已除则不动"""
+    return v / MIN_PRICE_FACTOR if v > 100 else v
+
+
+def _calc_entry_band_low(all_rows, entry_idx, lookback=80):
+    """入场时计算波段最低点：最近金叉→开仓bar之间的最低low（本上涨波段起点）"""
+    best = float(all_rows[entry_idx]['low'])
+    for i in range(entry_idx - 1, max(entry_idx - lookback, -1), -1):
+        lo = float(all_rows[i]['low'])
+        if lo < best:
+            best = lo
+        cross = (all_rows[i].get('expma_cross', '') or '').strip()
+        if cross == '金叉':
+            break
+    return best
+
+
+def _no_recent_golden(rows, i, n=20):
+    """最近n根内没有金叉事件（有金叉则不卖，趋势还在向上）"""
+    for j in range(i - 1, max(i - n - 1, 0), -1):
+        cross = (rows[j].get('expma_cross', '') or '').strip()
+        if cross == '金叉':
+            return False
+        if cross == '死叉':
+            return True
+    return True
+
+
+def _min15_below_ema50(code, ts):
+    """15分钟 close < expma50（黄线下方）"""
+    rows = read_csv(code, 'min15')
+    if not rows:
+        return False
+    bar = _find_row_by_ts(rows, ts)
+    if not bar:
+        return False
+    try:
+        c = float(bar.get('close', 0) or 0)
+        e50 = float(bar.get('expma50', 0) or 0)
+        return c < e50
+    except (ValueError, TypeError):
+        return False
+
+
+def _has_death_cross_15min(period_data, ts, lookback=20):
+    """检查15分钟周期：★买前最近lookback根内是否有死叉（金叉在前则放行）"""
+    min15_rows = period_data.get('min15', [])
+    if not min15_rows:
+        return True
+    near_idx = -1
+    for i, r in enumerate(min15_rows):
+        rts = int(r.get('timestamp', 0) or 0)
+        if rts <= ts:
+            near_idx = i
+        else:
+            break
+    if near_idx < 0:
+        return True
+    for j in range(min(lookback, near_idx + 1)):
+        pos = near_idx - j
+        cross = (min15_rows[pos].get('expma_cross', '') or '').strip()
+        if cross == '死叉':
+            return True
+        if cross == '金叉':
+            return False
+    return False
+
+
+def track_trade(min5_rows, buy_idx, filter_level='ma', code=None):
+    """
+    从 ★买 入场追踪交易（三层卖出逻辑，对齐 monitor Step 4.6）:
+      止损层: low < band_low → 强制离场（保护性）
+      减仓卖层: ★卖 + close<MA5 + 无金叉(20根) + 15分黄线下 → 减仓卖
+      无条件卖层: 死叉 + 无金叉(20根) + 15分黄线下 → 强制全平（兜底）
+    """
+    if buy_idx >= len(min5_rows) - 1:
+        return None
+    entry_bar = min5_rows[buy_idx]
+    try:
+        entry_price_raw = float(entry_bar.get('close', 0) or 0)
+    except (ValueError, TypeError):
+        return None
+    if entry_price_raw <= 0:
+        return None
+    entry_price = _factor_price(entry_price_raw)
+    entry_time = entry_bar.get('timestamp', '')
+
+    # 止损线: band_low（本上涨波段最低点）
+    band_low_raw = _calc_entry_band_low(min5_rows, buy_idx)
+    band_low = _factor_price(band_low_raw)
+
+    # 逐根 bar 扫描
+    exit_idx = None
+    exit_price = None
+    exit_reason = None
+    cci_has_extreme = False  # CCI极值状态：出现>=200后启用白线防守
+
+    for j in range(buy_idx + 1, len(min5_rows)):
+        r = min5_rows[j]
+        try:
+            raw_low = float(r.get('low', 0) or 0)
+            raw_close = float(r.get('close', 0) or 0)
+        except (ValueError, TypeError):
+            continue
+        low = _factor_price(raw_low)
+        close = _factor_price(raw_close)
+        if low <= 0 or close <= 0:
+            continue
+
+        # ── 止损层: 跌破 band_low → 强制离场 ──
+        if low < band_low:
+            exit_idx = j
+            exit_price = low
+            exit_reason = '止损'
+            break
+
+        # ── ★卖止盈层: ★卖信号 | CCI极值>=350 | CCI极值后跌破白线（金叉级/共振级） ──
+        if filter_level in ('jincha', 'resonance'):
+            sell_signal = r.get('sell_signal', '').strip()
+            try:
+                cci_val = float(r.get('cci', 0) or 0)
+            except (ValueError, TypeError):
+                cci_val = 0
+
+            # 跟踪CCI极值状态：出现>=200后启用白线防守
+            if cci_val >= 200:
+                cci_has_extreme = True
+
+            expma12_raw = float(r.get('expma12', 0) or 0)
+            expma12 = _factor_price(expma12_raw) if expma12_raw > 0 else 0
+            below_white = expma12 > 0 and close < expma12
+
+            if sell_signal == '★卖':
+                exit_idx = j
+                exit_price = close
+                exit_reason = '★卖止盈'
+                break
+            if cci_val >= 350:
+                exit_idx = j
+                exit_price = close
+                exit_reason = 'CCI极值止盈'
+                break
+            if cci_has_extreme and below_white:
+                exit_idx = j
+                exit_price = close
+                exit_reason = '跌破白线'
+                break
+
+        # ── 减仓卖层: ★卖 + close<MA5 + 无金叉(20根) + 15分黄线下 ──
+        sell_signal = r.get('sell_signal', '').strip()
+        if sell_signal == '★卖':
+            try:
+                ma5_raw = float(r.get('ma5', 0) or 0)
+                ma5 = _factor_price(ma5_raw)
+            except (ValueError, TypeError):
+                ma5 = 0
+            if ma5 > 0 and close < ma5:
+                if code and _no_recent_golden(min5_rows, j, 20) and _min15_below_ema50(code, r.get('timestamp', '')):
+                    exit_idx = j
+                    exit_price = close
+                    exit_reason = '减仓卖'
                     break
-                high_water = min(high_water, next_sig['max_seq'])
-            merged_close.extend(next_sig['close'])
-            j += 1
-        
-        # 计算这个信号的完整区间表现
-        if len(merged_close) < 2:
-            continue
-        exit_price = merged_close[-1]
-        total_pct = (exit_price - entry) / entry * 100 if entry else 0
-        max_c = max(merged_close)
-        min_c = min(merged_close)
-        max_gain = (max_c - entry) / entry * 100 if entry else 0
-        max_loss = (min_c - entry) / entry * 100 if entry else 0
-        retreat = (min_c - max(max_c, entry)) / max(max_c, entry) * 100 if max(max_c, entry) else 0
-        
-        per_results.append({
-            'entry_time': sig['entry_time'],
-            'exit_time': raw_cycles[j-1]['entry_time'] if j > i else sig['entry_time'],
-            'entry': entry, 'exit': exit_price,
-            'max': max_c, 'min': min_c,
-            'max_gain': max_gain, 'max_loss': max_loss,
-            'retreat': retreat, 'total_pct': total_pct,
-            'bars': len(merged_close),
-            'merged_signals': j - i,
-        })
-    
-    return per_results
+
+        # ── 无条件卖层: 死叉 + 无金叉(20根) + 15分黄线下 → 强制全平（兜底） ──
+        cross = (r.get('expma_cross', '') or '').strip()
+        if cross == '死叉':
+            if code and _no_recent_golden(min5_rows, j, 20) and _min15_below_ema50(code, r.get('timestamp', '')):
+                exit_idx = j
+                exit_price = close
+                exit_reason = '无条件卖'
+                break
+
+    if exit_idx is None:
+        exit_idx = len(min5_rows) - 1
+        exit_price = _factor_price(float(min5_rows[-1].get('close', 0) or 0))
+        exit_reason = '数据尾'
+
+    # 区间统计
+    closes = []
+    for k in range(buy_idx, exit_idx + 1):
+        try:
+            v = _factor_price(float(min5_rows[k].get('close', 0) or 0))
+            if v > 0:
+                closes.append(v)
+        except (ValueError, TypeError):
+            pass
+    if len(closes) < 2:
+        return None
+
+    total_pct = (closes[-1] - entry_price) / entry_price * 100 if entry_price else 0
+    max_c = max(closes)
+    min_c = min(closes)
+    max_gain = (max_c - entry_price) / entry_price * 100 if entry_price else 0
+    max_loss = (min_c - entry_price) / entry_price * 100 if entry_price else 0
+    retreat = (min_c - max(max_c, entry_price)) / max(max_c, entry_price) * 100 if max(max_c, entry_price) else 0
+    exit_time = min5_rows[exit_idx].get('timestamp', '')
+
+    return {
+        'entry_time': entry_time,
+        'exit_time': exit_time,
+        'entry': round(entry_price, 4),
+        'exit': round(exit_price, 4),
+        'total_pct': round(total_pct, 2),
+        'max_gain': round(max_gain, 2),
+        'max_loss': round(max_loss, 2),
+        'retreat': round(retreat, 2),
+        'bars': exit_idx - buy_idx,
+        'merged_signals': 1,
+        'segments': 1,
+        'exit_reason': exit_reason,
+    }
 
 
-# ========== 合并4: 每信号独立不合并（不跨★卖） ==========
+# ========== 单标的回测 ==========
 
-def per_signal_no_merge(raw_cycles, is_buy=True):
+def backtest_one(code):
     """
-    每信号独立统计 — 不跨★卖合并。
-    
-    每个★买/★卖信号独立计算到最近反向信号的区间利润。
-    不做跨★卖合并，每个 raw_cycle 就是一笔独立交易。
-    
-    与 per_signal_low_not_broken 的区别：
-    - per_signal: 跨★卖合并所有不破新低的区间
-    - no_merge: 严格按★卖切断，每信号独立
+    三轮对比回测：MA严格版 vs MA延期版 vs 金叉级独立。
+    每根★买独立测试三种策略，互不影响。
     """
-    results = []
-    for c in raw_cycles:
-        if len(c['close']) < 2:
+    min5_rows = read_csv(code, 'min5')
+    if len(min5_rows) < 100:
+        return None
+
+    period_data = {}
+    for p in PERIODS:
+        period_data[p] = read_csv(code, p)
+
+    # 三个独立交易桶
+    trades_by_version = {
+        'ma_strict': [],
+        'ma_delayed': [],
+        'jincha': [],
+    }
+
+    total_buy_signals = 0
+    for idx, bar in enumerate(min5_rows):
+        bs = bar.get('buy_signal', '').strip()
+        if bs != '★买':
             continue
-        entry = c['entry_price']
-        exit_price = c['close'][-1]
-        if not entry:
+        if idx < 50:
             continue
-        total_pct = (exit_price - entry) / entry * 100
-        max_c = max(c['close'])
-        min_c = min(c['close'])
-        max_gain = (max_c - entry) / entry * 100
-        max_loss = (min_c - entry) / entry * 100
-        retreat = (min_c - max(max_c, entry)) / max(max_c, entry) * 100 if max(max_c, entry) else 0
-        
-        results.append({
-            'entry_time': c['entry_time'],
-            'exit_time': c['entry_time'],
-            'entry': entry,
-            'exit': exit_price,
-            'max': max_c,
-            'min': min_c,
-            'max_gain': max_gain,
-            'max_loss': max_loss,
-            'retreat': retreat,
-            'total_pct': total_pct,
-            'bars': len(c['close']),
-            'merged_signals': 1,
-            'segments': 1,
-        })
-    return results
+        total_buy_signals += 1
+
+        # 1. MA严格版: ★买当根MA5>MA10>MA20，不追赶
+        result = _try_ma_entry(bar, idx, min5_rows, period_data, delay_window=0)
+        if result:
+            entry_idx, entry_price = result
+            trade = track_trade(min5_rows, entry_idx, 'ma', code=code)
+            if trade:
+                trade['version'] = 'ma_strict'
+                trade['code'] = code
+                trades_by_version['ma_strict'].append(trade)
+
+        # 2. MA延期版: ★买后12根内等待MA排好
+        result = _try_ma_entry(bar, idx, min5_rows, period_data, delay_window=12)
+        if result:
+            entry_idx, entry_price = result
+            trade = track_trade(min5_rows, entry_idx, 'ma', code=code)
+            if trade:
+                trade['version'] = 'ma_delayed'
+                trade['code'] = code
+                trades_by_version['ma_delayed'].append(trade)
+
+        # 3. 金叉级独立: 扫描30根内出金叉，金叉bar收盘入场
+        result = _try_jincha_entry(bar, idx, min5_rows, period_data)
+        if result:
+            entry_idx, entry_price = result
+            trade = track_trade(min5_rows, entry_idx, 'jincha', code=code)
+            if trade:
+                trade['version'] = 'jincha'
+                trade['code'] = code
+                trades_by_version['jincha'].append(trade)
+
+    # 统计
+    result = {'min5': {}}
+    for v in ['ma_strict', 'ma_delayed', 'jincha']:
+        trades = trades_by_version[v]
+        if trades:
+            result['min5'][v] = {
+                'buy': stat(trades, True),
+                'trades': trades,
+            }
+        else:
+            result['min5'][v] = {'buy': None, 'trades': []}
+
+    result['min5']['total_buy_signals'] = total_buy_signals
+    return result
 
 
 # ========== 统计 ==========
@@ -269,10 +796,13 @@ def stat(cycles, is_buy=True):
     pcts = [c['total_pct'] for c in cycles]
     retreats = [c['retreat'] for c in cycles]
     bars_list = [c['bars'] for c in cycles]
-    segs = [c.get('segments', 1) for c in cycles]
     wins = [p for p in pcts if (is_buy and p > 0) or (not is_buy and p < 0)]
+    exit_reasons = {}
+    for c in cycles:
+        r = c.get('exit_reason', '未知')
+        exit_reasons[r] = exit_reasons.get(r, 0) + 1
     return {
-        'count': len(cycles), 'raw_cycles': sum(segs),
+        'count': len(cycles),
         'win_rate': round(len(wins)/len(cycles)*100, 1) if cycles else 0,
         'avg_pct': round(sum(pcts)/len(pcts), 2) if pcts else 0,
         'max_pct': round(max(pcts), 2) if pcts else 0,
@@ -281,296 +811,11 @@ def stat(cycles, is_buy=True):
         'max_retreat': round(min(retreats), 2) if retreats else 0,
         'avg_bars': round(sum(bars_list)/len(bars_list), 1) if bars_list else 0,
         'bars_range': '%d~%d' % (min(bars_list), max(bars_list)) if bars_list else '',
-        'avg_segments': round(sum(segs)/len(segs), 1) if segs else 0,
-        'avg_merged_signals': round(sum(c.get('merged_signals', 1) for c in cycles)/len(cycles), 1),
+        'exit_reasons': exit_reasons,
     }
 
 
-# ========== 合并5: 顺趋势金叉不破新低（每信号独立） ==========
-
-def per_signal_golden_no_new_low(code, period):
-    """
-    不破新低版 — 基于金叉+不破波段低点，每信号独立统计
-    
-    只做顺趋势方向 + 有完整★买→★卖闭环的周期。
-    逆势方向暂不统计（需要次级别数据）。
-    
-    买方向(上涨/偏多):
-    - ★买→首次金叉→记录波段低点(low_water)
-    - 每次后续金叉，若其波段低点≥low_water(不破新低)=新信号
-    - 所有信号共享终结: 同级别★卖
-    - 每信号独立: profit = (★卖close - 金叉close) / 金叉close
-    
-    卖方向(下跌/偏空):
-    - 死叉不破新高，反向同理
-    """
-    rows = read_csv(code, period)
-    if len(rows) < 5:
-        return None, None
-
-    t = trend_dir(code)
-    bullish = t in ('bullish', 'bullish_bias')
-    bearish = t in ('bearish', 'bearish_bias')
-    neutral = t == 'neutral'
-    if not bullish and not bearish and not neutral:
-        return None, None  # unknown方向跳过
-
-    # 次级别映射（逆势降级用）
-    SUB_PERIOD = {'min5': 'min1', 'min15': 'min5', 'min30': 'min15', 'min60': 'min30', 'daily': 'min60'}
-    sub_period = SUB_PERIOD.get(period)
-    sub_rows = read_csv(code, sub_period) if sub_period else []
-    # 次级别时间戳→索引映射（用于快速查找）
-    sub_ts_map = {}
-    if sub_rows:
-        for idx, sr in enumerate(sub_rows):
-            sub_ts_map[int(sr.get('timestamp', 0))] = idx
-
-    buy_results = []
-    sell_results = []
-    i = 0
-
-    while i < len(rows):
-        r = rows[i]
-        bs = r.get('buy_signal', '').strip()
-        ss = r.get('sell_signal', '').strip()
-
-        if bs and (bullish or neutral):
-            entry_i = i
-            gc_list = []   # {'idx':, 'close':, 'band_low':}
-            low_water = None
-            sell_j = None
-            sell_exit = None
-            exit_j = None
-            running_min = float('inf')
-
-            j = i + 1
-            while j < len(rows):
-                rj = rows[j]
-                cross = rj.get('expma_cross', '').strip()
-                ss2 = rj.get('sell_signal', '').strip()
-                close_j = safe_float(rj.get('raw_close', 0))
-                if close_j < running_min:
-                    running_min = close_j
-
-                if '金叉' in cross:
-                    band_low = running_min
-
-                    if low_water is None:
-                        low_water = band_low
-                        valid = True
-                    else:
-                        valid = band_low >= low_water
-                        low_water = min(low_water, band_low)
-
-                    if valid:
-                        gc_list.append({'idx': j, 'close': close_j, 'band_low': band_low})
-                        running_min = float('inf')  # 重置，下一段重新累积
-
-                if ss2:
-                    # ★卖信号出现：记录但不立即终止，继续找下一个死叉
-                    sell_j = j
-                    sell_exit = close_j
-                if '死叉' in cross and sell_j is not None:
-                    exit_j = j
-                    break
-
-                j += 1
-
-            # 有★卖且gc_list不为空 → 计算利润（★卖→死叉或★卖→数据末）
-            if sell_j is not None and gc_list:
-                if exit_j is None:
-                    exit_j = len(rows) - 1
-                max_close = max(safe_float(rows[k].get('raw_close', 0)) for k in range(gc_list[0]['idx'], exit_j + 1))
-                for gc in gc_list:
-                    if gc['close'] > 0:
-                        pct = (max_close - gc['close']) / gc['close'] * 100
-                        buy_results.append({
-                            'entry_time': rows[gc['idx']].get('timestamp', ''),
-                            'entry': gc['close'],
-                            'exit': sell_exit,
-                            'max_gain': pct,
-                            'total_pct': pct,
-                            'retreat': 0,
-                            'bars': exit_j - gc['idx'],
-                            'merged_signals': 1,
-                            'segments': 1,
-                        })
-
-            # 无★卖终结但金叉后创了新高 → 也算成功（用区间最高价）
-            if j >= len(rows) and gc_list and sell_j is None:
-                max_close = max(safe_float(rows[k].get('raw_close', 0)) for k in range(gc_list[-1]['idx'], len(rows)))
-                for gc in gc_list:
-                    if gc['close'] > 0:
-                        pct = (max_close - gc['close']) / gc['close'] * 100
-                        buy_results.append({
-                            'entry_time': rows[gc['idx']].get('timestamp', ''),
-                            'entry': gc['close'],
-                            'exit': max_close,
-                            'max_gain': pct,
-                            'total_pct': pct,
-                            'retreat': 0,
-                            'bars': len(rows) - gc['idx'],
-                            'merged_signals': 1,
-                            'segments': 1,
-                        })
-
-            i += 1  # 每个★买独立处理，不跳过同段内后续★买
-
-        elif ss and (bearish or neutral):
-            entry_i = i
-            dc_list = []   # {'idx':, 'close':, 'band_high':}
-            high_water = None
-            buy_j = None
-            exit_j = None
-            running_max = float('-inf')
-
-            j = i + 1
-            while j < len(rows):
-                rj = rows[j]
-                cross = rj.get('expma_cross', '').strip()
-                bs2 = rj.get('buy_signal', '').strip()
-                close_j = safe_float(rj.get('raw_close', 0))
-                if close_j > running_max:
-                    running_max = close_j
-
-                if '死叉' in cross:
-                    band_high = running_max
-
-                    if high_water is None:
-                        high_water = band_high
-                        valid = True
-                    else:
-                        valid = band_high <= high_water   # 不破新高
-                        high_water = max(high_water, band_high)
-
-                    if valid:
-                        dc_list.append({'idx': j, 'close': close_j, 'band_high': band_high})
-                        running_max = float('-inf')  # 重置
-
-                if bs2:
-                    # ★买信号出现：记录但不立即终止，继续找下一个金叉
-                    buy_j = j
-                if '金叉' in cross and buy_j is not None:
-                    exit_j = j
-                    break
-
-                j += 1
-
-            # 有★买且dc_list不为空 → 计算利润（★买→金叉或★买→数据末）
-            if buy_j is not None and dc_list:
-                if exit_j is None:
-                    exit_j = len(rows) - 1
-                min_close = min(safe_float(rows[k].get('raw_close', 0)) for k in range(dc_list[0]['idx'], exit_j + 1))
-                for dc in dc_list:
-                    if dc['close'] > 0:
-                        pct = (min_close - dc['close']) / dc['close'] * 100
-                        sell_results.append({
-                            'entry_time': rows[dc['idx']].get('timestamp', ''),
-                            'entry': dc['close'],
-                            'exit': safe_float(rows[buy_j].get('raw_close', 0)),
-                            'max_gain': pct,
-                            'total_pct': pct,
-                            'retreat': 0,
-                            'bars': exit_j - dc['idx'],
-                            'merged_signals': 1,
-                            'segments': 1,
-                        })
-
-            # 无★买终结但死叉后创了新低 → 也算成功（用区间最低价，跌了=赚）
-            if j >= len(rows) and dc_list and buy_j is None:
-                min_close = min(safe_float(rows[k].get('raw_close', 0)) for k in range(dc_list[-1]['idx'], len(rows)))
-                for dc in dc_list:
-                    if dc['close'] > 0:
-                        pct = (min_close - dc['close']) / dc['close'] * 100
-                        sell_results.append({
-                            'entry_time': rows[dc['idx']].get('timestamp', ''),
-                            'entry': dc['close'],
-                            'exit': min_close,
-                            'max_gain': pct,
-                            'total_pct': pct,
-                            'retreat': 0,
-                            'bars': len(rows) - dc['idx'],
-                            'merged_signals': 1,
-                            'segments': 1,
-                        })
-
-            i += 1  # 每个★卖独立处理，不跳过同段内后续★卖
-
-        elif ss and bullish and sub_rows:
-            # 逆势降级：上涨趋势中的卖信号 → 去次级别找★买做终结
-            ss_ts = int(rows[i].get('timestamp', 0))
-            # 在次级别中找卖信号时间之后最近的★买
-            sub_exit_idx = None
-            for sidx in range(len(sub_rows)):
-                sts = int(sub_rows[sidx].get('timestamp', 0))
-                if sts > ss_ts and sub_rows[sidx].get('buy_signal', '').strip():
-                    sub_exit_idx = sidx
-                    break
-            if sub_exit_idx is not None:
-                # 找本周期中卖信号之后的死叉（作为起点）
-                j = i + 1
-                while j < len(rows):
-                    cross = rows[j].get('expma_cross', '').strip()
-                    if '死叉' in cross:
-                        entry_price = safe_float(rows[j].get('raw_close', 0))
-                        exit_price = safe_float(sub_rows[sub_exit_idx].get('raw_close', 0))
-                        if entry_price > 0:
-                            pct = (exit_price - entry_price) / entry_price * 100
-                            sell_results.append({
-                                'entry_time': rows[j].get('timestamp', ''),
-                                'entry': entry_price,
-                                'exit': exit_price,
-                                'total_pct': pct,
-                                'retreat': 0,
-                                'bars': 1,
-                                'merged_signals': 1,
-                                'segments': 1,
-                            })
-                        break
-                    j += 1
-            i += 1
-
-        elif bs and bearish and sub_rows:
-            # 逆势降级：下跌趋势中的买信号 → 去次级别找★卖做终结
-            bs_ts = int(rows[i].get('timestamp', 0))
-            sub_exit_idx = None
-            for sidx in range(len(sub_rows)):
-                sts = int(sub_rows[sidx].get('timestamp', 0))
-                if sts > bs_ts and sub_rows[sidx].get('sell_signal', '').strip():
-                    sub_exit_idx = sidx
-                    break
-            if sub_exit_idx is not None:
-                j = i + 1
-                while j < len(rows):
-                    cross = rows[j].get('expma_cross', '').strip()
-                    if '金叉' in cross:
-                        entry_price = safe_float(rows[j].get('raw_close', 0))
-                        exit_price = safe_float(sub_rows[sub_exit_idx].get('raw_close', 0))
-                        if entry_price > 0:
-                            pct = (exit_price - entry_price) / entry_price * 100
-                            buy_results.append({
-                                'entry_time': rows[j].get('timestamp', ''),
-                                'entry': entry_price,
-                                'exit': exit_price,
-                                'total_pct': pct,
-                                'retreat': 0,
-                                'bars': 1,
-                                'merged_signals': 1,
-                                'segments': 1,
-                            })
-                        break
-                    j += 1
-            i += 1
-
-        else:
-            i += 1
-
-    bs_stat = stat(buy_results, True) if buy_results else None
-    ss_stat = stat(sell_results, False) if sell_results else None
-    return bs_stat, ss_stat
-
-
-# ========== SQLite 持久化 ==========
+# ========== SQLite 持久化（复用 v3 结构） ==========
 
 def _ensure_db():
     BACKTEST_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -581,7 +826,7 @@ def _ensure_db():
             run_date    TEXT NOT NULL,
             code        TEXT NOT NULL,
             period      TEXT NOT NULL,
-            signal_type TEXT NOT NULL,  -- 'buy' or 'sell'
+            signal_type TEXT NOT NULL,
             entry_time  TEXT NOT NULL,
             exit_time   TEXT NOT NULL,
             entry_price REAL,
@@ -593,50 +838,91 @@ def _ensure_db():
             bars        INTEGER,
             merge_count INTEGER,
             is_win      INTEGER,
+            filter_level TEXT DEFAULT '',
             UNIQUE(code, period, signal_type, entry_time)
         )
     ''')
+    # 兼容旧表：可能缺 filter_level 列
+    try:
+        conn.execute('ALTER TABLE signal_trades ADD COLUMN filter_level TEXT DEFAULT ""')
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
     return conn
 
 
-def _save_per_signals(conn, run_date, code, period, results, signal_type):
-    """写入★信号级别的每笔交易结果"""
+def _save_trades(conn, run_date, code, trades, signal_type, filter_level):
     is_buy = (signal_type == 'buy')
-    for r in results:
+    for r in trades:
         is_win = 1 if ((is_buy and r['total_pct'] > 0) or (not is_buy and r['total_pct'] < 0)) else 0
         try:
             conn.execute('''
                 INSERT OR IGNORE INTO signal_trades
                 (run_date, code, period, signal_type, entry_time, exit_time,
                  entry_price, exit_price, total_pct, max_gain, max_loss,
-                 retreat, bars, merge_count, is_win)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 retreat, bars, merge_count, is_win, filter_level, exit_reason)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ''', (
-                run_date, code, period, signal_type,
+                run_date, code, 'min5', signal_type,
                 r['entry_time'], r['exit_time'],
                 r['entry'], r['exit'], r['total_pct'],
                 r['max_gain'], r['max_loss'], r['retreat'],
-                r['bars'], r.get('merged_signals', 1), is_win
+                r['bars'], r.get('merged_signals', 1), is_win,
+                filter_level, r.get('exit_reason', ''),
             ))
         except Exception as e:
-            print(f'  [DB] 跳过 {code} {period} {signal_type} {r["entry_time"]}: {e}')
+            print(f'  [DB] 跳过 {code} {r["entry_time"]}: {e}')
 
 
-def save_backtest_to_db(code, period, buy_per, sell_per):
-    """将★信号级别的回测结果写入 SQLite"""
+def save_to_db(code, result):
     run_date = datetime.now().strftime('%Y-%m-%d %H:%M')
     conn = _ensure_db()
     try:
-        _save_per_signals(conn, run_date, code, period, buy_per, 'buy')
-        _save_per_signals(conn, run_date, code, period, sell_per, 'sell')
+        for level in ['ma_strict', 'ma_delayed', 'jincha']:
+            trades = result.get('min5', {}).get(level, {}).get('trades', [])
+            if trades:
+                _save_trades(conn, run_date, code, trades, 'buy', level)
         conn.commit()
     finally:
         conn.close()
 
 
+# ========== 累积胜率曲线 ==========
+
+def cumulative_win_curve(code, period='min5', signal_type='buy', filter_level=None):
+    sql = '''SELECT entry_time, total_pct, is_win, filter_level
+             FROM signal_trades
+             WHERE code=? AND period=? AND signal_type=?'''
+    params = [code, period, signal_type]
+    if filter_level:
+        sql += ' AND filter_level=?'
+        params.append(filter_level)
+    sql += ' ORDER BY entry_time ASC'
+
+    rows = query_backtest_sql(sql, params)
+    if not rows:
+        return {'code': code, 'trades': 0, 'points': []}
+
+    wins = 0
+    points = []
+    for i, r in enumerate(rows):
+        if r['is_win']: wins += 1
+        points.append({
+            'idx': i + 1,
+            'entry_time': r['entry_time'],
+            'pct': r['total_pct'],
+            'cum_win_rate': round(wins / (i + 1) * 100, 1),
+            'filter_level': r.get('filter_level', ''),
+        })
+    return {
+        'code': code, 'period': period, 'type': signal_type,
+        'trades': len(rows), 'total_wins': wins,
+        'final_cum_wr': round(wins / len(rows) * 100, 1) if rows else 0,
+        'points': points,
+    }
+
+
 def query_backtest_sql(sql, params=None):
-    """查询回测交易数据库，返回列表[dict, ...]"""
     conn = _ensure_db()
     conn.row_factory = sqlite3.Row
     try:
@@ -646,10 +932,9 @@ def query_backtest_sql(sql, params=None):
         conn.close()
 
 
-# ========== 每日快照归档 ==========
+# ========== 归档 ==========
 
 def archive_backtest_report():
-    """将 backtest_report.json 归档到 backtest_archive/YYYY-MM-DD.json"""
     if not BACKTEST_OUT.exists():
         return
     today = datetime.now().strftime('%Y-%m-%d')
@@ -659,156 +944,163 @@ def archive_backtest_report():
     return dst
 
 
-# ========== 累积胜率曲线 ==========
+# ========== 入口 ==========
 
-def cumulative_win_curve(code, period='min30', signal_type='buy'):
-    """从 SQLite 读取某标的某周期★信号，按时间排序，计算累积胜率"""
-    rows = query_backtest_sql('''
-        SELECT entry_time, total_pct, is_win
-        FROM signal_trades
-        WHERE code=? AND period=? AND signal_type=?
-        ORDER BY entry_time ASC
-    ''', (code, period, signal_type))
-    if not rows:
-        return {'code': code, 'period': period, 'type': signal_type, 'trades': 0, 'points': []}
-    
-    wins = 0
-    points = []
-    for i, r in enumerate(rows):
-        if r['is_win']: wins += 1
-        cum_wr = round(wins / (i + 1) * 100, 1)
-        points.append({
-            'idx': i + 1,
-            'entry_time': r['entry_time'],
-            'pct': r['total_pct'],
-            'cum_win_rate': cum_wr,
-        })
-    
-    return {
-        'code': code, 'period': period, 'type': signal_type,
-        'trades': len(rows), 'total_wins': wins,
-        'final_cum_wr': round(wins / len(rows) * 100, 1) if rows else 0,
-        'points': points,
-    }
-
-
-def backtest_by_trend(code, period):
-    rows = read_csv(code, period)
-    if len(rows) < 5: return None
-    t = trend_dir(code)
-
-    # 提取原始闭环数据（每个★信号的完整价格序列）
-    buy_raw = extract_raw_closes(rows, 'buy_signal', '★买', 'sell_signal', '★卖')
-    sell_raw = extract_raw_closes(rows, 'sell_signal', '★卖', 'buy_signal', '★买')
-
-    # 三种方式
-    # 1. 低点不破合并段
-    buy_low = merge_low_higher(buy_raw, True)
-    sell_low = merge_low_higher(sell_raw, False)
-    
-    # 2. 50%回调合并段
-    buy_50 = merge_retrace50(buy_raw, True)
-    sell_50 = merge_retrace50(sell_raw, False)
-    
-    # 3. 每个★信号独立低点不破区间（跨★卖合并）
-    buy_per = per_signal_low_not_broken(buy_raw, True)
-    sell_per = per_signal_low_not_broken(sell_raw, False)
-
-    # 4. 每信号独立不合并（不跨★卖，v3.4 新增）
-    buy_nomerge = per_signal_no_merge(buy_raw, True)
-    sell_nomerge = per_signal_no_merge(sell_raw, False)
-
-    # 5. 顺趋势金叉不破新低（v3.5 新增）
-    bs_golden, ss_golden = per_signal_golden_no_new_low(code, period)
-    
-    # 持久化★信号级别的每笔交易
-    save_backtest_to_db(code, period, buy_per, sell_per)
-
-    return {
-        'trend': t,
-        'merge_low': {
-            'buy': stat(buy_low, True),
-            'sell': stat(sell_low, False),
-        },
-        'merge_50': {
-            'buy': stat(buy_50, True),
-            'sell': stat(sell_50, False),
-        },
-        'per_signal': {
-            'buy': stat(buy_per, True),
-            'sell': stat(sell_per, False),
-        },
-        'no_merge': {
-            'buy': stat(buy_nomerge, True),
-            'sell': stat(sell_nomerge, False),
-        },
-        'golden_no_new_low': {
-            'buy': bs_golden,
-            'sell': ss_golden,
-        },
-    }
-
+def _load_volume_leader_universe():
+    """加载量领宇宙列表，只测这些标的"""
+    f = SNAPSHOT_DIR / 'volume_leader_universe.json'
+    if not f.exists():
+        return None  # 没有量领宇宙 → 回退到全量
+    try:
+        data = json.load(open(f, 'r', encoding='utf-8'))
+        return data.get('universe', [])
+    except:
+        return None
 
 def get_all_codes():
-    return [d.name for d in SNAPSHOT_DIR.iterdir() if d.is_dir() and d.name.startswith(('sh','sz'))]
+    """获取回测标的列表：优先用量领宇宙，回退到全量"""
+    universe = _load_volume_leader_universe()
+    if universe:
+        # 只取量领宇宙中确实有信号数据的标的
+        available = sorted([d.name for d in SNAPSHOT_DIR.iterdir()
+                           if d.is_dir() and d.name.startswith(('sh','sz'))])
+        codes = sorted([c for c in universe if c in available])
+        return codes
+    # 回退：全量
+    return sorted([d.name for d in SNAPSHOT_DIR.iterdir()
+                   if d.is_dir() and d.name.startswith(('sh','sz'))])
 
 
-def _fmt(s, is_buy=True, label=''):
-    if not s or s['count'] == 0: return ''
-    t = 'b' if is_buy else 's'
-    return '%s %s %d段(%d次) %.0f%%均%+.1f%%(%+.1f~%+.1f%%) 均合%.1f次' % (
-        label, t, s['count'], s.get('raw_cycles',0), s['win_rate'],
+def trend_dir(code):
+    try:
+        data = json.load(open(CYCLE_REPORT, 'r', encoding='utf-8'))
+        for item in data:
+            if item['code'] == code:
+                return item.get('trend', {}).get('direction', 'neutral')
+    except:
+        pass
+    return 'neutral'
+
+
+def _level_label(level):
+    return {'ma': 'MA级(试错)', 'jincha': '金叉级(买)', 'resonance': '共振级(买完)'}.get(level, level)
+
+
+def _fmt(s, label=''):
+    if not s or s.get('count', 0) == 0: return ''
+    reasons = s.get('exit_reasons', {})
+    reason_str = ''
+    if reasons:
+        parts = [f'{k}={v}' for k, v in sorted(reasons.items())]
+        reason_str = ' [' + '|'.join(parts) + ']'
+    return '%s %d笔 %.0f%% 均%+.1f%%(%+.1f~%+.1f%%) 回撤%.1f%%%s' % (
+        label, s['count'], s['win_rate'],
         s['avg_pct'], s['min_pct'], s['max_pct'],
-        s.get('avg_merged_signals', 1))
+        s['avg_retreat'], reason_str)
+
+
+def _version_label(ver):
+    return {'ma_strict': 'MA严格版', 'ma_delayed': 'MA延期版', 'jincha': '金叉级独立'}.get(ver, ver)
 
 
 def backtest_all():
+    """全量回测入口 — 三轮对比"""
     codes = get_all_codes()
     report = {}
+
     for code in codes:
-        code_report = {}
-        for period in PERIODS:
-            r = backtest_by_trend(code, period)
-            if r: code_report[period] = r
-        if code_report: report[code] = code_report
+        r = backtest_one(code)
+        if r:
+            report[code] = r
+
+    # 写 JSON 摘要
+    summary = {}
+    for code in sorted(report.keys()):
+        min5 = report[code].get('min5', {})
+        t = trend_dir(code)
+        summary[code] = {'trend': t, 'min5': {}}
+        for v in ['ma_strict', 'ma_delayed', 'jincha']:
+            s = min5.get(v, {}).get('buy')
+            summary[code]['min5'][v] = s if s else None
+        summary[code]['min5']['total_buy_signals'] = min5.get('total_buy_signals', 0)
 
     with open(BACKTEST_OUT, 'w', encoding='utf-8') as f:
-        json.dump(report, f, ensure_ascii=False, indent=2)
-    
-    # 归档
+        json.dump(summary, f, ensure_ascii=False, indent=2)
     arc_path = archive_backtest_report()
 
-    print(f'回测完成: {len(report)} 只标的')
+    # ─── 终端输出 ───
+    print(f'回测完成: {len(report)} 只标的 (min5 ★买为锚点)')
     if arc_path:
         print(f'归档: {arc_path.name}')
-    print()
-    
+
+    total_buy = sum(report[code]['min5']['total_buy_signals'] for code in report)
+    print(f'\n总★买信号: {total_buy}')
+
+    # 三轮对比总表
+    versions = ['ma_strict', 'ma_delayed', 'jincha']
+
+    # 收集各版本数据
+    ver_data = {}
+    for v in versions:
+        all_t = []
+        stk = set()
+        for code in report:
+            trades = report[code].get('min5', {}).get(v, {}).get('trades', [])
+            if trades:
+                all_t.extend(trades)
+                stk.add(code)
+        ver_data[v] = (all_t, len(stk))
+
+    print(f'\n{"=" * 76}')
+    print(f'{"":>16} {"MA严格版":>18} {"MA延期版":>18} {"金叉级独立":>18}')
+    print(f'{"=" * 76}')
+    rows = [
+        ('标的覆盖', lambda d, s: f'{s:>3}只'),
+        ('总笔数',   lambda d, s: f'{len(d):>5}'),
+        ('胜率',     lambda d, s: f'{stat(d)["win_rate"]:>5.1f}%' if d else '  -  '),
+        ('均盈亏',   lambda d, s: f'{stat(d)["avg_pct"]:>+7.2f}%' if d else '   -   '),
+        ('均回撤',   lambda d, s: f'{stat(d)["avg_retreat"]:>6.1f}%' if d else '   -  '),
+        ('均持仓',   lambda d, s: f'{stat(d)["avg_bars"]:>5.0f}bar' if d else '   -  '),
+    ]
+    for label, fn in rows:
+        vals = []
+        for v in versions:
+            trades, stk_cnt = ver_data[v]
+            if trades:
+                vals.append(fn(trades, stk_cnt))
+            else:
+                vals.append('   -   ')
+        print(f'{label:>12}  {vals[0]:>18}  {vals[1]:>18}  {vals[2]:>18}')
+    print(f'{"=" * 76}')
+
+    # 退出原因分布
+    print(f'\n=== 退出原因分布 ===')
+    for v in versions:
+        all_t = ver_data[v][0]
+        if not all_t:
+            continue
+        reasons = {}
+        for t in all_t:
+            r = t.get('exit_reason', '未知')
+            reasons[r] = reasons.get(r, 0) + 1
+        total = len(all_t)
+        r_str = ' | '.join(f'{k}: {v}次({v/total*100:.0f}%)' for k, v in sorted(reasons.items(), key=lambda x: -x[1]))
+        print(f'  {_version_label(v):>8} ({total}笔): {r_str}')
+
+    # 各标的明细
+    print(f'\n── 各标的明细 ──')
     for code in sorted(report.keys()):
+        min5 = report[code].get('min5', {})
         t = trend_dir(code)
-        print(f'\n{code} ({t}):')
-        for period in [p for p in PERIODS if p in report[code]]:
-            r = report[code][period]
-            print(f'  {PERIOD_CN[period]:6}:')
-            for tag, loc in [('[低点]','merge_low'), ('[50%]','merge_50'), ('[★信号]','per_signal')]:
-                b = _fmt(r[loc]['buy'], True, tag)
-                s = _fmt(r[loc]['sell'], False, tag)
-                if b: print(f'    {b}')
-                if s: print(f'    {s}')
-    
-    # 输出累积胜率摘要
-    print('\n── 累积胜率曲线（★信号法）──')
-    for code in sorted(report.keys()):
-        best_p = None
-        for p in PERIODS:
-            if p in report.get(code, {}):
-                best_p = p; break
-        if not best_p: continue
-        curve = cumulative_win_curve(code, best_p, 'buy')
-        if curve['trades'] >= 3:
-            print(f'{code} {best_p} ★买: {curve["trades"]}次 累积胜率{curve["final_cum_wr"]}%')
-        curve = cumulative_win_curve(code, best_p, 'sell')
-        if curve['trades'] >= 3:
-            print(f'{code} {best_p} ★卖: {curve["trades"]}次 累积胜率{curve["final_cum_wr"]}%')
+        parts = []
+        for v in versions:
+            s = min5.get(v, {}).get('buy')
+            if s:
+                parts.append(f'{_version_label(v)} {s["count"]}笔 {s["win_rate"]}%')
+        if parts:
+            print(f'  {code} ({t}): {" | ".join(parts)}')
+        else:
+            print(f'  {code} ({t}): 无交易')
 
     return report
 

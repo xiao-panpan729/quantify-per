@@ -1,0 +1,84 @@
+{
+  "config": {
+    "months": 6,
+    "universe_size": 53,
+    "period": "min5"
+  },
+  "results": {
+    "L1_star+ma": {
+      "name": "L1: ★买+MA排列",
+      "total": 82,
+      "wins": 53,
+      "wr": 64.63414634146342,
+      "avg_ret": 459.80487804878055,
+      "avg_bars": 79.5609756097561,
+      "mfe_avg": 937.8414634146342,
+      "mae_avg": -93.14634146341463,
+      "stock_coverage": 39,
+      "exit_reasons": {
+        "减仓卖": 67,
+        "止损": 15
+      }
+    },
+    "L2_star+ma+nodeath": {
+      "name": "L2: ★买+MA+无死叉",
+      "total": 70,
+      "wins": 46,
+      "wr": 65.71428571428571,
+      "avg_ret": 467.4142857142857,
+      "avg_bars": 78.91428571428571,
+      "mfe_avg": 943.4142857142857,
+      "mae_avg": -88.04285714285714,
+      "stock_coverage": 36,
+      "exit_reasons": {
+        "减仓卖": 57,
+        "止损": 13
+      }
+    },
+    "L3_star+ma+nodeath+min60": {
+      "name": "L3: ★买+MA+无死叉+60分黄线",
+      "total": 55,
+      "wins": 42,
+      "wr": 76.36363636363637,
+      "avg_ret": 616.2,
+      "avg_bars": 92.76363636363637,
+      "mfe_avg": 1133.9818181818182,
+      "mae_avg": -56.54545454545455,
+      "stock_coverage": 33,
+      "exit_reasons": {
+        "减仓卖": 50,
+        "止损": 5
+      }
+    },
+    "L4_star+ma+nodeath+min60+pe_d": {
+      "name": "L4: ★买+MA+无死叉+60分黄线+日线PE",
+      "total": 46,
+      "wins": 35,
+      "wr": 76.08695652173914,
+      "avg_ret": 700.1086956521739,
+      "avg_bars": 97.1086956521739,
+      "mfe_avg": 1235.1304347826087,
+      "mae_avg": -57.391304347826086,
+      "stock_coverage": 28,
+      "exit_reasons": {
+        "减仓卖": 42,
+        "止损": 4
+      }
+    },
+    "L5_star+ma+nodeath+min60+pe_d+jincha": {
+      "name": "L5: ★买+MA+无死叉+60分黄线+日线PE+金叉",
+      "total": 18,
+      "wins": 12,
+      "wr": 66.66666666666666,
+      "avg_ret": 388.1666666666667,
+      "avg_bars": 82.77777777777777,
+      "mfe_avg": 892.2222222222223,
+      "mae_avg": -54.166666666666664,
+      "stock_coverage": 12,
+      "exit_reasons": {
+        "减仓卖": 17,
+        "止损": 1
+      }
+    }
+  }
+}

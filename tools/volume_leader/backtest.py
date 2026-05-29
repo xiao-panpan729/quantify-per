@@ -244,6 +244,20 @@ def _has_cci_top_divergence(row):
 #   lambda(r): 状态模式（只看当前bar自身）
 #   None: 上下文模式（需要看前后bar上下文，由 _check_entry_ctx 处理）
 ENTRY_MODES = {
+    # ── 逐层诊断模式（临时，测完删） ──
+    'L0_star':                   None,   # ★买裸信号（无任何过滤）
+    'L1_star+ma':                None,   # ★买 + MA5>10>20（当根）
+    'L2_star+ma+nodeath':        None,   # + 无死叉(20根)
+    'L3_star+ma+nodeath+min60':  None,   # + 60分黄线（=完整MA级）
+    'L4_star+ma+nodeath+min60+pe_d': None,  # + 日线PE门禁
+    'L5_star+ma+nodeath+min60+pe_d+jincha': None,  # + 5分EXPMA金叉（金叉级）
+    # ── 路径对比测试 (★买后的结构路径: MA vs 金叉 vs 15分共振) — 临时 ──
+    'T1_ma+nodeath+min60+pe_d':                None,  # =L4基线: ★买+MA+无死叉+60分黄线+日线PE
+    'T2_jincha+min60+pe_d':                     None,  # ★买+5分金叉+60分黄线+日线PE (无MA无死叉)
+    'T3_jincha+nodeath+min60+pe_d':             None,  # ★买+5分金叉+无死叉+60分黄线+日线PE
+    'T4_ma+nodeath+15jincha+min60+pe_d':        None,  # ★买+MA+无死叉+15分同日金叉+60分黄线+日线PE
+    'T5_jincha+nodeath+15jincha+min60+pe_d':    None,  # ★买+5分金叉+无死叉+15分同日金叉+60分黄线+日线PE
+    # ── 正式模式 ──
     # 基准 (MA链)
     'star+ma5+ma10+safe':        None,   # MA级: ★买+MA链+无死叉+60分黄线上
     'star+ma5+ma10+safe+jincha': None,   # 金叉级: MA级+EXPMA金叉
@@ -402,6 +416,24 @@ def _get_min15_below_ema50(code, bar_date):
     return MIN15_CACHE[code].get(bar_date, False)
 
 
+def _get_min15_jincha(code, bar_ts):
+    """15分钟 EXPMA12 > EXPMA50（金叉状态），用时间戳精确定位对应15分bar"""
+    if not code or not bar_ts:
+        return False
+    data = _cascade_load_csv(code, 'min15')
+    rows = data.get('rows', []) if data else []
+    if not rows:
+        return False
+    idx = _find_bar_by_ts(rows, bar_ts)
+    if idx < 0:
+        return False
+    r = rows[idx]
+    try:
+        return float(r.get('expma12', 0) or 0) > float(r.get('expma50', 0) or 0)
+    except (ValueError, TypeError):
+        return False
+
+
 PERIOD_CACHE = {}
 
 
@@ -557,6 +589,113 @@ def _check_entry_ctx(entry_mode, rows, i, row, code=None):
     # ── ★买必须 ──
     if not _has_star_buy(row):
         return False
+
+    # ── 逐层诊断模式 (L0~L5) — 临时 ──
+    if entry_mode.startswith('L0_'):
+        return True  # ★买裸信号，无任何过滤
+    if entry_mode.startswith('L1_'):
+        return _ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')
+    if entry_mode.startswith('L2_'):
+        if not (_ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')):
+            return False
+        return _no_recent_death(rows, i, 20)
+    if entry_mode.startswith('L3_'):
+        if not (_ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')):
+            return False
+        if not _no_recent_death(rows, i, 20):
+            return False
+        return _get_min60_above(code, bar_date) if code else True
+    if entry_mode.startswith('L4_'):
+        if not (_ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')):
+            return False
+        if not _no_recent_death(rows, i, 20):
+            return False
+        if code and not _get_min60_above(code, bar_date):
+            return False
+        if not _get_daily_pe_ok(code, bar_date):
+            return False
+        return True
+    if entry_mode.startswith('L5_'):
+        if not (_ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')):
+            return False
+        if not _no_recent_death(rows, i, 20):
+            return False
+        if code and not _get_min60_above(code, bar_date):
+            return False
+        if not _get_daily_pe_ok(code, bar_date):
+            return False
+        expma12 = float(row.get('expma12', 0) or 0)
+        expma50 = float(row.get('expma50', 0) or 0)
+        if not (expma12 > expma50):
+            return False
+        return True
+
+    # ── 路径对比测试 (T1~T5) — 临时 ──
+    # 所有T模式都有60分黄线+日线PE，变量是入口结构
+    bar_ts = row.get('timestamp', '').strip()
+
+    if entry_mode.startswith('T1_'):  # =L4: ★买+MA+无死叉+60分+PE
+        if not (_ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')):
+            return False
+        if not _no_recent_death(rows, i, 20):
+            return False
+        if code and not _get_min60_above(code, bar_date):
+            return False
+        if not _get_daily_pe_ok(code, bar_date):
+            return False
+        return True
+
+    if entry_mode.startswith('T2_'):  # ★买+5分金叉+60分+PE (无MA无死叉)
+        expma12 = float(row.get('expma12', 0) or 0)
+        expma50 = float(row.get('expma50', 0) or 0)
+        if not (expma12 > expma50):
+            return False
+        if code and not _get_min60_above(code, bar_date):
+            return False
+        if not _get_daily_pe_ok(code, bar_date):
+            return False
+        return True
+
+    if entry_mode.startswith('T3_'):  # ★买+5分金叉+无死叉+60分+PE
+        expma12 = float(row.get('expma12', 0) or 0)
+        expma50 = float(row.get('expma50', 0) or 0)
+        if not (expma12 > expma50):
+            return False
+        if not _no_recent_death(rows, i, 20):
+            return False
+        if code and not _get_min60_above(code, bar_date):
+            return False
+        if not _get_daily_pe_ok(code, bar_date):
+            return False
+        return True
+
+    if entry_mode.startswith('T4_'):  # ★买+MA+无死叉+15分金叉+60分+PE
+        if not (_ma_above(row, 'ma5', 'ma10') and _ma_above(row, 'ma10', 'ma20')):
+            return False
+        if not _no_recent_death(rows, i, 20):
+            return False
+        if code and not _get_min60_above(code, bar_date):
+            return False
+        if not _get_daily_pe_ok(code, bar_date):
+            return False
+        if code and not _get_min15_jincha(code, bar_ts):
+            return False
+        return True
+
+    if entry_mode.startswith('T5_'):  # ★买+5分金叉+无死叉+15分金叉+60分+PE
+        expma12 = float(row.get('expma12', 0) or 0)
+        expma50 = float(row.get('expma50', 0) or 0)
+        if not (expma12 > expma50):
+            return False
+        if not _no_recent_death(rows, i, 20):
+            return False
+        if code and not _get_min60_above(code, bar_date):
+            return False
+        if not _get_daily_pe_ok(code, bar_date):
+            return False
+        if code and not _get_min15_jincha(code, bar_ts):
+            return False
+        return True
 
     # ── CCI速率模式: 用CCI回弹替代MA链 ──
     if entry_mode.startswith('star+cci_rate'):

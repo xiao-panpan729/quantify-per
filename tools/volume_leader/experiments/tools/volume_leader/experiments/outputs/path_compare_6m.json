@@ -1,0 +1,114 @@
+{
+  "config": {
+    "months": 6,
+    "universe_size": 53,
+    "period": "min5"
+  },
+  "results": {
+    "T1_ma+nodeath+min60+pe_d": {
+      "name": "T1: ★买+MA+无死叉+60分+PE [MA路径·基线]",
+      "total": 46,
+      "wins": 35,
+      "wr": 76.08695652173914,
+      "avg_ret": 7.001086956521739,
+      "avg_bars": 97.1086956521739,
+      "mfe_avg": 12.351304347826087,
+      "mae_avg": -0.5739130434782609,
+      "stock_coverage": 28,
+      "exit_reasons": {
+        "减仓卖": 42,
+        "止损": 4
+      },
+      "has_fwd_15jc": 17,
+      "has_fwd_wr": 100.0,
+      "has_fwd_ret": 9.675882352941176,
+      "no_fwd_count": 27,
+      "no_fwd_wr": 62.96296296296296,
+      "no_fwd_ret": 5.847777777777778
+    },
+    "T2_jincha+min60+pe_d": {
+      "name": "T2: ★买+5分金叉+60分+PE [金叉路径·无MA无死叉]",
+      "total": 115,
+      "wins": 59,
+      "wr": 51.30434782608696,
+      "avg_ret": 2.749739130434783,
+      "avg_bars": 59.869565217391305,
+      "mfe_avg": 6.615739130434783,
+      "mae_avg": -0.612695652173913,
+      "stock_coverage": 46,
+      "exit_reasons": {
+        "减仓卖": 96,
+        "止损": 19
+      },
+      "has_fwd_15jc": 4,
+      "has_fwd_wr": 100.0,
+      "has_fwd_ret": 17.6675,
+      "no_fwd_count": 109,
+      "no_fwd_wr": 48.62385321100918,
+      "no_fwd_ret": 2.203119266055046
+    },
+    "T3_jincha+nodeath+min60+pe_d": {
+      "name": "T3: ★买+5分金叉+无死叉+60分+PE [金叉+环境]",
+      "total": 80,
+      "wins": 33,
+      "wr": 41.25,
+      "avg_ret": 1.9280000000000002,
+      "avg_bars": 46.3,
+      "mfe_avg": 5.27075,
+      "mae_avg": -0.6845,
+      "stock_coverage": 37,
+      "exit_reasons": {
+        "减仓卖": 61,
+        "止损": 19
+      },
+      "has_fwd_15jc": 2,
+      "has_fwd_wr": 100.0,
+      "has_fwd_ret": 14.280000000000001,
+      "no_fwd_count": 78,
+      "no_fwd_wr": 39.743589743589745,
+      "no_fwd_ret": 1.6112820512820514
+    },
+    "T4_ma+nodeath+15jincha+min60+pe_d": {
+      "name": "T4: ★买+MA+无死叉+15分金叉+60分+PE [MA+15共振]",
+      "total": 24,
+      "wins": 15,
+      "wr": 62.5,
+      "avg_ret": 5.97625,
+      "avg_bars": 81.08333333333333,
+      "mfe_avg": 11.344999999999999,
+      "mae_avg": -0.7770833333333332,
+      "stock_coverage": 17,
+      "exit_reasons": {
+        "减仓卖": 22,
+        "止损": 2
+      },
+      "has_fwd_15jc": 0,
+      "has_fwd_wr": 0,
+      "has_fwd_ret": 0,
+      "no_fwd_count": 23,
+      "no_fwd_wr": 60.86956521739131,
+      "no_fwd_ret": 6.191739130434782
+    },
+    "T5_jincha+nodeath+15jincha+min60+pe_d": {
+      "name": "T5: ★买+5分金叉+无死叉+15分金叉+60分+PE [双金叉共振]",
+      "total": 79,
+      "wins": 31,
+      "wr": 39.24050632911392,
+      "avg_ret": 1.5824050632911393,
+      "avg_bars": 42.08860759493671,
+      "mfe_avg": 4.866455696202531,
+      "mae_avg": -0.7018987341772153,
+      "stock_coverage": 37,
+      "exit_reasons": {
+        "减仓卖": 59,
+        "止损": 20
+      },
+      "has_fwd_15jc": 0,
+      "has_fwd_wr": 0,
+      "has_fwd_ret": 0,
+      "no_fwd_count": 79,
+      "no_fwd_wr": 39.24050632911392,
+      "no_fwd_ret": 1.5824050632911393
+    }
+  }
+}
