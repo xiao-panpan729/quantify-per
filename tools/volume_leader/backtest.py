@@ -257,6 +257,10 @@ ENTRY_MODES = {
     'T3_jincha+nodeath+min60+pe_d':             None,  # ★买+5分金叉+无死叉+60分黄线+日线PE
     'T4_ma+nodeath+15jincha+min60+pe_d':        None,  # ★买+MA+无死叉+15分同日金叉+60分黄线+日线PE
     'T5_jincha+nodeath+15jincha+min60+pe_d':    None,  # ★买+5分金叉+无死叉+15分同日金叉+60分黄线+日线PE
+    # ── 追赶期测试 (★买→等结构确认→入场，非当根) — 临时 ──
+    'Z1_star_wait_jincha+min60+pe_d':          None,  # ★买→12根内等5分金叉→入场 + 60分+PE
+    'Z2_star_wait_ma+min60+pe_d':              None,  # ★买→12根内等MA理顺→入场 + 60分+PE
+    'Z3_star_wait_ma_wait_jincha+min60+pe_d':  None,  # ★买→12根内MA理顺→等金叉→入场 + 60分+PE
     # ── 正式模式 ──
     # 基准 (MA链)
     'star+ma5+ma10+safe':        None,   # MA级: ★买+MA链+无死叉+60分黄线上
@@ -961,6 +965,9 @@ def backtest_stock(code, name, period, months=None, entry_mode='star+ma5+ma10+sa
     band_low = None
     entry_date = None
     entry_factors = None
+    pending_star = None      # 追赶模式: ★买触发bar索引
+    pending_ma_done = False  # Z3专用: MA已理顺，等金叉阶段
+    star_idx = None          # Z3专用: ★买bar索引(用于band_low计算,不被覆盖)
 
     for i in range(SKIP_BARS, len(rows)):
         r = rows[i]
@@ -980,18 +987,110 @@ def backtest_stock(code, name, period, months=None, entry_mode='star+ma5+ma10+sa
 
         if not in_trade:
             # ── 寻找开仓 ──
-            if is_ctx_mode:
+            # 追赶模式: ★买触发 → 追赶窗口等结构确认 → 入场
+            #   Z1: ★买→等5分金叉(12根)→入场
+            #   Z2: ★买→等MA理顺(12根)→入场
+            #   Z3: ★买→12根内MA理顺→等金叉→入场 (两阶段)
+            if entry_mode.startswith('Z1_') or entry_mode.startswith('Z2_') or entry_mode.startswith('Z3_'):
+                is_z2 = entry_mode.startswith('Z2_')
+                is_z3 = entry_mode.startswith('Z3_')
+
+                # ★买触发 (有新★买时重置追赶起点)
+                if _has_star_buy(r) and zone in ('strong', 'secondary'):
+                    if code and not _get_min60_above(code, bar_date):
+                        pending_star = None
+                        pending_ma_done = False
+                        star_idx = None
+                    elif not _get_daily_pe_ok(code, bar_date):
+                        pending_star = None
+                        pending_ma_done = False
+                        star_idx = None
+                    else:
+                        pending_star = i  # ★买触发，开始追赶
+                        pending_ma_done = False
+                        star_idx = i      # 记住★买bar(用于band_low)
+
+                # 追赶中: 根据模式等不同条件
+                if pending_star is not None:
+                    waited = i - pending_star
+                    ma_ok = _ma_above(r, 'ma5', 'ma10') and _ma_above(r, 'ma10', 'ma20')
+                    jincha_ok = _has_golden(r)
+
+                    if is_z2:
+                        # Z2: MA理顺即入场 (12根超时)
+                        if waited > 12:
+                            pending_star = None
+                        elif waited > 0 and ma_ok:
+                            in_trade = True
+                            entry_idx = i
+                            entry_ts = r.get('timestamp', '').strip()
+                            entry_price_val = _entry_price(r)
+                            band_low = _calc_band_low(rows, pending_star)
+                            entry_date = bar_date
+                            entry_factors = _extract_entry_factors(r, entry_mode)
+                            pending_star = None
+
+                    elif is_z3:
+                        # Z3: 先等MA理顺(12根)→再等金叉(12根)
+                        if not pending_ma_done:
+                            if waited > 12:
+                                pending_star = None  # MA阶段超时
+                                star_idx = None
+                            elif waited > 0 and ma_ok:
+                                pending_ma_done = True  # MA理顺，进入等金叉阶段
+                                pending_star = i  # 记录MA理顺bar，用于金叉阶段超时计时
+                        else:
+                            # MA已理顺，等金叉 (从MA理顺起算12根超时)
+                            waited_jincha = i - pending_star
+                            if waited_jincha > 12:
+                                pending_star = None
+                                pending_ma_done = False
+                                star_idx = None
+                            elif jincha_ok:
+                                in_trade = True
+                                entry_idx = i
+                                entry_ts = r.get('timestamp', '').strip()
+                                entry_price_val = _entry_price(r)
+                                band_low = _calc_band_low(rows, star_idx)  # 用★买bar算止损
+                                entry_date = bar_date
+                                entry_factors = _extract_entry_factors(r, entry_mode)
+                                pending_star = None
+                                pending_ma_done = False
+                                star_idx = None
+
+                    else:
+                        # Z1: 等金叉 (12根超时) — 原逻辑
+                        if waited > 12:
+                            pending_star = None
+                        elif waited > 0 and jincha_ok:
+                            in_trade = True
+                            entry_idx = i
+                            entry_ts = r.get('timestamp', '').strip()
+                            entry_price_val = _entry_price(r)
+                            band_low = _calc_band_low(rows, pending_star)
+                            entry_date = bar_date
+                            entry_factors = _extract_entry_factors(r, entry_mode)
+                            pending_star = None
+            elif is_ctx_mode:
                 ok = _check_entry_ctx(entry_mode, rows, i, r, code)
+                if ok and zone in ('strong', 'secondary'):
+                    in_trade = True
+                    entry_idx = i
+                    entry_ts = r.get('timestamp', '').strip()
+                    entry_price_val = _entry_price(r)
+                    band_low = _calc_band_low(rows, i)
+                    entry_date = bar_date
+                    entry_factors = _extract_entry_factors(r, entry_mode)
             else:
                 ok = entry_fn(r) if entry_fn else (_has_star_buy(r) or _has_golden(r))
-            if ok and zone in ('strong', 'secondary'):
-                in_trade = True
-                entry_idx = i
-                entry_ts = r.get('timestamp', '').strip()
-                entry_price_val = _entry_price(r)
-                band_low = _calc_band_low(rows, i)
-                entry_date = bar_date
-                entry_factors = _extract_entry_factors(r, entry_mode)
+                if ok and zone in ('strong', 'secondary'):
+                    in_trade = True
+                    entry_idx = i
+                    entry_ts = r.get('timestamp', '').strip()
+                    entry_price_val = _entry_price(r)
+                    band_low = _calc_band_low(rows, i)
+                    entry_date = bar_date
+                    entry_factors = _extract_entry_factors(r, entry_mode)
         else:
             # ── 持仓中，检查平仓 ──
             # 止损 或 减仓卖(★卖+close<MA5+safe / 死叉)
@@ -1062,6 +1161,9 @@ def backtest_stock(code, name, period, months=None, entry_mode='star+ma5+ma10+sa
                 entry_idx = None
                 entry_price_val = None
                 band_low = None
+                pending_star = None
+                pending_ma_done = False
+                star_idx = None
                 entry_factors = None
 
     return trades
