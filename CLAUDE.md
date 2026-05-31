@@ -3,7 +3,7 @@
 **代码行数统计**: ~14,600 行 Python  (2026-05-22)
 **当前跟踪**: 14 只标的 (2 指数 + 12 只 ETF/个股)
 **文档目录**: [docs/](docs/) 含 architecture.md / integration-guide.md / operator-runbook.md / evolution_timeline.md
-**实验记录**: [tools/volume_leader/experiments/filter_evolution.md](tools/volume_leader/experiments/filter_evolution.md) — 25实验/1324行，入场过滤系统完整研究文献（每次改 filter/monitor/backtest 代码必须同步更新）
+**实验记录**: [tools/volume_leader/experiments/filter_evolution.md](tools/volume_leader/experiments/filter_evolution.md) — 31实验/1975行，入场过滤系统完整研究文献（每次改 filter/monitor/backtest 代码必须同步更新）
 
 ## 一、常用命令
 

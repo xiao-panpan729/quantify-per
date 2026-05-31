@@ -1,0 +1,9 @@
+{
+  "brief_glory": {
+    "n": 125,
+    "before_win_rate": 90.3,
+    "during_win_rate": 35.0,
+    "after_win_rate": 11.2,
+    "convex_recovery_rate": 20.0
+  }
+}
