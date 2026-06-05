@@ -298,38 +298,100 @@ def load_universe():
     return set(data.get('universe', []))
 
 
+# 各层级对应的超时阈值（连续多少天不在筛选结果就移除）
+_TIER_TIMEOUT = {'T1': 20, 'T2': 90, 'T3': 180}
+
+
 def sync_universe(t1, t2, t3):
     """
-    将新入选标的追加到 universe JSON。
-    T1/T2/T3 中不在 universe 的标的自动加入，记录 added_on 日期。
-    返回 list[code_label] 新加入的标的。
-    """
-    existing = load_universe()
-    all_screened = set(r['code'] for tier in [t1, t2, t3] for r in tier)
-    new_codes = sorted(all_screened - existing)
-    if not new_codes:
-        return []
+    同步宇宙列表：新入选追加 + 超时自动移除。
 
+    三层梯队用不同的超时阈值（与筛选窗口一致）：
+      T1(≤20日新高) → 20天不在筛选结果 → 移除
+      T2(20~90日新高) → 90天不在 → 移除
+      T3(90~180日新高) → 180天不在 → 移除
+
+    Args:
+        t1: T1梯队列表 [{'code': 'sh600105', ...}, ...]
+        t2: T2梯队列表
+        t3: T3梯队列表
+
+    Returns:
+        list[code_label] 新加入的标的
+    """
     os.makedirs(os.path.dirname(UNIVERSE_PATH), exist_ok=True)
     if os.path.exists(UNIVERSE_PATH):
         with open(UNIVERSE_PATH, 'r', encoding='utf-8') as f:
             data = json.load(f)
     else:
-        data = {'universe': [], 'added_on': {}, 'last_screener_run': ''}
+        data = {'universe': [], 'added_on': {}, 'last_screener_run': '', 'last_seen': {}}
 
+    existing = set(data['universe'])
     today_str = datetime.now().strftime('%Y-%m-%d')
+    today_dt = datetime.strptime(today_str, '%Y-%m-%d')
+
+    # ── 建立今天各层级的code→tier映射 ──
+    tier_map = {}
+    for tier_name, tier_list in [('T1', t1), ('T2', t2), ('T3', t3)]:
+        for r in tier_list:
+            code = r['code']
+            # 同一天出现在多个层级，取最高(T1>T2>T3)
+            if code not in tier_map:
+                tier_map[code] = tier_name
+
+    # ── 初始化 last_seen（兼容旧数据） ──
+    if 'last_seen' not in data:
+        data['last_seen'] = {}
+
+    # ── 1. 更新今天出现的标的的 last_seen ──
+    for code, tier in tier_map.items():
+        data['last_seen'][code] = {'date': today_str, 'tier': tier}
+
+    # ── 2. 检查宇宙里今天没出现的标的：超时移除 ──
+    removed = []
+    for code in list(data['universe']):
+        if code in tier_map:
+            continue  # 今天还在，不过期
+
+        ls = data['last_seen'].get(code)
+        if not ls:
+            # 没有 last_seen 记录（旧数据），用 added_on 近似并持久化
+            added = data['added_on'].get(code, today_str)
+            ls = {'date': added, 'tier': 'T3'}
+            data['last_seen'][code] = ls  # 存回去，下次不用再算
+
+        days_since = (today_dt - datetime.strptime(ls['date'], '%Y-%m-%d')).days
+        timeout = _TIER_TIMEOUT.get(ls.get('tier', 'T3'), 180)
+
+        if days_since > timeout:
+            data['universe'].remove(code)
+            data['last_seen'].pop(code, None)
+            removed.append(code)
+
+    # ── 3. 新标的追加 ──
+    all_screened = set(tier_map.keys())
+    new_codes = sorted(all_screened - existing)
     for code in new_codes:
         data['universe'].append(code)
         data['added_on'][code] = today_str
+        # 新标的 last_seen 已经在步骤1中设置
 
     data['universe'].sort()
     data['last_screener_run'] = today_str
-    data['total_ever'] = len(data['universe'])
+    data['total_ever'] = len(data['universe']) + sum(
+        1 for c in data.get('added_on', {})
+        if c not in data['universe']
+    )
 
     with open(UNIVERSE_PATH, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-    print(f'[宇宙同步] 新增 {len(new_codes)} 只标的 → {UNIVERSE_PATH}')
+    if new_codes:
+        print(f'[宇宙同步] 新增 {len(new_codes)} 只: {", ".join(new_codes)}')
+    if removed:
+        print(f'[宇宙同步] 移除 {len(removed)} 只(超时): {", ".join(removed)}')
+    if not new_codes and not removed:
+        print(f'[宇宙同步] 无变化')
     return new_codes
 
 

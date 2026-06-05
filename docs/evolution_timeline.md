@@ -697,3 +697,10 @@ v3.0  (4/24)
 | 05-07 | IND | **机构建仓 v2 源码审查与修正**：A2 用 VWAP(DYNAINFO(6)) 替代 CLOSE；A4/A5 改用 CLOSE 的 HHV/LLV（原错用 HIGH/LOW） | 修正 |
 | 05-07 | DATA | **筹码数据对齐验证**：daily/2026 文件覆盖 553 个日期，WINNER(22.30)=92.3% 与通达信截图 92.29% 一致；但 WINNER(C) 与通达信副图获利比例有 1.8~2.1x 偏差，需进一步排查 | 验证 |
 | 05-24 | PYQ | **0-14评分体系重构**：MACD 0轴锚定(位置+交叉解耦,6状态); EXPMA维度删除; 日线闭环波段累积扣分制(★卖锚点+来时路); K线走势维度删除→30/60共振并入闭环(金叉+1/死叉-1) | 重构 |
+| 06-01 | PYQ | **笔记本系统立项 + 缠论结构定位层接入**：基于 czsc (v0.10.12, Rust+Python) 建立分型→笔→中枢→买卖点框架；notebook/chanlun/ 适配层44行→277行→91行三级结构；signals.py 6合1覆盖40+信号函数 | 新增 |
+| 06-01 | PYQ | **过滤引擎去重**：filter_engine.py 共享原语（13个纯函数），剔除 monitor.py/backtest.py/backtest_signals.py/gen_volume_leader_report.py 4处重复 | 重构 |
+| 06-01 | PYQ | **预测卡引擎构建**：notebook/ 8文件650行（shared/skill_base/prediction_card/case_store/verify_engine/feedback_loop + skills/5技能）；BaseSkill 统一契约 + SQLite案例库 + 加权相似度检索 + 批量回测 | 新增 |
+| 06-01 | PYQ | **预测卡技能对齐三级框架**：entry_ma(6条件，7条/57%命中率)、entry_jincha(7条件，1条/100%)、entry_resonance(8条件，0条)、exit_sell_t(3条件，806条/47%)、exit_sell_reduce(4条件，408条/43%) | 新增 |
+| 06-03 | PYQ/DATA | **板块势能评分 v2（通达信原公式精准翻译）**：从成分股平均→板块指数直算；NaN传播根因修复（`_safe_div` 替换 `np.where`，numpy短路失效）；全269概念板块 X_1 排名与通达信RPS偏差0.00；block_gn.dat 解析 5346只股票↔269板块映射 | 重构/修复 |
+| 06-03 | PYQ | **板块势能数据基建**：tools/tdx_formulas/保存通达信原公式；sector_momentum_cache.json 构建；CLAUDE.md 追加板块势能命令区块；research_log.md 实验#8 完整记录 | 新增 |
+| 06-05 | PYQ/DATA | **Type A/B 阈值优化+全历史VL宇宙覆盖**：全市场5428只参数扫描(4/6/8窗口×5/8/10/12/15/20%阈值×50/75/100%正比)，选定4季均值>12%+3/4正增长；data_layer扩展到215只(14跟踪+当前VL+190历史VL)；交易者经验"营收都是真的利润可以藏着"写入Type B理论基础；实验#3写入research_log | 算法改进 |

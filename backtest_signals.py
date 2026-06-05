@@ -16,6 +16,11 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import PROJECT_ROOT
 from cycle_engine.utils import safe_float
+from tools.volume_leader.filter_engine import (
+    check_ma_chain, check_expma_golden,
+    check_no_recent_death, check_no_recent_golden,
+    check_close_below_ma, check_close_above_ma, check_pe_gate,
+)
 
 BASE = Path(PROJECT_ROOT)
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
@@ -109,34 +114,22 @@ def _try_ma_entry(bar, idx, min5_rows, period_data, delay_window=0):
     entry_price = _factor_price(close_raw)
 
     # ── 1. MA排列检查 ──
-    try:
-        ma5 = float(bar.get('ma5', 0) or 0)
-        ma10 = float(bar.get('ma10', 0) or 0)
-        ma20 = float(bar.get('ma20', 0) or 0)
-    except (ValueError, TypeError):
-        return None
-    if not (ma5 > ma10 > ma20):
+    if not check_ma_chain(bar):
         if delay_window == 0:
             return None  # 严格版：当根不通过即弃
         # 延期版：向后扫描
         saved = False
         for offset in range(1, min(delay_window + 1, len(min5_rows) - idx)):
             nr = min5_rows[idx + offset]
-            try:
-                nma5 = float(nr.get('ma5', 0) or 0)
-                nma10 = float(nr.get('ma10', 0) or 0)
-                nma20 = float(nr.get('ma20', 0) or 0)
-                if nma5 > nma10 > nma20:
-                    bar = nr
-                    entry_idx = idx + offset
-                    date_str = bar.get('date', '').strip()
-                    ts = int(bar.get('timestamp', '0') or '0')
-                    close_raw = float(bar.get('close', 0) or 0)
-                    entry_price = _factor_price(close_raw)
-                    saved = True
-                    break
-            except (ValueError, TypeError):
-                pass
+            if check_ma_chain(nr):
+                bar = nr
+                entry_idx = idx + offset
+                date_str = bar.get('date', '').strip()
+                ts = int(bar.get('timestamp', '0') or '0')
+                close_raw = float(bar.get('close', 0) or 0)
+                entry_price = _factor_price(close_raw)
+                saved = True
+                break
         if not saved:
             return None
 
@@ -148,13 +141,8 @@ def _try_ma_entry(bar, idx, min5_rows, period_data, delay_window=0):
     if min60_rows:
         m60bar = _find_row_by_ts(min60_rows, ts)
         if m60bar:
-            try:
-                c60 = float(m60bar.get('close', 0) or 0)
-                e50_60 = float(m60bar.get('expma50', 0) or 0)
-                if not (c60 > e50_60):
-                    return None
-            except (ValueError, TypeError):
-                pass
+            if not check_close_above_ma(m60bar, 'expma50'):
+                return None
         else:
             return None
     else:
@@ -164,24 +152,15 @@ def _try_ma_entry(bar, idx, min5_rows, period_data, delay_window=0):
     if daily_rows:
         dbar = _find_daily_by_date(daily_rows, date_str)
         if dbar:
-            try:
-                pe_chg = float(dbar.get('pe_chg_5', 0) or 0)
-                if pe_chg < -0.02:
-                    return None
-            except (ValueError, TypeError):
-                pass
+            if not check_pe_gate(dbar):
+                return None
 
     # ── 5. 日线Zone ──
     if daily_rows:
         dbar = _find_daily_by_date(daily_rows, date_str)
         if dbar:
-            try:
-                c_d = float(dbar.get('close', 0) or 0)
-                e50_d = float(dbar.get('expma50', 0) or 0)
-                if not (c_d > e50_d):
-                    return None
-            except (ValueError, TypeError):
-                pass
+            if not check_close_above_ma(dbar, 'expma50'):
+                return None
     else:
         return None
 
@@ -230,13 +209,8 @@ def _try_jincha_entry(bar, idx, min5_rows, period_data, scan_window=30):
     if min60_rows:
         m60bar = _find_row_by_ts(min60_rows, ts)
         if m60bar:
-            try:
-                c60 = float(m60bar.get('close', 0) or 0)
-                e50_60 = float(m60bar.get('expma50', 0) or 0)
-                if not (c60 > e50_60):
-                    return None
-            except (ValueError, TypeError):
-                pass
+            if not check_close_above_ma(m60bar, 'expma50'):
+                return None
         else:
             return None
     else:
@@ -246,24 +220,15 @@ def _try_jincha_entry(bar, idx, min5_rows, period_data, scan_window=30):
     if daily_rows:
         dbar = _find_daily_by_date(daily_rows, date_str)
         if dbar:
-            try:
-                pe_chg = float(dbar.get('pe_chg_5', 0) or 0)
-                if pe_chg < -0.02:
-                    return None
-            except (ValueError, TypeError):
-                pass
+            if not check_pe_gate(dbar):
+                return None
 
     # D. 日线Zone
     if daily_rows:
         dbar = _find_daily_by_date(daily_rows, date_str)
         if dbar:
-            try:
-                c_d = float(dbar.get('close', 0) or 0)
-                e50_d = float(dbar.get('expma50', 0) or 0)
-                if not (c_d > e50_d):
-                    return None
-            except (ValueError, TypeError):
-                pass
+            if not check_close_above_ma(dbar, 'expma50'):
+                return None
     else:
         return None
 
@@ -517,30 +482,20 @@ def _calc_entry_band_low(all_rows, entry_idx, lookback=80):
 
 
 def _no_recent_golden(rows, i, n=20):
-    """最近n根内没有金叉事件（有金叉则不卖，趋势还在向上）"""
-    for j in range(i - 1, max(i - n - 1, 0), -1):
-        cross = (rows[j].get('expma_cross', '') or '').strip()
-        if cross == '金叉':
-            return False
-        if cross == '死叉':
-            return True
-    return True
+    """→ filter_engine.check_no_recent_golden"""
+    return check_no_recent_golden(rows, i, n)
 
 
 def _min15_below_ema50(code, ts):
     """15分钟 close < expma50（黄线下方）"""
+    from tools.volume_leader.filter_engine import check_close_below_ma_generic
     rows = read_csv(code, 'min15')
     if not rows:
         return False
     bar = _find_row_by_ts(rows, ts)
     if not bar:
         return False
-    try:
-        c = float(bar.get('close', 0) or 0)
-        e50 = float(bar.get('expma50', 0) or 0)
-        return c < e50
-    except (ValueError, TypeError):
-        return False
+    return check_close_below_ma_generic(bar, 'expma50')
 
 
 def _has_death_cross_15min(period_data, ts, lookback=20):
@@ -650,12 +605,7 @@ def track_trade(min5_rows, buy_idx, filter_level='ma', code=None):
         # ── 减仓卖层: ★卖 + close<MA5 + 无金叉(20根) + 15分黄线下 ──
         sell_signal = r.get('sell_signal', '').strip()
         if sell_signal == '★卖':
-            try:
-                ma5_raw = float(r.get('ma5', 0) or 0)
-                ma5 = _factor_price(ma5_raw)
-            except (ValueError, TypeError):
-                ma5 = 0
-            if ma5 > 0 and close < ma5:
+            if check_close_below_ma(r):
                 if code and _no_recent_golden(min5_rows, j, 20) and _min15_below_ema50(code, r.get('timestamp', '')):
                     exit_idx = j
                     exit_price = close

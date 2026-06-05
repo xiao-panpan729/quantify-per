@@ -1,0 +1,221 @@
+{
+  "_meta": {
+    "description": "US 概念链映射 — ETF持仓自动概念 + 人工维护产业链",
+    "design": "一条概念链 = 一组相关股票。股票可属于多条链（对标通达信概念板块）。",
+    "insert_guide": "新增概念链只需在 concepts 下加一条，stocks 填代码列表即可。source: etf_holdings | manual | research_report",
+    "total_concepts": 28,
+    "updated": "2026-06-05"
+  },
+  "concepts": {
+    "半导体产业链": {
+      "type": "etf_holdings",
+      "source_etfs": ["SMH", "SOXX"],
+      "description": "芯片设计+设备+制造+封测全链",
+      "stocks": ["NVDA", "TSM", "AVGO", "ASML", "AMD", "QCOM", "AMAT", "LRCX", "KLAC", "MU", "MRVL", "INTC", "NXPI", "STM", "ON", "MCHP", "MPWR", "ADI", "TXN", "ENTG", "TER", "SWKS", "QRVO", "CRUS"],
+      "updated": "2026-06-05"
+    },
+    "AI算力链": {
+      "type": "etf_holdings",
+      "source_etfs": ["BOTZ", "AIQ"],
+      "description": "AI芯片+服务器+光模块+液冷+数据中心",
+      "stocks": ["NVDA", "AMD", "AVGO", "MRVL", "ANET", "SMCI", "DELL", "VRT", "PSTG", "NTAP", "HPQ", "CRDO", "ALAB", "COHR", "LITE", "FN", "CIEN"],
+      "updated": "2026-06-05"
+    },
+    "AI应用层": {
+      "type": "manual",
+      "description": "AI软件/平台/SaaS 应用端",
+      "stocks": ["MSFT", "META", "GOOGL", "AMZN", "ADBE", "CRM", "NOW", "PLTR", "SNOW", "MDB", "DDOG", "NET", "WDAY", "U", "PATH", "AI", "CFLT", "GTLB", "ESTC", "S"],
+      "references": ["各券商AI研报 2026H1"],
+      "updated": "2026-06-05"
+    },
+    "英伟达链": {
+      "type": "manual",
+      "description": "NVDA GPU生态: 服务器/光模块/液冷/PCB/铜缆/HBM",
+      "stocks": ["NVDA", "SMCI", "DELL", "VRT", "MRVL", "ANET", "CRDO", "ALAB", "COHR", "LITE", "AMD", "AVGO", "MU", "TSM", "ASML", "AMAT", "LRCX", "KLAC", "HPQ", "NTAP"],
+      "references": ["多家券商英伟达产业链研报"],
+      "updated": "2026-06-05"
+    },
+    "苹果链": {
+      "type": "manual",
+      "description": "AAPL iPhone/Mac/Watch/Vision Pro 供应链",
+      "stocks": ["AAPL", "QCOM", "AVGO", "SWKS", "CRUS", "QRVO", "STX", "WDC", "LITE", "IIVI", "JBL", "FLEX", "TSM"],
+      "references": ["Apple supplier list 2025 + 各券商苹果链研报"],
+      "updated": "2026-06-05"
+    },
+    "特斯拉/EV链": {
+      "type": "manual",
+      "description": "电动车+充电桩+电池+自动驾驶",
+      "stocks": ["TSLA", "RIVN", "LCID", "F", "GM", "CHPT", "QS", "ALB", "SQM", "MBLY", "INTC"],
+      "references": ["各券商新能源车研报"],
+      "updated": "2026-06-05"
+    },
+    "网络安全": {
+      "type": "etf_holdings",
+      "source_etfs": ["CIBR", "HACK"],
+      "description": "网安: 端点/云安全/身份/防火墙/SIEM",
+      "stocks": ["CRWD", "PANW", "FTNT", "ZS", "OKTA", "NET", "CYBR", "CHKP", "TENB", "S", "QLYS", "VRNS", "RPD", "CVLT", "GEN"],
+      "updated": "2026-06-05"
+    },
+    "软件/SaaS": {
+      "type": "etf_holdings",
+      "source_etfs": ["IGV"],
+      "description": "企业软件+SaaS+开发者工具+IT服务",
+      "stocks": ["MSFT", "ORCL", "CRM", "ADBE", "NOW", "INTU", "SNOW", "PLTR", "PANW", "CRWD", "DDOG", "WDAY", "MDB", "NET", "TEAM", "ZS", "GEN", "HUBS", "DT", "SPLK"],
+      "updated": "2026-06-05"
+    },
+    "云计算/数据基建": {
+      "type": "etf_holdings",
+      "source_etfs": ["CLOU", "WCLD"],
+      "description": "云计算平台+数据仓库+CDN+容器",
+      "stocks": ["AMZN", "MSFT", "GOOGL", "CRM", "NOW", "SNOW", "NET", "DDOG", "MDB", "WDAY", "ZS", "TWLO", "DOCN", "FSLY", "CFLT", "ESTC", "GTLB", "BRZE"],
+      "updated": "2026-06-05"
+    },
+    "生物科技": {
+      "type": "etf_holdings",
+      "source_etfs": ["IBB", "XBI"],
+      "description": "创新药+生物制剂+基因治疗+CRO/CDMO",
+      "stocks": ["AMGN", "GILD", "VRTX", "REGN", "BIIB", "MRNA", "BNTX", "ILMN", "ALNY", "EXAS", "NTRA", "CRSP", "EDIT", "BEAM", "TXG", "SRPT", "IONS", "NBIX", "ARGX"],
+      "updated": "2026-06-05"
+    },
+    "基因/精准医疗": {
+      "type": "etf_holdings",
+      "source_etfs": ["ARKG"],
+      "description": "基因编辑+精准医疗+合成生物学",
+      "stocks": ["CRSP", "TWST", "NTLA", "BEAM", "TXG", "PACB", "ILMN", "EXAS", "VCYT", "SDGR", "RXRX", "DNA", "ABSI", "CDNA"],
+      "updated": "2026-06-05"
+    },
+    "清洁能源": {
+      "type": "etf_holdings",
+      "source_etfs": ["ICLN"],
+      "description": "风电+储能+氢能+智能电网",
+      "stocks": ["ENPH", "FSLR", "SEDG", "NXT", "RUN", "NOVA", "CSIQ", "JKS", "STEM", "CHPT", "PLUG", "BE", "FCEL", "BLDP"],
+      "updated": "2026-06-05"
+    },
+    "光伏链": {
+      "type": "etf_holdings",
+      "source_etfs": ["TAN"],
+      "description": "硅料+硅片+电池+组件+逆变器+玻璃+胶膜",
+      "stocks": ["ENPH", "SEDG", "FSLR", "CSIQ", "JKS", "RUN", "NOVA", "MAXN", "SPWR", "DQ", "ARRY", "SHLS", "NXT"],
+      "updated": "2026-06-05"
+    },
+    "传统能源": {
+      "type": "etf_holdings",
+      "source_etfs": ["XOP", "OIH"],
+      "description": "油气勘探+油服+管道+炼化",
+      "stocks": ["XOM", "CVX", "COP", "EOG", "SLB", "HAL", "BKR", "OXY", "DVN", "PXD", "FANG", "MRO", "APA", "VLO", "MPC", "PSX"],
+      "updated": "2026-06-05"
+    },
+    "金矿/贵金属": {
+      "type": "etf_holdings",
+      "source_etfs": ["GDX"],
+      "description": "金矿开采+白银+铂族金属",
+      "stocks": ["NEM", "GOLD", "AEM", "FNV", "WPM", "GFI", "AU", "KGC", "RGLD", "AGI", "BTG", "CDE", "HL", "PAAS", "SSRM"],
+      "updated": "2026-06-05"
+    },
+    "钢铁/基础材料": {
+      "type": "etf_holdings",
+      "source_etfs": ["SLX", "XME"],
+      "description": "钢铁+铝+铜矿+稀土+化工材料",
+      "stocks": ["NUE", "STLD", "RS", "CLF", "X", "FCX", "NEM", "AA", "CENX", "LIN", "APD", "SHW", "ECL", "DOW", "DD", "CE", "EMN"],
+      "updated": "2026-06-05"
+    },
+    "区域银行": {
+      "type": "etf_holdings",
+      "source_etfs": ["KRE"],
+      "description": "美国区域性银行（利率敏感）",
+      "stocks": ["KEY", "RF", "FITB", "HBAN", "MTB", "CMA", "ZION", "CFG", "TFC", "USB", "FHN", "WAL", "EWBC", "PNC"],
+      "updated": "2026-06-05"
+    },
+    "大型金融": {
+      "type": "etf_holdings",
+      "source_etfs": ["XLF"],
+      "description": "投行+资产管理+保险+交易所",
+      "stocks": ["BRK.B", "JPM", "GS", "BAC", "MS", "V", "MA", "AXP", "BLK", "SCHW", "C", "WFC", "AIG", "MET", "PRU", "ICE", "CME"],
+      "updated": "2026-06-05"
+    },
+    "金融科技": {
+      "type": "etf_holdings",
+      "source_etfs": ["ARKF"],
+      "description": "支付+数字银行+区块链金融",
+      "stocks": ["SQ", "PYPL", "COIN", "SHOP", "MELI", "SOFI", "AFRM", "TOST", "BILL", "ADYEN", "FIS", "FISV", "GPN", "MA", "V"],
+      "updated": "2026-06-05"
+    },
+    "房屋建筑链": {
+      "type": "etf_holdings",
+      "source_etfs": ["XHB", "ITB"],
+      "description": "住宅建筑+建材+家居零售+装修",
+      "stocks": ["DHI", "LEN", "PHM", "TOL", "NVR", "HD", "LOW", "BLDR", "MHK", "MAS", "OC", "JCI", "CARR", "TT", "WMS"],
+      "updated": "2026-06-05"
+    },
+    "基础设施建设": {
+      "type": "etf_holdings",
+      "source_etfs": ["PAVE"],
+      "description": "工程机械+基建材料+电力设备+交通基建",
+      "stocks": ["CAT", "DE", "URI", "EMR", "ETN", "ROK", "PWR", "VMC", "MLM", "NSC", "UNP", "CSX", "FAST", "GGG", "WSO"],
+      "updated": "2026-06-05"
+    },
+    "国防军工": {
+      "type": "etf_holdings",
+      "source_etfs": ["ITA"],
+      "description": "战斗机+导弹+卫星+雷达+舰船",
+      "stocks": ["RTX", "BA", "LMT", "NOC", "GD", "LHX", "TDG", "HWM", "TXT", "HII", "CW", "WWD", "HEI", "AXON", "KTOS"],
+      "updated": "2026-06-05"
+    },
+    "零售消费": {
+      "type": "etf_holdings",
+      "source_etfs": ["XRT"],
+      "description": "综合零售+电商+服装+餐饮+旅游",
+      "stocks": ["AMZN", "WMT", "COST", "HD", "LOW", "TJX", "ROST", "TGT", "DG", "DLTR", "BBY", "ULTA", "ORLY", "AZO", "KMX"],
+      "updated": "2026-06-05"
+    },
+    "中国互联网": {
+      "type": "etf_holdings",
+      "source_etfs": ["KWEB"],
+      "description": "中概互联网+电商+游戏+短视频",
+      "stocks": ["BABA", "JD", "PDD", "BIDU", "NTES", "TME", "BILI", "VIPS", "BEKE", "YMM", "TAL", "EDU", "DQ", "ATHM", "IQ", "WB"],
+      "updated": "2026-06-05"
+    },
+    "中概ADR": {
+      "type": "etf_holdings",
+      "source_etfs": ["FXI", "MCHI"],
+      "description": "中国大盘股ADR（银行+保险+能源+电信）",
+      "stocks": ["BABA", "JD", "PDD", "BIDU", "NTES", "BILI", "NIO", "XPEV", "LI", "TCOM", "ZTO", "BGNE", "HTHT", "DQ", "JKS"],
+      "updated": "2026-06-05"
+    },
+    "加密货币/区块链": {
+      "type": "manual",
+      "description": "交易所+矿企+持仓大户+比特币期货ETF",
+      "stocks": ["COIN", "MSTR", "MARA", "RIOT", "CLSK", "HUT", "IREN", "CIFR", "BTDR", "WULF", "BITO"],
+      "references": ["CoinShares周报 + 各券商加密研报"],
+      "updated": "2026-06-05"
+    },
+    "元宇宙/XR": {
+      "type": "manual",
+      "description": "VR/AR硬件+3D引擎+虚拟社交+空间计算",
+      "stocks": ["META", "AAPL", "MSFT", "SNAP", "U", "RBLX", "SONY", "NVDA", "QCOM", "VUZI", "KOPN"],
+      "references": ["Apple Vision Pro发布后各券商XR研报"],
+      "updated": "2026-06-05"
+    },
+    "太空/卫星": {
+      "type": "manual",
+      "description": "商业航天+卫星互联网+火箭发射+遥感",
+      "stocks": ["RKLB", "SPCE", "ASTS", "PL", "GSAT", "IRDM", "VSAT", "SATL", "BA", "LMT", "NOC", "RTX"],
+      "references": ["SpaceX供应商名单 + 券商商业航天研报"],
+      "updated": "2026-06-05"
+    },
+    "量子计算": {
+      "type": "manual",
+      "description": "量子计算硬件+软件+超导/光子/离子阱路线",
+      "stocks": ["IONQ", "RGTI", "QBTS", "QUBT", "IBM", "GOOGL", "MSFT", "HON", "NVDA"],
+      "references": ["各券商量子计算研报 2025-2026"],
+      "updated": "2026-06-05"
+    },
+    "核能/SMR": {
+      "type": "manual",
+      "description": "小型模块化核反应堆(SMR)+核燃料",
+      "stocks": ["OKLO", "SMR", "BWXT", "CEG", "VST", "TLN", "LEU", "CCJ", "DNN", "UEC", "UUUU"],
+      "references": ["AI数据中心电力需求→核电主题 2025-2026"],
+      "updated": "2026-06-05"
+    }
+  }
+}

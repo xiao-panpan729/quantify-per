@@ -11,6 +11,12 @@ from collections import defaultdict
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from tools.volume_leader.shared import load_universe, TRACKING_DIR, MIN_PRICE_FACTOR
+from tools.volume_leader.filter_engine import (
+    has_star_buy, has_star_sell, has_golden,
+    check_ma_chain, check_expma_golden,
+    check_no_recent_death, check_no_recent_golden,
+    check_close_below_ma, check_pe_gate, has_cci_top_divergence,
+)
 
 
 # ── 内存信号计算（用于没有预计算信号列的周期，如min1） ──
@@ -205,37 +211,22 @@ def _load_daily_zones(code):
 # 信号检测
 # ══════════════════════════════════════════════════════════════════
 
-def _has_star_buy(row):
-    return bool((row.get('buy_signal', '') or '').strip())
-
-
-def _has_star_sell(row):
-    return bool((row.get('sell_signal', '') or '').strip())
-
-
-def _has_golden(row):
-    return (row.get('expma_cross', '') or '').strip() == '金叉'
-
+# _has_star_buy / _has_star_sell / _has_golden / _ma_above / _close_below / _has_cci_top_divergence
+# → 已迁移到 filter_engine，本地保留别名以兼容 ENTRY_MODES / SELL_MODES 的 lambda 引用
+_has_star_buy = has_star_buy
+_has_star_sell = has_star_sell
+_has_golden = has_golden
+_has_cci_top_divergence = has_cci_top_divergence
 
 def _ma_above(row, fast, slow):
-    """快速均线 > 慢速均线"""
+    """快速均线 > 慢速均线（保留自定义参数，filter_engine.check_ma_chain 只做默认三链）"""
     try:
         return float(row.get(fast, 0)) > float(row.get(slow, 0))
     except (ValueError, TypeError):
         return False
 
-
 def _close_below(row, ma_col):
-    """收盘价 < 均线"""
-    try:
-        return float(row['close']) < float(row.get(ma_col, 0))
-    except (ValueError, TypeError):
-        return False
-
-
-def _has_cci_top_divergence(row):
-    """CCI顶背驰"""
-    return (row.get('cci_divergence', '') or '').strip() == '顶背驰'
+    return check_close_below_ma(row, ma_col)
 
 
 
@@ -308,12 +299,8 @@ DAILY_PE_CACHE = {}  # {code: {date: pe_chg_5}}
 
 
 def _pe_not_rising(row):
-    """PE非升熵 (降熵或平稳 ≥ -0.02) — 用入场bar的per-bar PE"""
-    try:
-        pe_chg = float(row.get('pe_chg_5', 0) or 0)
-        return pe_chg >= -0.02
-    except (ValueError, TypeError):
-        return True  # 无数据时放行
+    """PE非升熵 → filter_engine.check_pe_gate"""
+    return check_pe_gate(row)
 
 
 def _cci_recovery_ok(rows, i, min_speed=5.0):
@@ -361,25 +348,13 @@ def _get_daily_pe_ok(code, bar_date):
 
 
 def _no_recent_death(rows, i, n=20):
-    """最近n根内，最后一个expma_cross事件不是死叉"""
-    for j in range(i - 1, max(i - n - 1, 0), -1):
-        cross = (rows[j].get('expma_cross', '') or '').strip()
-        if cross == '死叉':
-            return False
-        if cross == '金叉':
-            return True
-    return True
+    """→ filter_engine.check_no_recent_death"""
+    return check_no_recent_death(rows, i, n)
 
 
 def _no_recent_golden(rows, i, n=20):
-    """最近n根内，最后一个expma_cross事件不是金叉"""
-    for j in range(i - 1, max(i - n - 1, 0), -1):
-        cross = (rows[j].get('expma_cross', '') or '').strip()
-        if cross == '金叉':
-            return False
-        if cross == '死叉':
-            return True
-    return True
+    """→ filter_engine.check_no_recent_golden"""
+    return check_no_recent_golden(rows, i, n)
 
 
 def _get_min60_above(code, bar_date):
@@ -433,7 +408,7 @@ def _get_min15_jincha(code, bar_ts):
         return False
     r = rows[idx]
     try:
-        return float(r.get('expma12', 0) or 0) > float(r.get('expma50', 0) or 0)
+        return check_expma_golden(r)
     except (ValueError, TypeError):
         return False
 
@@ -628,9 +603,7 @@ def _check_entry_ctx(entry_mode, rows, i, row, code=None):
             return False
         if not _get_daily_pe_ok(code, bar_date):
             return False
-        expma12 = float(row.get('expma12', 0) or 0)
-        expma50 = float(row.get('expma50', 0) or 0)
-        if not (expma12 > expma50):
+        if not check_expma_golden(row):
             return False
         return True
 
@@ -650,9 +623,7 @@ def _check_entry_ctx(entry_mode, rows, i, row, code=None):
         return True
 
     if entry_mode.startswith('T2_'):  # ★买+5分金叉+60分+PE (无MA无死叉)
-        expma12 = float(row.get('expma12', 0) or 0)
-        expma50 = float(row.get('expma50', 0) or 0)
-        if not (expma12 > expma50):
+        if not check_expma_golden(row):
             return False
         if code and not _get_min60_above(code, bar_date):
             return False
@@ -661,9 +632,7 @@ def _check_entry_ctx(entry_mode, rows, i, row, code=None):
         return True
 
     if entry_mode.startswith('T3_'):  # ★买+5分金叉+无死叉+60分+PE
-        expma12 = float(row.get('expma12', 0) or 0)
-        expma50 = float(row.get('expma50', 0) or 0)
-        if not (expma12 > expma50):
+        if not check_expma_golden(row):
             return False
         if not _no_recent_death(rows, i, 20):
             return False
@@ -687,9 +656,7 @@ def _check_entry_ctx(entry_mode, rows, i, row, code=None):
         return True
 
     if entry_mode.startswith('T5_'):  # ★买+5分金叉+无死叉+15分金叉+60分+PE
-        expma12 = float(row.get('expma12', 0) or 0)
-        expma50 = float(row.get('expma50', 0) or 0)
-        if not (expma12 > expma50):
+        if not check_expma_golden(row):
             return False
         if not _no_recent_death(rows, i, 20):
             return False
@@ -741,9 +708,7 @@ def _check_entry_ctx(entry_mode, rows, i, row, code=None):
 
     # ── 金叉门禁 ──
     if '+jincha' in entry_mode:
-        expma12 = float(row.get('expma12', 0) or 0)
-        expma50 = float(row.get('expma50', 0) or 0)
-        if not (expma12 > expma50):
+        if not check_expma_golden(row):
             return False
 
     return True

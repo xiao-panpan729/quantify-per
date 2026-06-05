@@ -58,12 +58,13 @@
 
 | 逻辑 | 文件 | 位置 |
 |:--|:--|:--|
-| 买侧入场 | `tools/volume_leader/monitor.py` | Step 4.5 (L1371-L1461) |
-| 卖侧出场 | `tools/volume_leader/monitor.py` | Step 4.6 (L1463-L1538) |
-| 买侧入场(回测) | `tools/volume_leader/backtest.py` | `_check_entry_ctx()` (L543-L606) |
-| 卖侧出场(回测) | `tools/volume_leader/backtest.py` | `_is_sell_reduce()` (L609-L662) |
-| 买侧入场(跟踪) | `backtest_signals.py` | `classify_signal_level()` (L125-L231) |
-| 交易报告 | `gen_volume_leader_report.py` | `compute_filter_level()` (L80-L165) |
+| 共享过滤原语 | `tools/volume_leader/filter_engine.py` | ★所有过滤检查的单一真相源 |
+| 买侧入场(实时) | `tools/volume_leader/monitor.py` | Step 4.5 (~L1371) |
+| 卖侧出场(实时) | `tools/volume_leader/monitor.py` | Step 4.6 (~L1463) |
+| 买侧入场(回测) | `tools/volume_leader/backtest.py` | `_check_entry_ctx()` (~L579) |
+| 卖侧出场(回测) | `tools/volume_leader/backtest.py` | `_is_sell_reduce()` (~L786) |
+| 买侧入场(跟踪) | `backtest_signals.py` | `_try_ma_entry()` (~L89) + `_try_jincha_entry()` (~L210) |
+| 交易报告 | `gen_volume_leader_report.py` | `compute_filter_level()` (~L80) |
 
 ### 演化历史
 
@@ -2243,4 +2244,15 @@ V2表(`vl_monthly_entries_v2.py`) 用CCI简化版★买+MA250/500框架检测了
 - 第一步实现：识别"前突破"信号（股价首次站上MA250/500）
 - 第二步完善：用信号引擎的★买替代CCI简化版
 - 选股应用：日线上扫描"曾突破→回踩MA→★买闭环"的标的
+
+---
+
+## VL宇宙风控规则（待测试）
+
+**规则**: 进了VL宇宙的股票，日线跌破MA60后不用再看信号，后面只会越来越弱。
+
+**待测试内容**:
+1. MA60跌破 vs ★买信号后续胜率的关系
+2. MA60之上回踩MA250/500 vs MA60之下回踩的后续表现差异
+3. MA60作为VL持仓"清仓线"的有效性
 

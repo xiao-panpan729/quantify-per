@@ -18,6 +18,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tools'))
 import config
 from ai_analyzer import call_llm, load_persona, load_framework
+from tools.volume_leader.filter_engine import (
+    check_ma_chain, check_expma_golden,
+    check_no_recent_death, check_close_above_ma, check_pe_gate,
+)
 
 _BASE = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking')
 CYCLE_REPORT = os.path.join(_BASE, 'cycle_report.json')
@@ -50,11 +54,8 @@ def _load_csv(code, period='min5'):
 
 
 def _pe_not_rising_5m(row):
-    """5分钟PE非升熵 (pe_chg_5 >= -0.02)"""
-    try:
-        return float(row.get('pe_chg_5', 0) or 0) >= -0.02
-    except (ValueError, TypeError):
-        return True  # 无数据放行
+    """→ filter_engine.check_pe_gate"""
+    return check_pe_gate(row)
 
 
 DAILY_PE_CACHE = {}
@@ -69,11 +70,7 @@ def _daily_pe_ok(code, bar_date):
         DAILY_PE_CACHE[code] = {}
         for r in rows:
             d = r.get('date', '').strip()
-            try:
-                pe_chg = float(r.get('pe_chg_5', 0) or 0)
-                DAILY_PE_CACHE[code][d] = pe_chg >= -0.02
-            except (ValueError, TypeError):
-                DAILY_PE_CACHE[code][d] = True
+            DAILY_PE_CACHE[code][d] = check_pe_gate(r)
     return DAILY_PE_CACHE[code].get(bar_date, True)
 
 
@@ -99,44 +96,21 @@ def compute_filter_level(code):
         return None
 
     star = rows[star_i]
-    ma5 = float(star.get('ma5', 0) or 0)
-    ma10 = float(star.get('ma10', 0) or 0)
-    ma20 = float(star.get('ma20', 0) or 0)
-    if not (ma5 > ma10 > ma20):
+    if not check_ma_chain(star):
         return None  # 只有裸★买，不展示
 
-    # 最近20根内无死叉事件
-    has_death = False
-    for j in range(1, 21):
-        pos = star_i - j
-        if pos < 0:
-            break
-        cross = (rows[pos].get('expma_cross', '') or '').strip()
-        if cross == '死叉':
-            has_death = True
-            break
-        if cross == '金叉':
-            break
-    if has_death:
+    if not check_no_recent_death(rows, star_i, 20):
         return None
 
     # 60分钟expma黄线上方
     min60 = _load_csv(code, 'min60')
-    min60_ok = False
-    if min60:
-        last60 = min60[-1]
-        c60 = float(last60.get('close', 0) or 0)
-        e50_60 = float(last60.get('expma50', 0) or 0)
-        min60_ok = c60 > e50_60
-    if not min60_ok:
+    if not min60 or not check_close_above_ma(min60[-1], 'expma50'):
         return None
 
     bar_date = star.get('date', '').strip()
 
     # 5分钟EXPMA金叉？
-    expma12 = float(star.get('expma12', 0) or 0)
-    expma50 = float(star.get('expma50', 0) or 0)
-    if not (expma12 > expma50):
+    if not check_expma_golden(star):
         # ── MA级: 日线PE门禁 ──
         if not _daily_pe_ok(code, bar_date):
             return None  # 日线混沌, MA级也不做

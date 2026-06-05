@@ -1,0 +1,196 @@
+{
+  "version": "1.0",
+  "description": "B类突发事件关键词库 — 三层分类（宏观/行业/市场），纯关键词匹配，无需NLP。新增/修改直接编辑此文件。",
+  "categories": {
+    "macro_tariff": {
+      "label": "关税/贸易战",
+      "level": "macro",
+      "impact_sign": -1,
+      "impact_magnitude": 2,
+      "keywords": [
+        "加征关税", "反倾销税", "反补贴税", "301调查", "301条款",
+        "贸易战", "贸易摩擦", "贸易壁垒", "关税壁垒", "贸易保护",
+        "最惠国待遇", "惩罚性关税", "互加关税", "取消关税豁免",
+        "欧盟关税", "对华关税", "全面关税", "报复性关税",
+        "tariff", "trade war", "anti-dumping", "countervailing duty"
+      ]
+    },
+    "macro_sanction": {
+      "label": "科技/金融制裁",
+      "level": "macro",
+      "impact_sign": -1,
+      "impact_magnitude": 2,
+      "keywords": [
+        "实体清单", "出口管制", "技术封锁", "芯片禁令", "断供",
+        "制裁清单", "黑名单", "技术禁运", "设备禁运", "EDA禁令",
+        "光刻机", "先进制程", "半导体管制", "AI芯片限制",
+        "金融制裁", "资产冻结", "SWIFT", "二级制裁",
+        "entity list", "export control", "chip ban", "sanctions"
+      ]
+    },
+    "macro_geopolitical": {
+      "label": "地缘政治",
+      "level": "macro",
+      "impact_sign": -1,
+      "impact_magnitude": 2,
+      "keywords": [
+        "台海", "军演", "环岛", "围台", "武力",
+        "南海", "冲突", "开火", "入侵", "宣战",
+        "地缘风险", "地缘危机", "地缘冲突", "局势升级",
+        "中印边境", "朝鲜", "半岛局势"
+      ]
+    },
+    "macro_trade_deal": {
+      "label": "贸易缓和/协议",
+      "level": "macro",
+      "impact_sign": 1,
+      "impact_magnitude": 2,
+      "keywords": [
+        "达成协议", "贸易谈判", "贸易缓和", "取消关税",
+        "重启谈判", "元首会晤", "经贸磋商", "第一阶段协议",
+        "关税排除", "豁免清单", "取消制裁", "关系回暖"
+      ]
+    },
+    "macro_policy_easing": {
+      "label": "中国政策宽松",
+      "level": "macro",
+      "impact_sign": 1,
+      "impact_magnitude": 1,
+      "keywords": [
+        "降准", "降息", "定向降准", "全面降准",
+        "加大逆周期调节", "适度宽松", "积极财政",
+        "特别国债", "专项债", "减税降费", "稳增长",
+        "国常会", "政治局会议", "中央经济工作会议",
+        "加大投放", "流动性合理充裕", "保持流动性"
+      ]
+    },
+    "macro_policy_tightening": {
+      "label": "中国政策收紧",
+      "level": "macro",
+      "impact_sign": -1,
+      "impact_magnitude": 1,
+      "keywords": [
+        "提高准备金", "加息", "收紧流动性", "去杠杆",
+        "监管收紧", "窗口指导", "信贷收紧", "宏观调控"
+      ]
+    },
+    "sector_chip": {
+      "label": "半导体行业政策",
+      "level": "sector",
+      "impact_sign": 0,
+      "impact_magnitude": 1,
+      "keywords": [
+        "大基金", "芯片产业", "集成电路", "半导体扶持",
+        "晶圆厂", "先进封装", "第三代半导体", "碳化硅",
+        "光刻胶", "EDA工具", "chiplet"
+      ]
+    },
+    "sector_new_energy": {
+      "label": "新能源行业政策",
+      "level": "sector",
+      "impact_sign": 0,
+      "impact_magnitude": 1,
+      "keywords": [
+        "光伏补贴", "风电补贴", "新能源汽车", "储能政策",
+        "锂电池", "动力电池", "充电桩", "绿电交易",
+        "碳达峰", "碳中和", "能耗双控", "限电"
+      ]
+    },
+    "sector_ai_tech": {
+      "label": "AI/科技行业政策",
+      "level": "sector",
+      "impact_sign": 0,
+      "impact_magnitude": 1,
+      "keywords": [
+        "人工智能", "大模型", "算力", "东数西算",
+        "数字经济", "数据要素", "信创", "国产替代",
+        "机器人产业", "自动驾驶"
+      ]
+    },
+    "sector_pharma": {
+      "label": "医药行业政策",
+      "level": "sector",
+      "impact_sign": 0,
+      "impact_magnitude": 1,
+      "keywords": [
+        "集采", "医保谈判", "创新药", "仿制药一致性",
+        "医疗器械", "医疗服务价格", "DRG", "医药反腐"
+      ]
+    },
+    "sector_realestate": {
+      "label": "房地产/基建政策",
+      "level": "sector",
+      "impact_sign": 0,
+      "impact_magnitude": 1,
+      "keywords": [
+        "房地产", "楼市", "限购", "房贷利率", "首付",
+        "保交楼", "白名单", "城中村改造", "保障房",
+        "基础设施", "新基建", "REITs"
+      ]
+    },
+    "sector_internet": {
+      "label": "互联网/平台监管",
+      "level": "sector",
+      "impact_sign": 0,
+      "impact_magnitude": 1,
+      "keywords": [
+        "平台经济", "反垄断", "互联网监管", "数据安全",
+        "网络安全审查", "游戏版号", "算法推荐", "APP下架"
+      ]
+    },
+    "market_blackswan": {
+      "label": "黑天鹅/流动性危机",
+      "level": "market",
+      "impact_sign": -1,
+      "impact_magnitude": 2,
+      "keywords": [
+        "暴跌", "熔断", "流动性危机", "信用危机",
+        "债务违约", "破产", "爆雷", "暴雷", "无法兑付",
+        "退市风险", "ST预警", "强制平仓"
+      ]
+    },
+    "market_vix_spike": {
+      "label": "VIX/恐慌情绪",
+      "level": "market",
+      "impact_sign": -1,
+      "impact_magnitude": 1,
+      "keywords": [
+        "恐慌指数", "VIX飙升", "避险情绪", "风险厌恶",
+        "全球股市暴跌", "美股暴跌", "亚太暴跌",
+        "抛售潮", "外资撤离", "北向资金大幅流出"
+      ]
+    },
+    "market_yen_carry": {
+      "label": "日元套息/流动性",
+      "level": "market",
+      "impact_sign": -1,
+      "impact_magnitude": 1,
+      "keywords": [
+        "日元升值", "套息平仓", "日元暴涨", "carry trade",
+        "BOJ加息", "日本央行加息", "日元套利", "套息交易"
+      ]
+    },
+    "market_fed_hawkish": {
+      "label": "美联储鹰派",
+      "level": "market",
+      "impact_sign": -1,
+      "impact_magnitude": 1,
+      "keywords": [
+        "美联储加息", "缩表", "鹰派", "通胀超预期",
+        "非农超预期", "CPI超预期", "点阵图", "higher for longer",
+        "hawkish", "rate hike", "FOMC"
+      ]
+    },
+    "market_fed_dovish": {
+      "label": "美联储鸽派",
+      "level": "market",
+      "impact_sign": 1,
+      "impact_magnitude": 1,
+      "keywords": [
+        "美联储降息", "鸽派", "宽松信号", "暂停加息",
+        "结束缩表", "开启降息", "通胀回落", "就业放缓",
+        "dovish", "rate cut", "pivot"
+      ]
+    }
+  }
+}

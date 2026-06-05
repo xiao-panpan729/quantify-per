@@ -15,6 +15,11 @@ from tools.volume_leader.shared import (
 )
 from tools.volume_leader.fetcher import fetch_today_5min, fetch_1min_pytdx
 from tools.volume_leader import trade_db
+from tools.volume_leader.filter_engine import (
+    check_ma_chain, check_expma_golden,
+    check_no_recent_death, check_no_recent_golden,
+    check_close_below_ma, check_close_above_ma,
+)
 
 import signal_engine as se
 from signal_engine import (_calc_signals_from_arrays, _calc_pe_rolling, calc_volume_indicators,
@@ -1372,33 +1377,21 @@ class Monitor:
             min5_ps = signals_by_period.get('min5')
             if min5_ps:
                 all_rows = min5_ps.get('all_rows', [])
+                # 循环外一次性加载，避免每个信号重复读盘
+                min60_rows = _load_csv(code, 'min60')
+                daily_rows = _load_csv(code, 'daily')
                 for sig in all_new_buy:
                     sig.setdefault('filter_level', 'any')
                     if sig.get('period') != 'min5' or sig['type'] != SIGNAL_STAR_BUY:
                         continue
                     idx = sig.get('idx', -1)
                     bar = all_rows[idx] if 0 <= idx < len(all_rows) else all_rows[-1]
-                    ma5 = float(bar.get('ma5', 0) or 0)
-                    ma10 = float(bar.get('ma10', 0) or 0)
-                    ma20 = float(bar.get('ma20', 0) or 0)
-                    if not (ma5 > ma10 > ma20):
+                    if not check_ma_chain(bar):
                         continue
                     # 条件2：最近20根内无死叉事件
-                    has_death = False
-                    for j in range(20):
-                        pos = idx - j
-                        if pos < 0:
-                            break
-                        cross = (all_rows[pos].get('expma_cross', '') or '').strip()
-                        if cross == '死叉':
-                            has_death = True
-                            break
-                        if cross == '金叉':
-                            break
-                    if has_death:
+                    if not check_no_recent_death(all_rows, idx, 20):
                         continue
                     # 条件3：60分钟在expma50黄线上方
-                    min60_rows = _load_csv(code, 'min60')
                     min60_ok = False
                     if min60_rows:
                         last60 = min60_rows[-1]
@@ -1410,17 +1403,14 @@ class Monitor:
 
                     # PE门禁: MA级 → 日线PE非升熵 (回测验证: 均收益+0.96%)
                     if not _daily_pe_ok(code):
-                        # 记录被过滤信号，供事后验证
-                        daily_rows = _load_csv(code, 'daily')
                         dpe = float(daily_rows[-1].get('pe_chg_5', 0) or 0) if daily_rows else 0
                         _log_pe_gate_kill(code, name, bar, sig.get('bar_ts', ''),
                                           'ma', 'daily_pe_rising', dpe)
                         continue
 
                     # 条件5: 日线Zone过滤 — close > expma50 (strong/secondary)
-                    dz_rows = _load_csv(code, 'daily')
-                    if dz_rows and len(dz_rows) > 1:
-                        last_d = dz_rows[-1]
+                    if daily_rows and len(daily_rows) > 1:
+                        last_d = daily_rows[-1]
                         try:
                             c_d = float(last_d.get('close', 0) or 0)
                             e50_d = float(last_d.get('expma50', 0) or 0)
@@ -1437,10 +1427,7 @@ class Monitor:
                                           sig.get('price', 0), bar.get('date', '').strip())
 
                     # 条件4：5分钟EXPMA金叉 → 升级金叉级（买）
-                    # 按层层递进: ★买→MA理顺(MA级)→5分钟EXPMA金叉(金叉级)→15分钟金叉(共振级)
-                    expma12 = float(bar.get('expma12', 0) or 0)
-                    expma50 = float(bar.get('expma50', 0) or 0)
-                    if expma12 > expma50:
+                    if check_expma_golden(bar):
                         sig['filter_level'] = 'jincha'
 
                     # ── ±1天共振检测（由回测验证，不参与弹窗决策，仅标签） ──
@@ -1480,12 +1467,10 @@ class Monitor:
                     if idx < 0 or idx >= len(all_rows):
                         continue
                     bar = all_rows[idx]
-                    close = float(bar.get('close', 0) or 0)
-                    expma50 = float(bar.get('expma50', 0) or 0)
 
                     # ── 做T层: CCI顶背驰 + close>EXPMA黄线 + single(窗口内唯一) → 日志 ──
                     if sig['type'] == SIGNAL_CCI_TOP_DIV and sig.get('period') == 'min5':
-                        if not (expma50 > 0 and close > expma50):
+                        if not check_close_above_ma(bar, 'expma50'):
                             continue
                         ws = _find_window_start(all_rows, idx)
                         cci_count = _count_cci_top_divergence(all_rows, ws, idx)
@@ -1498,21 +1483,9 @@ class Monitor:
                     # ── 减仓层: ★卖 + close<MA5 + 无金叉(20根) + 15分黄线下 → 通知 ──
                     if sig.get('period') != 'min5' or sig['type'] != SIGNAL_STAR_SELL:
                         continue
-                    ma5 = float(bar.get('ma5', 0) or 0)
-                    if not (ma5 > 0 and close < ma5):
+                    if not check_close_below_ma(bar):
                         continue
-                    has_golden = False
-                    for j in range(20):
-                        pos = idx - j
-                        if pos < 0:
-                            break
-                        cross = (all_rows[pos].get('expma_cross', '') or '').strip()
-                        if cross == '金叉':
-                            has_golden = True
-                            break
-                        if cross == '死叉':
-                            break
-                    if has_golden:
+                    if not check_no_recent_golden(all_rows, idx, 20):
                         continue
                     min15_rows = _load_csv(code, 'min15')
                     min15_ok = False

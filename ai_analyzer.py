@@ -268,7 +268,6 @@ def analyze_report(report_text, max_tokens=4096):
         persona = load_persona()
         framework = load_framework()
 
-        # 合并人格 + 框架为系统提示词
         parts = []
         if persona:
             parts.append(persona)
@@ -295,18 +294,106 @@ def analyze_report(report_text, max_tokens=4096):
 # CLI
 # ─────────────────────────────────────────
 
+# ─────────────────────────────────────────
+# 技术语境分析（新）
+# ─────────────────────────────────────────
+
+CONTEXT_SYSTEM_PROMPT = """你是一个量化交易系统的技术分析师。系统给了你一份"技术语境报告"，不是买卖信号。
+
+你的任务：
+1. 读懂5个视角的信息，合成一个连贯的"当前市场叙事"
+2. 判断该标当前处于什么阶段（趋势中？回调中？横盘？筑底？见顶？）
+3. 如果安全（不强制给买卖建议），给2-3种未来走势情景
+
+## 分析原则
+- **从数据出发，不要编造趋势**。报告中给的数据就是全部事实。
+- **先找主要矛盾**。5个视角里通常只有一个核心矛盾（如"均线空头但量价配合好"）。
+- **不要用模糊的量化术语堆砌**。用交易员语言，不是量化因子语言。
+- **情景必须可验证**。每个情景要有明确的"如果看到X就说明走的是这个情景"的触发条件。
+- **不主动给买卖建议，只分析可能性**。买卖决策留给用户。
+
+## 输出格式
+
+### 当前阶段判断
+（1-2句话，当前处于什么阶段）
+
+### 核心矛盾
+（1句话，5个视角里最关键的一个矛盾或信号）
+
+### 关键线索
+（3-5个要点，支撑你判断的具体证据，每一条都要引用报告里的具体数字）
+
+### 未来情景
+
+**情景A（大概·概率%）: 描述**
+- 触发条件: 如果看到X
+- 可能走法: 具体的目标位或走势描述
+
+**情景B（中概·概率%）: 描述**
+- 触发条件: 如果看到X
+- 可能走法: 具体的目标位或走势描述
+
+**情景C（小概·概率%）: 描述**  (可选)
+- 触发条件: 如果看到X
+- 可能走法: 具体的目标位或走势描述
+
+总字数控制在400-600字。"""
+
+
+def analyze_code(code, max_tokens=4096):
+    """
+    传入标的代码，构建技术语境并用 AI 做分析。
+
+    Returns:
+        dict: {
+            "content": str,      # AI 分析结果（Markdown）
+            "provider": str,     # 实际用到的 provider 名称
+            "tech_context": str, # 原始技术语境（调试用）
+            "error": str,        # 如有错误
+        }
+    """
+    try:
+        from .tech_context import build_tech_context
+    except ImportError:
+        import sys, os
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from tech_context import build_tech_context
+
+    ctx = build_tech_context(code)
+
+    try:
+        persona = load_persona()
+    except Exception:
+        persona = ''
+
+    parts = []
+    if persona:
+        parts.append(persona)
+    parts.append('\n\n---\n\n')
+    parts.append(CONTEXT_SYSTEM_PROMPT)
+
+    system_prompt = ''.join(parts)
+
+    content, provider = call_llm(system_prompt, ctx, max_tokens)
+    return {'content': content, 'provider': provider, 'tech_context': ctx, 'error': ''}
+
+
 def main():
-    """命令行入口：测试用"""
+    """命令行入口"""
     import argparse
     parser = argparse.ArgumentParser(description='AI分析引擎（多API自动切换）')
-    parser.add_argument('report_file', help='报告文件路径')
+    parser.add_argument('target', help='报告文件路径 或 标的代码（--code模式）')
+    parser.add_argument('--code', action='store_true', help='使用标的代码模式（自动构建技术语境）')
     parser.add_argument('--output', help='输出文件路径（可选）')
     args = parser.parse_args()
 
-    with open(args.report_file, 'r', encoding='utf-8') as f:
-        report_text = f.read()
+    if args.code:
+        result = analyze_code(args.target)
+    else:
+        with open(args.target, 'r', encoding='utf-8') as f:
+            report_text = f.read()
+        result = analyze_report(report_text)
 
-    result = analyze_report(report_text)
     if result.get('error'):
         print(f'[错误] {result["error"]}')
     else:
