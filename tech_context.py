@@ -55,7 +55,7 @@ def _pct(v, ndigits=1):
 # ── data loaders ──
 
 def _load_cycle(code):
-    path = TRACKING / 'cycle_report.json'
+    path = TRACKING / '_signals' / 'cycle_report.json'
     if not path.exists():
         return None
     with open(path, 'r', encoding='utf-8') as f:
@@ -67,7 +67,7 @@ def _load_cycle(code):
 
 
 def _load_latest(code):
-    path = TRACKING / 'latest.json'
+    path = TRACKING / '_signals' / 'latest.json'
     if not path.exists():
         return None
     with open(path, 'r', encoding='utf-8') as f:
@@ -546,7 +546,7 @@ def build_tech_context(code, csv_tail=80):
     if cycle:
         out.append(_section_one(cycle, daily_rows))
     else:
-        out.append("⚠ 无 cycle_report 数据，请先运行 `python cycle_engine.py --save`")
+        out.append("⚠ 无 cycle_report 数据，请先运行 `python run_cycle.py --save`")
     out.append("")
 
     # 视角二：多周期

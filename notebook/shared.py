@@ -15,8 +15,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # ── 只读：主系统数据 ──
 TRACKING_DIR = _PROJECT_ROOT / "signals" / "tracking"
-LATEST_JSON = TRACKING_DIR / "latest.json"
-CYCLE_REPORT = TRACKING_DIR / "cycle_report.json"
+LATEST_JSON = TRACKING_DIR / "_signals" / "latest.json"
+CYCLE_REPORT = TRACKING_DIR / "_signals" / "cycle_report.json"
 
 # ── 笔记本自身路径 ──
 NOTEBOOK_DIR = _PROJECT_ROOT / "notebook"

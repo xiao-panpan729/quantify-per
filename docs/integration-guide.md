@@ -28,7 +28,7 @@ D:\quantify-per\run_daily.bat
 自动执行：
 1. `update_from_tdx.py` — 同步通达信数据到 CSV
 2. `update_tracking.py` — 计算信号 → 快照
-3. `cycle_engine.py --save` — 周期循环分析 → cycle_report.json
+3. `run_cycle.py --save` — 周期循环分析 → cycle_report.json
 4. `gen_report_md.py` — 生成 Markdown 报告
 
 ### 2.2 单独运行各模块
@@ -47,7 +47,7 @@ python D:\quantify-per\gen_report_md.py
 python D:\quantify-per\ai_report_rewrite.py
 
 # 单标的多周期详情
-python D:\quantify-per\cycle_engine.py --code sh513310
+python D:\quantify-per\run_cycle.py --code sh513310
 
 # 筹码选股
 python D:\quantify-per\chips_selector.py
@@ -181,5 +181,5 @@ CCI: 值（极值类型）
 | 报告说"无数据" | 通达信还没下载盘后数据 | 先打开通达信下载 |
 | CCI 值巨大 | 价格缩放因子未除 | `/10000` |
 | 信号漏了 ★买 | 时序窗口太短 | 检查 `look_forward` 参数 |
-| 闭环数据不对 | 没运行过 `cycle_engine.py --save` | 先运行 cycle_engine.py --save |
+| 闭环数据不对 | 没运行过 `run_cycle.py --save` | 先运行 run_cycle.py --save |
 | 时间戳全是同一天 | `get_file_date()` 返回 YYYYMMDD 字符串 | 改为返回 float |

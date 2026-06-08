@@ -168,6 +168,11 @@ SKIP_WEEKEND = True
 # 是否显示详细日志（True=详细输出，False=只输出摘要）
 VERBOSE = True
 
+# 通达信价格编码因子（全局唯一，所有模块从这里引用）
+# 日线: 原始值/1000 = 真实价格，分钟线: 原始值/10000 = 真实价格
+DAY_PRICE_FACTOR = 1000
+MIN_PRICE_FACTOR = 10000
+
 # 数据文件扩展名映射
 EXTENSIONS = {
     'lday': '.day',

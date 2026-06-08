@@ -36,8 +36,8 @@ import config
 # ===== 路径配置 =====
 TDX_VIPDOC = os.path.join(config.TDX_ROOT, 'vipdoc')
 GBBQ_CSV = os.path.join(config.PROJECT_ROOT, 'gbbq', 'gbbq.csv')
-RANK_HISTORY_CSV = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', 'volume_rank_history.csv')
-UNIVERSE_PATH = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', 'volume_leader_universe.json')
+RANK_HISTORY_CSV = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', '_funds', 'volume_rank_history.csv')
+UNIVERSE_PATH = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', '_funds', 'volume_leader_universe.json')
 
 # ===== 常量 =====
 PRICE_COEF = 0.01       # A股日线价格系数

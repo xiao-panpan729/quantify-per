@@ -422,7 +422,7 @@ def main():
             'layer2_drivers': l2,
             'layer3_interactions': l3,
         }
-        out_path = TRACKING_DIR / 'factor_attribution.json'
+        out_path = TRACKING_DIR / '_funds' / 'factor_attribution.json'
         json.dump(report, open(out_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
         print(f'\n[保存] {out_path}')
         print(f'[查看] 结果已保存到 {out_path}, 用文本编辑器打开或用 json.load 读取')

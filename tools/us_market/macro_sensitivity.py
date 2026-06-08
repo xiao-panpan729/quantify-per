@@ -258,7 +258,7 @@ def main():
             entry['z_scores'][fn] = round(z, 3)
         out['sectors'][code] = entry
 
-    out_path = SIGNALS_DIR / "us_macro_sensitivity.json"
+    out_path = SIGNALS_DIR / "_macro" / "us_macro_sensitivity.json"
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
     print(f"\n  -> saved: {out_path}")

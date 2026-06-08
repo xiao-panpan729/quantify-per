@@ -26,7 +26,8 @@ SIGNALS_DIR = os.path.join(BASE_DIR, 'signals', 'tracking')
 
 PERIODS = ['daily', 'min60', 'min30', 'min15', 'min5']
 PERIOD_NAMES = {'daily': '日线', 'min60': '60分钟', 'min30': '30分钟', 'min15': '15分钟', 'min5': '5分钟'}
-PRICE_FACTOR = {'daily': 1, 'min60': 10000, 'min30': 10000, 'min15': 10000, 'min5': 10000}
+from config import MIN_PRICE_FACTOR
+PRICE_FACTOR = {'daily': 1, 'min60': MIN_PRICE_FACTOR, 'min30': MIN_PRICE_FACTOR, 'min15': MIN_PRICE_FACTOR, 'min5': MIN_PRICE_FACTOR}
 # 每周期最多嵌入 K 线根数
 MAX_BARS = {'daily': 250, 'min60': 300, 'min30': 300, 'min15': 300, 'min5': 300}
 # dataZoom 初始显示窗口 (≤ MAX_BARS)
@@ -97,7 +98,7 @@ def read_signal_csv(code, period):
 
 def read_cycle_report(code):
     """读取 cycle_report.json 中指定 code 的条目"""
-    path = os.path.join(SIGNALS_DIR, 'cycle_report.json')
+    path = os.path.join(SIGNALS_DIR, '_signals', 'cycle_report.json')
     if not os.path.exists(path):
         return None
     try:
@@ -112,7 +113,7 @@ def read_cycle_report(code):
 
 def read_op_records(code):
     """读取 operation_records.json 中指定 code 的战役记录"""
-    path = os.path.join(SIGNALS_DIR, 'operation_records.json')
+    path = os.path.join(SIGNALS_DIR, '_funds', 'operation_records.json')
     if not os.path.exists(path):
         return []
     try:

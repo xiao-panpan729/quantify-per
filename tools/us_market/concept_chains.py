@@ -84,12 +84,12 @@ def compute_chain_momentum(star_scores: list[dict] = None,
     """
     # Load scores if not provided
     if star_scores is None:
-        star_path = TRACKING_DIR / "us_star_momentum.json"
+        star_path = TRACKING_DIR / "_macro" / "us_star_momentum.json"
         if star_path.exists():
             with open(star_path, "r", encoding="utf-8") as f:
                 star_scores = json.load(f).get("stocks", [])
     if etf_scores is None:
-        etf_path = TRACKING_DIR / "us_sector_momentum.json"
+        etf_path = TRACKING_DIR / "_macro" / "us_sector_momentum.json"
         if etf_path.exists():
             with open(etf_path, "r", encoding="utf-8") as f:
                 etf_scores = json.load(f).get("etfs", [])
@@ -206,7 +206,7 @@ def main():
             "concepts": {name: {"type": c["type"], "n_stocks": len(c["stocks"]), "stocks": c["stocks"]}
                          for name, c in chains.items()},
         }
-        path = TRACKING_DIR / "us_concept_chains_export.json"
+        path = TRACKING_DIR / "_macro" / "us_concept_chains_export.json"
         with open(path, "w", encoding="utf-8") as f:
             json.dump(export, f, ensure_ascii=False, indent=2)
         print(f"  已导出: {path}")

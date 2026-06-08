@@ -411,7 +411,7 @@ def main():
                 entry[f'd_{c}'] = round(float(row[f'd_{c}']), 3)
             out['latest_scores'][row['code']] = entry
 
-    out_path = SIGNALS_DIR / "fundamental_scores.json"
+    out_path = SIGNALS_DIR / "_funds" / "fundamental_scores.json"
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
     print(f"\n  -> saved: {out_path}")

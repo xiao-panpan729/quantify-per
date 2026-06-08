@@ -363,7 +363,7 @@ def main():
         save_to_db(code, periods_data)
 
     # 保存 latest.json（单标模式：合并旧数据，不丢其他标的快照）
-    snapshot_path = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', 'latest.json')
+    snapshot_path = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', '_signals', 'latest.json')
     if target_code and os.path.exists(snapshot_path):
         try:
             old = json.loads(open(snapshot_path, 'r', encoding='utf-8').read())

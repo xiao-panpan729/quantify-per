@@ -35,7 +35,7 @@ from tools.fundamental.growth_narrative import (
 from tools.fundamental.capex_analyzer import CapexAnalyzer
 
 SIGNALS_DIR = _proj_root / "signals" / "tracking"
-OUTPUT_FILE = SIGNALS_DIR / "fundamental_profile.json"
+OUTPUT_FILE = SIGNALS_DIR / "_funds" / "fundamental_profile.json"
 CACHE_FILE = SIGNALS_DIR / ".fundamental_cache.json"
 CW_DIR = Path("C:/zd_cjzq/vipdoc/cw")
 
@@ -138,7 +138,7 @@ def build_profile(panel: pd.DataFrame = None,
     # 3. Type A/B classification (full universe: tracking + VL + 历史VL)
     print("\n[3/5] Growth narrative classification (Type A/B)...")
     try:
-        vl_data = json.load(open(SIGNALS_DIR / 'volume_leader_universe.json', 'r', encoding='utf-8'))
+        vl_data = json.load(open(SIGNALS_DIR / '_funds' / 'volume_leader_universe.json', 'r', encoding='utf-8'))
         vl_codes_classify = set(vl_data.get('universe', []))
     except Exception:
         vl_codes_classify = set()
@@ -185,7 +185,7 @@ def build_profile(panel: pd.DataFrame = None,
 
     # Per-stock profile: tracking universe + VL universe + 历史量领宇宙(Jan~May)
     try:
-        vl_data = json.load(open(SIGNALS_DIR / 'volume_leader_universe.json', 'r', encoding='utf-8'))
+        vl_data = json.load(open(SIGNALS_DIR / '_funds' / 'volume_leader_universe.json', 'r', encoding='utf-8'))
         vl_codes = set(vl_data.get('universe', []))
     except Exception:
         vl_codes = set()
@@ -200,7 +200,7 @@ def build_profile(panel: pd.DataFrame = None,
     stock_names = {}
     try:
         import csv
-        with open(SIGNALS_DIR / 'stock_names.csv', 'r', encoding='utf-8') as f:
+        with open(SIGNALS_DIR / '_funds' / 'stock_names.csv', 'r', encoding='utf-8') as f:
             for row_ in csv.reader(f):
                 if len(row_) >= 2:
                     stock_names[row_[0]] = row_[1]

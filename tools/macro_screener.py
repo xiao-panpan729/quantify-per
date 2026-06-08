@@ -21,9 +21,9 @@ SIGNALS_DIR = Path(__file__).parent.parent / "signals" / "tracking"
 
 def load_data():
     """Load sector momentum + macro sensitivity caches"""
-    with open(SIGNALS_DIR / "sector_momentum_cache.json", "r", encoding="utf-8") as f:
+    with open(SIGNALS_DIR / "_macro" / "sector_momentum_cache.json", "r", encoding="utf-8") as f:
         mom = json.load(f)
-    with open(SIGNALS_DIR / "macro_sensitivity.json", "r", encoding="utf-8") as f:
+    with open(SIGNALS_DIR / "_macro" / "macro_sensitivity.json", "r", encoding="utf-8") as f:
         macro = json.load(f)
     return mom, macro
 

@@ -249,7 +249,7 @@ def merge_japan_factors(macro: pd.DataFrame, japan: pd.DataFrame) -> pd.DataFram
 
 def load_sentiment_shock() -> dict | None:
     """Read B-class shock detection output"""
-    path = SIGNALS_DIR / "sentiment_shock.json"
+    path = SIGNALS_DIR / "_macro" / "sentiment_shock.json"
     if not path.exists():
         return None
     try:
@@ -261,7 +261,7 @@ def load_sentiment_shock() -> dict | None:
 
 def load_liquidity() -> dict | None:
     """Read liquidity monitor output"""
-    path = SIGNALS_DIR / "liquidity_monitor.json"
+    path = SIGNALS_DIR / "_macro" / "liquidity_monitor.json"
     if not path.exists():
         return None
     try:
@@ -690,7 +690,7 @@ def main():
             entry['z_scores'][fn] = round(z, 3)
         out['sectors'][code] = entry
 
-    out_path = SIGNALS_DIR / "macro_sensitivity.json"
+    out_path = SIGNALS_DIR / "_macro" / "macro_sensitivity.json"
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
     print(f"\n  -> saved: {out_path}")

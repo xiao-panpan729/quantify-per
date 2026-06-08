@@ -31,9 +31,9 @@ import config
 
 # ========== 常量 ==========
 
+from config import MIN_PRICE_FACTOR
 # 分钟线价格编码因子: price × 10000 → uint32
 # v4.4 升级: 从 100 改为 10000, 解决低价股/ETF精度不足问题
-MIN_PRICE_FACTOR = 10000
 
 # ========== 日志工具 ==========
 
@@ -608,7 +608,7 @@ def merge_daily_to_period(stock_code, target_type, market, logger):
         result['message'] = '已是最新'
         return result
 
-    PRICE_FACTOR = 1000.0
+    from config import DAY_PRICE_FACTOR as PRICE_FACTOR
 
     # 读取现有目标文件（用于后续追加）
     existing_bars = []

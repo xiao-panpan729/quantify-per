@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import PROJECT_ROOT
 BASE = Path(PROJECT_ROOT)
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
-OUTPUT_PATH = SNAPSHOT_DIR / 'hht_report.json'
+OUTPUT_PATH = SNAPSHOT_DIR / '_signals' / 'hht_report.json'
 
 PERIODS = ['min1', 'min5', 'min15', 'min30', 'min60', 'daily']
 PERIOD_LABELS = {

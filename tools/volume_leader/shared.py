@@ -11,15 +11,14 @@ PYTDX_PORT = 7709
 # ─── 路径常量 ───
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 TRACKING_DIR = REPO_ROOT / 'signals' / 'tracking'
-UNIVERSE_PATH = TRACKING_DIR / 'volume_leader_universe.json'
+UNIVERSE_PATH = TRACKING_DIR / '_funds' / 'volume_leader_universe.json'
 TRADES_LOG_PATH = TRACKING_DIR / 'realtime_trades.jsonl'
-STOCK_NAMES_PATH = TRACKING_DIR / 'stock_names.csv'
+STOCK_NAMES_PATH = TRACKING_DIR / '_funds' / 'stock_names.csv'
 TDX_VIPDOC = Path('C:/zd_cjzq/vipdoc')
 
 # ─── 信号参数 ───
 LOOKBACK_BARS = 500
-DAY_PRICE_FACTOR = 1000
-MIN_PRICE_FACTOR = 10000
+from config import DAY_PRICE_FACTOR, MIN_PRICE_FACTOR
 
 # ─── 等级标签 ───
 BUY_LABELS = {

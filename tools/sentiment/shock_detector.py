@@ -19,8 +19,8 @@ import websockets
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 TRACKING_DIR = PROJECT_ROOT / "signals" / "tracking"
-OUTPUT_FILE = TRACKING_DIR / "sentiment_shock.json"
-STATE_FILE = TRACKING_DIR / ".sentiment_state.json"  # 记录上次运行时间
+OUTPUT_FILE = TRACKING_DIR / "_macro" / "sentiment_shock.json"
+STATE_FILE = TRACKING_DIR / "_macro" / ".sentiment_state.json"  # 记录上次运行时间
 KEYWORDS_FILE = Path(__file__).resolve().parent / "shock_keywords.json"
 
 
@@ -368,7 +368,7 @@ def _load_stock_names() -> dict[str, str]:
     if _stock_names_cache is not None:
         return _stock_names_cache
 
-    csv_path = PROJECT_ROOT / "signals" / "tracking" / "stock_names.csv"
+    csv_path = PROJECT_ROOT / "signals" / "tracking" / "_funds" / "stock_names.csv"
     mapping = {}
     if csv_path.exists():
         import csv

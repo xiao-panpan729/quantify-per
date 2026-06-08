@@ -42,7 +42,7 @@ if str(_proj_root) not in sys.path:
     sys.path.insert(0, str(_proj_root))
 
 SIGNALS_DIR = _proj_root / "signals" / "tracking"
-OUTPUT_FILE = SIGNALS_DIR / "liquidity_monitor.json"
+OUTPUT_FILE = SIGNALS_DIR / "_macro" / "liquidity_monitor.json"
 
 import warnings
 warnings.filterwarnings('ignore')

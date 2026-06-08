@@ -214,7 +214,7 @@ def save_stock_results(results: list[dict], date_str: str = None):
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     # JSON
-    json_path = TRACKING_DIR / "us_star_momentum.json"
+    json_path = TRACKING_DIR / "_macro" / "us_star_momentum.json"
     payload = {
         "date": date_str,
         "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -229,7 +229,7 @@ def save_stock_results(results: list[dict], date_str: str = None):
     from tools.us_market.concept_chains import compute_chain_momentum, print_concept_ranking
     chain_scores = compute_chain_momentum(star_scores=results)
     if chain_scores:
-        chain_json_path = TRACKING_DIR / "us_concept_momentum.json"
+        chain_json_path = TRACKING_DIR / "_macro" / "us_concept_momentum.json"
         chain_payload = {
             "date": date_str,
             "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

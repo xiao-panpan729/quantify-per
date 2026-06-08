@@ -149,7 +149,7 @@ def _classify_fragile_path(code, current_score, zone_advice):
 
     global _score_history_cache
     if _score_history_cache is None:
-        path = SNAPSHOT_DIR / 'score_history.json'
+        path = SNAPSHOT_DIR / '_signals' / 'score_history.json'
         if path.exists():
             try:
                 _score_history_cache = json.load(open(path, 'r', encoding='utf-8'))

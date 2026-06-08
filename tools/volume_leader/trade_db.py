@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-TRADES_DB = REPO_ROOT / 'signals' / 'tracking' / 'realtime_trades.db'
+TRADES_DB = REPO_ROOT / 'signals' / 'tracking' / '_funds' / 'realtime_trades.db'
 
 
 def _conn():

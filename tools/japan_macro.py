@@ -333,7 +333,7 @@ def save_japan_data(df: pd.DataFrame, env: dict):
             'carry_regime': row.get('carry_regime', 'unknown'),
         }
 
-    path = TRACKING_DIR / "japan_macro.json"
+    path = TRACKING_DIR / "_macro" / "japan_macro.json"
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
     print(f"\n  [JSON] {path}")

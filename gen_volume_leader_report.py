@@ -24,11 +24,11 @@ from tools.volume_leader.filter_engine import (
 )
 
 _BASE = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking')
-CYCLE_REPORT = os.path.join(_BASE, 'cycle_report.json')
-SYNTH_REPORT = os.path.join(_BASE, 'synthesized_report.json')
-SCORE_HISTORY = os.path.join(_BASE, 'score_history.json')
-UNIVERSE_PATH = os.path.join(_BASE, 'volume_leader_universe.json')
-NAME_CACHE = os.path.join(_BASE, 'stock_names.csv')
+CYCLE_REPORT = os.path.join(_BASE, '_signals', 'cycle_report.json')
+SYNTH_REPORT = os.path.join(_BASE, '_signals', 'synthesized_report.json')
+SCORE_HISTORY = os.path.join(_BASE, '_signals', 'score_history.json')
+UNIVERSE_PATH = os.path.join(_BASE, '_funds', 'volume_leader_universe.json')
+NAME_CACHE = os.path.join(_BASE, '_funds', 'stock_names.csv')
 REPORT_DIR = os.path.join(config.PROJECT_ROOT, 'reports', 'volume_leader')
 
 
@@ -283,7 +283,7 @@ def main():
 
     cycle = load_json(CYCLE_REPORT)
     if not cycle:
-        print('[错误] 找不到 cycle_report.json，请先运行 cycle_engine.py --save')
+        print('[错误] 找不到 cycle_report.json，请先运行 run_cycle.py --save')
         sys.exit(1)
 
     universe = load_universe_codes()
@@ -294,7 +294,7 @@ def main():
     # 过滤到 volume leader 标的
     vl_items = [r for r in cycle if r.get('code') in universe]
     if not vl_items:
-        print('[信息] cycle_report.json 中没有 volume leader 标的，请先运行 update_volume_leaders.py + cycle_engine.py --save')
+        print('[信息] cycle_report.json 中没有 volume leader 标的，请先运行 update_volume_leaders.py + run_cycle.py --save')
         sys.exit(0)
 
     synth = load_json(SYNTH_REPORT)

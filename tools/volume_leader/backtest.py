@@ -1569,7 +1569,7 @@ def main():
 
     # 保存
     if args.save:
-        out_path = TRACKING_DIR / 'backtest_report.json'
+        out_path = TRACKING_DIR / '_signals' / 'backtest_report.json'
         report = {
             'generated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'params': {'months': args.months, 'period': args.period if args.code else 'all'},

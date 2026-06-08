@@ -190,7 +190,7 @@ def save_results(results: list[dict], date_str: str = None):
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     # JSON
-    json_path = TRACKING_DIR / "us_sector_momentum.json"
+    json_path = TRACKING_DIR / "_macro" / "us_sector_momentum.json"
     payload = {
         "date": date_str,
         "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

@@ -9,7 +9,7 @@
     python operation_tracker.py --list          # 列出全部战役
 
 数据: signals/tracking/operation_records.json
-依赖: cycle_report.json (由 cycle_engine.py 生成)
+依赖: cycle_report.json (由 run_cycle.py 生成)
 """
 
 import json
@@ -18,9 +18,9 @@ import sys
 from datetime import datetime
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-CYCLE_REPORT = os.path.join(BASE, 'signals/tracking/cycle_report.json')
-ANALYSIS_HISTORY = os.path.join(BASE, 'signals/tracking/analysis_history.json')
-OP_RECORDS = os.path.join(BASE, 'signals/tracking/operation_records.json')
+CYCLE_REPORT = os.path.join(BASE, 'signals/tracking/_signals/cycle_report.json')
+ANALYSIS_HISTORY = os.path.join(BASE, 'signals/tracking/_signals/analysis_history.json')
+OP_RECORDS = os.path.join(BASE, 'signals/tracking/_funds/operation_records.json')
 
 # ─── 辅助 ───
 
@@ -50,7 +50,7 @@ def pct_color(pct):
 
 def load_cycle_report():
     if not os.path.exists(CYCLE_REPORT):
-        print('[战役] ❌ cycle_report.json 未找到，请先运行 cycle_engine.py')
+        print('[战役] ❌ cycle_report.json 未找到，请先运行 run_cycle.py')
         return []
     with open(CYCLE_REPORT, 'r', encoding='utf-8') as f:
         return json.load(f)
@@ -312,7 +312,7 @@ def detect_close_signal(item, hht_lookup):
 # ─── HHT 数据加载 ───
 
 def load_hht_data():
-    hht_path = os.path.join(BASE, 'signals/tracking/hht_report.json')
+    hht_path = os.path.join(BASE, 'signals/tracking/_signals/hht_report.json')
     if os.path.exists(hht_path):
         try:
             raw = json.load(open(hht_path, 'r', encoding='utf-8'))

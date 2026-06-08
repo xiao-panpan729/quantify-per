@@ -14,9 +14,9 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import NAME_MAP, PROJECT_ROOT
 
-DATA_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'cycle_report.json')
-HHT_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'hht_report.json')
-SYNTH_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'synthesized_report.json')
+DATA_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', '_signals', 'cycle_report.json')
+HHT_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', '_signals', 'hht_report.json')
+SYNTH_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', '_signals', 'synthesized_report.json')
 
 _data_cache = None
 _hht_cache = None
@@ -122,7 +122,7 @@ def _hht_summary(code):
     return '-'
 
 # ════════════════ 分数历史 ════════════════
-SCORE_HISTORY = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'score_history.json')
+SCORE_HISTORY = os.path.join(PROJECT_ROOT, 'signals', 'tracking', '_signals', 'score_history.json')
 
 def load_score_history():
     """返回所有历史条目（按日期排序），空列表 = 无历史"""
@@ -422,7 +422,7 @@ def build_report_lines():
     lines.append('')
     lines.append('**生成时间**: %s' % time_str)
     lines.append('**框架**: 信号质量递进（★买密集度 + 金叉跟随速度 + 底部价格方向 + 闭环完整性）')
-    lines.append('**数据源**: cycle_engine.py 实时计算（非快照）')
+    lines.append('**数据源**: run_cycle.py 实时计算（非快照）')
     lines.append('')
     lines.append('---')
     lines.append('')
@@ -778,7 +778,7 @@ def build_report_lines():
     lines.append('')
     
     # ════════════════ 四、战役状态追踪 ════════════════
-    OP_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'operation_records.json')
+    OP_PATH = os.path.join(PROJECT_ROOT, 'signals', 'tracking', '_funds', 'operation_records.json')
     if os.path.exists(OP_PATH):
         try:
             op_data = json.load(open(OP_PATH, 'r', encoding='utf-8'))
@@ -864,7 +864,7 @@ def build_report_lines():
     lines.append('> **注**: 全部12只标的均展示，无新信号的标注"近期无★信号"。')
     lines.append('')
     
-    bt_path = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'backtest_report.json')
+    bt_path = os.path.join(PROJECT_ROOT, 'signals', 'tracking', '_signals', 'backtest_report.json')
     bt_data = {}
     if os.path.exists(bt_path):
         bt_data = json.load(open(bt_path, 'r', encoding='utf-8'))
@@ -1056,7 +1056,7 @@ def append_params_reference(lines):
 # ═══════════════════════════════════════
 # 增量数据保存 — 积累型 analysis_history.json
 # ═══════════════════════════════════════
-ANALYSIS_HISTORY = os.path.join(PROJECT_ROOT, 'signals', 'tracking', 'analysis_history.json')
+ANALYSIS_HISTORY = os.path.join(PROJECT_ROOT, 'signals', 'tracking', '_signals', 'analysis_history.json')
 
 def save_analysis_history(data, date_str):
     """将当日完整分析快照增量追加到 analysis_history.json

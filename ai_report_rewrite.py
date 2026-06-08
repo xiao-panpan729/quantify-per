@@ -18,10 +18,10 @@ sys.path.insert(0, str(BASE))
 from ai_analyzer import call_llm, load_persona, load_framework
 from config import NAME_MAP
 
-CYCLE_REPORT = BASE / 'signals' / 'tracking' / 'cycle_report.json'
-SYNTH_REPORT = BASE / 'signals' / 'tracking' / 'synthesized_report.json'
-SCORE_HISTORY = BASE / 'signals' / 'tracking' / 'score_history.json'
-HHT_REPORT = BASE / 'signals' / 'tracking' / 'hht_report.json'
+CYCLE_REPORT = BASE / 'signals' / 'tracking' / '_signals' / 'cycle_report.json'
+SYNTH_REPORT = BASE / 'signals' / 'tracking' / '_signals' / 'synthesized_report.json'
+SCORE_HISTORY = BASE / 'signals' / 'tracking' / '_signals' / 'score_history.json'
+HHT_REPORT = BASE / 'signals' / 'tracking' / '_signals' / 'hht_report.json'
 REPORT_DIR = BASE / 'reports' / 'daily'
 
 DIR_EN_MAP = {

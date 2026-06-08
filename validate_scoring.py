@@ -337,7 +337,7 @@ def main():
         return
 
     # 保存 CSV
-    save_csv(all_results, os.path.join(TRACKING_DIR, 'score_validation.csv'))
+    save_csv(all_results, os.path.join(TRACKING_DIR, '_signals', 'score_validation.csv'))
 
     # 统计
     bucket_returns = print_stats(all_results)

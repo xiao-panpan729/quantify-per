@@ -77,7 +77,7 @@ def load_us_etf_returns() -> dict[str, pd.Series]:
 
 def load_top_cn_sectors(n: int = TOP_SECTORS) -> list[dict]:
     """加载 Top N A股板块（按 sector_momentum X_1 排名）"""
-    cache_path = TRACKING_DIR / "sector_momentum_cache.json"
+    cache_path = TRACKING_DIR / "_macro" / "sector_momentum_cache.json"
     if not cache_path.exists():
         print("  [WARN] sector_momentum_cache.json not found, falling back to tdxzs")
         return _load_sectors_from_tdxzs(n)
@@ -297,7 +297,7 @@ def save_mapping(mappings: list[dict], summary: dict):
         "top_mappings": mappings[:50],   # top 50
         "all_mappings": mappings,        # all
     }
-    path = TRACKING_DIR / "us_cn_mapping.json"
+    path = TRACKING_DIR / "_macro" / "us_cn_mapping.json"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
     print(f"\n[JSON] {path}")

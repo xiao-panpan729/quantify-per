@@ -56,7 +56,7 @@ if %errorlevel% neq 0 (
 echo.
 
 echo [5/10] 周期循环分析...
-python cycle_engine.py --save
+python run_cycle.py --save
 if %errorlevel% neq 0 (
     echo [错误] 周期分析失败
     pause

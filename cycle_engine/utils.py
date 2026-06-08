@@ -14,7 +14,7 @@ from config import PROJECT_ROOT
 
 BASE = Path(PROJECT_ROOT)
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
-OUTPUT_PATH = BASE / 'signals' / 'tracking' / 'cycle_report.json'
+OUTPUT_PATH = BASE / 'signals' / 'tracking' / '_signals' / 'cycle_report.json'
 
 PERIODS = ['min1', 'min5', 'min15', 'min30', 'min60', 'daily']
 PERIOD_LABELS = {

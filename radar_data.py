@@ -28,7 +28,7 @@ def is_tracked(code):
 
 def get_cycle_status(code):
     """从 cycle_report.json 获取当前状态"""
-    data = _load_json('cycle_report.json')
+    data = _load_json('_signals', 'cycle_report.json')
     if isinstance(data, list):
         for item in data:
             if item.get('code') == code:
@@ -38,7 +38,7 @@ def get_cycle_status(code):
 
 def get_campaigns(code):
     """从 operation_records.json 获取战役列表"""
-    data = _load_json('operation_records.json')
+    data = _load_json('_funds', 'operation_records.json')
     return [c for c in data.get('campaigns', []) if c.get('code') == code]
 
 
@@ -98,7 +98,7 @@ def get_signal_events(code, max_days=120):
 
 def get_score_history(code, max_days=30):
     """从 score_history.json 取评分历史"""
-    data = _load_json('score_history.json')
+    data = _load_json('_signals', 'score_history.json')
     history = data.get('history', [])
     scores = []
     for entry in history[-max_days:]:

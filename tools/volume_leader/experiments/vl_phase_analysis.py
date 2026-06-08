@@ -38,7 +38,7 @@ MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月']
 
 def _load_names():
     names = {}
-    names_csv = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', 'stock_names.csv')
+    names_csv = os.path.join(config.PROJECT_ROOT, 'signals', 'tracking', '_funds', 'stock_names.csv')
     if os.path.exists(names_csv):
         import pandas as pd
         df = pd.read_csv(names_csv, encoding='utf-8', dtype=str)

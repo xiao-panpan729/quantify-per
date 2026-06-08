@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from config import PROJECT_ROOT
+from config import PROJECT_ROOT, DAY_PRICE_FACTOR, MIN_PRICE_FACTOR
 from cycle_engine.utils import safe_float
 from tools.volume_leader.filter_engine import (
     check_ma_chain, check_expma_golden,
@@ -24,14 +24,12 @@ from tools.volume_leader.filter_engine import (
 
 BASE = Path(PROJECT_ROOT)
 SNAPSHOT_DIR = BASE / 'signals' / 'tracking'
-BACKTEST_OUT = BASE / 'signals' / 'tracking' / 'backtest_report.json'
-BACKTEST_DB  = BASE / 'signals' / 'tracking' / 'backtest_trades.db'
+BACKTEST_OUT = BASE / 'signals' / 'tracking' / '_signals' / 'backtest_report.json'
+BACKTEST_DB  = BASE / 'signals' / 'tracking' / '_signals' / 'backtest_trades.db'
 BACKTEST_ARC = BASE / 'signals' / 'backtest_archive'
-CYCLE_REPORT = BASE / 'signals' / 'tracking' / 'cycle_report.json'
+CYCLE_REPORT = BASE / 'signals' / 'tracking' / '_signals' / 'cycle_report.json'
 PERIODS = ['min5', 'min15', 'min30', 'min60', 'daily']
 PERIOD_CN = {'min5':'5分钟','min15':'15分钟','min30':'30分钟','min60':'60分钟','daily':'日线'}
-MIN_PRICE_FACTOR = 10000   # 分钟线原始值/10000
-DAY_PRICE_FACTOR = 1000    # 日线原始值/1000
 
 # ========== 数据加载 ==========
 
@@ -898,7 +896,7 @@ def archive_backtest_report():
 
 def _load_volume_leader_universe():
     """加载量领宇宙列表，只测这些标的"""
-    f = SNAPSHOT_DIR / 'volume_leader_universe.json'
+    f = SNAPSHOT_DIR / '_funds' / 'volume_leader_universe.json'
     if not f.exists():
         return None  # 没有量领宇宙 → 回退到全量
     try:

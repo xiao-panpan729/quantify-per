@@ -1,7 +1,7 @@
 import json, sys
 sys.stdout.reconfigure(encoding='utf-8')
 
-d = json.load(open('d:/quantify-per/signals/tracking/cycle_report.json', 'r', encoding='utf-8'))
+d = json.load(open('d:/quantify-per/signals/tracking/_signals/cycle_report.json', 'r', encoding='utf-8'))
 
 tracked = ['sh000001','sz399006','sz159740','sh520600','sh513120','sz159326','sh513310','sh588200',
            'sz002261','sz300118','sz000100','sz002129','sh600438','sh601012']

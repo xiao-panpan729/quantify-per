@@ -172,7 +172,7 @@ D:\knowledge-hub\
 ## 六、两系统对接设想
 
 ```
-quantify-per 的 cycle_engine.py
+quantify-per 的 run_cycle.py
   │
   ├── 读取 signal CSV（PE/HHT/CCI/EXPMA/★买卖...）
   ├── 读取 narrative_snapshot.json（宏观方向/板块热度/个股叙事阶段）
@@ -205,7 +205,7 @@ quantify-per 的 cycle_engine.py
 - 编写简单的叙事快照生成脚本
 
 ### Phase 3：集成
-- cycle_engine.py 加载 narrative_snapshot.json
+- run_cycle.py 加载 narrative_snapshot.json
 - 报告同时展示技术面+叙事面
 - 两系统正式互通
 

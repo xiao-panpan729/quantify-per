@@ -353,7 +353,7 @@ def analyze_all(base_dir=None):
                                 'signals', 'tracking')
 
     # 从 cycle_report.json 获取跟踪列表
-    cycle_path = os.path.join(base_dir, 'cycle_report.json')
+    cycle_path = os.path.join(base_dir, '_signals', 'cycle_report.json')
     if not os.path.exists(cycle_path):
         return []
 

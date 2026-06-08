@@ -12,11 +12,9 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import MIN_PRICE_FACTOR
 
 PE_GATE_LOG = 'signals/tracking/pe_gate_log.jsonl'
-MIN_PRICE_FACTOR = 10000
-
-
 def load_log():
     if not os.path.exists(PE_GATE_LOG):
         return []

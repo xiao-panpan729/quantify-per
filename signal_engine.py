@@ -19,11 +19,9 @@ from collections import deque
 from datetime import datetime
 
 import config
+from config import DAY_PRICE_FACTOR, MIN_PRICE_FACTOR
 
 # ========== 常量 ==========
-
-DAY_PRICE_FACTOR = 1000   # 日线价格编码: price * 1000
-MIN_PRICE_FACTOR = 10000  # 分钟线价格编码: price * 10000 (v4.4, 精度0.0001元)
 
 # 分时出击参数
 TREND_PERIOD_DAILY = 55       # 日线 LLV/HHV 周期

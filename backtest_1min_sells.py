@@ -14,6 +14,7 @@
 
 import sys, os, json, csv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from config import MIN_PRICE_FACTOR
 
 from collections import defaultdict
 from signal_engine import (read_bars_lc1,
@@ -24,8 +25,6 @@ from signal_engine import (read_bars_lc1,
 TOTAL_BARS = 6000       # 25天 × 240根/天
 SKIP_BARS = 200
 LOOKAHEAD = 40          # 卖信号后看未来N根bar (40分钟)
-MIN_PRICE_FACTOR = 10000
-
 # 减仓环境过滤参数
 NO_GOLDEN_WINDOW = 100   # 100根1分钟 ≈ 100分钟
 
@@ -35,7 +34,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def load_universe():
     """从 volume_leader_universe.json 加载标的列表"""
-    path = os.path.join(BASE_DIR, 'signals', 'tracking', 'volume_leader_universe.json')
+    path = os.path.join(BASE_DIR, 'signals', 'tracking', '_funds', 'volume_leader_universe.json')
     with open(path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     codes = data.get('universe', [])
@@ -49,7 +48,7 @@ def load_universe():
     except ImportError:
         pass
     # 再从 stock_names.csv
-    csv_path = os.path.join(BASE_DIR, 'signals', 'tracking', 'stock_names.csv')
+    csv_path = os.path.join(BASE_DIR, 'signals', 'tracking', '_funds', 'stock_names.csv')
     if os.path.exists(csv_path):
         with open(csv_path, 'r', encoding='utf-8-sig') as f:
             for r in csv.DictReader(f):

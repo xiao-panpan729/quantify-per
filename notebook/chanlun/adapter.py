@@ -13,9 +13,7 @@ from typing import List
 import pandas as pd
 from czsc import RawBar, Freq
 
-# 价格因子常量(来自 quantify-per 约定)
-DAY_PRICE_FACTOR = 1000.0
-MIN_PRICE_FACTOR = 10000.0
+from config import DAY_PRICE_FACTOR, MIN_PRICE_FACTOR
 
 
 def df_to_bars(df: pd.DataFrame, symbol: str, freq: Freq = Freq.D) -> List[RawBar]:

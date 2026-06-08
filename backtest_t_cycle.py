@@ -7,6 +7,7 @@
 
 import sys, os, json, csv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from config import MIN_PRICE_FACTOR
 
 from collections import defaultdict
 from signal_engine import (read_bars_lc1, read_bars,
@@ -17,7 +18,6 @@ from signal_engine import (read_bars_lc1, read_bars,
 TOTAL_BARS_1M = 6000      # 1分钟: 25天
 TOTAL_BARS_5M = 1200      # 5分钟: 25天 × 48根/天 = 1200
 SKIP_BARS = 200
-MIN_PRICE_FACTOR = 10000
 T_STOP_PCT = 2.0          # 涨超2%创新高强制止损买回
 LOOKAHEAD = 80            # 最大等待80根bar (1分钟=80分钟, 5分钟=400分钟)
 
@@ -26,7 +26,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def load_universe():
-    path = os.path.join(BASE_DIR, 'signals', 'tracking', 'volume_leader_universe.json')
+    path = os.path.join(BASE_DIR, 'signals', 'tracking', '_funds', 'volume_leader_universe.json')
     with open(path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     codes = data.get('universe', [])
@@ -36,7 +36,7 @@ def load_universe():
         names.update(NAME_MAP)
     except ImportError:
         pass
-    csv_path = os.path.join(BASE_DIR, 'signals', 'tracking', 'stock_names.csv')
+    csv_path = os.path.join(BASE_DIR, 'signals', 'tracking', '_funds', 'stock_names.csv')
     if os.path.exists(csv_path):
         with open(csv_path, 'r', encoding='utf-8-sig') as f:
             for r in csv.DictReader(f):

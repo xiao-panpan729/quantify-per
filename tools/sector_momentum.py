@@ -379,7 +379,7 @@ def compare_with_tdx(results: list[dict]):
 
 # ── 个股↔板块映射缓存 ──
 
-CACHE_FILE = Path(__file__).parent.parent / "signals" / "tracking" / "sector_momentum_cache.json"
+CACHE_FILE = Path(__file__).parent.parent / "signals" / "tracking" / "_macro" / "sector_momentum_cache.json"
 
 
 def build_stock_sector_cache(results: list[dict]) -> dict:

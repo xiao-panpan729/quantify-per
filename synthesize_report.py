@@ -43,7 +43,7 @@ GRADE_TO_ABCD = {
 # ════════════════════════════════════════════
 
 def load_cycle_report():
-    path = os.path.join(BASE, 'signals', 'tracking', 'cycle_report.json')
+    path = os.path.join(BASE, 'signals', 'tracking', '_signals', 'cycle_report.json')
     try:
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -54,7 +54,7 @@ def load_cycle_report():
 
 
 def load_hht_report():
-    path = os.path.join(BASE, 'signals', 'tracking', 'hht_report.json')
+    path = os.path.join(BASE, 'signals', 'tracking', '_signals', 'hht_report.json')
     try:
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -452,7 +452,7 @@ def synthesize_all():
 
 
 def save_synthesized(data):
-    path = os.path.join(BASE, 'signals', 'tracking', 'synthesized_report.json')
+    path = os.path.join(BASE, 'signals', 'tracking', '_signals', 'synthesized_report.json')
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)

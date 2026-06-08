@@ -34,15 +34,15 @@ def _data_source_status() -> list:
     status.append(("公众号文章", wc_status, str(wechat_count) if wechat_count > 0 else "0", wc_note))
     # JSON 数据源
     json_checks = [
-        ("消息面冲击", "sentiment_shock.json", "shocks"),
-        ("全球流动性", "liquidity_monitor.json", "pressure"),
-        ("中国宏观快照", "macro_snapshot.json", "environment"),
-        ("US宏观环境", "us_macro_sensitivity.json", "environment"),
-        ("日本宏观+套息", "japan_macro.json", "carry_pressure"),
-        ("US ETF动量", "us_sector_momentum.json", "etfs"),
-        ("US明星股动量", "us_star_momentum.json", "stocks"),
-        ("概念链轮动", "us_concept_momentum.json", "chains"),
-        ("基本面因子", "fundamental_profile.json", "factor_premium_series"),
+        ("消息面冲击", "_macro/sentiment_shock.json", "shocks"),
+        ("全球流动性", "_macro/liquidity_monitor.json", "pressure"),
+        ("中国宏观快照", "_macro/macro_snapshot.json", "environment"),
+        ("US宏观环境", "_macro/us_macro_sensitivity.json", "environment"),
+        ("日本宏观+套息", "_macro/japan_macro.json", "carry_pressure"),
+        ("US ETF动量", "_macro/us_sector_momentum.json", "etfs"),
+        ("US明星股动量", "_macro/us_star_momentum.json", "stocks"),
+        ("概念链轮动", "_macro/us_concept_momentum.json", "chains"),
+        ("基本面因子", "_funds/fundamental_profile.json", "factor_premium_series"),
     ]
     for name, fname, key in json_checks:
         fp = SIGNALS_DIR / fname
@@ -124,7 +124,7 @@ blocks.append("---")
 blocks.append("")
 blocks.append("## 🔴 消息面突发事件")
 blocks.append("")
-shock = _read_json(SIGNALS_DIR / "sentiment_shock.json")
+shock = _read_json(SIGNALS_DIR / "_macro/sentiment_shock.json")
 if shock:
     level = shock.get("impact_level", "?")
     net = shock.get("net_impact", "?")
@@ -151,7 +151,7 @@ blocks.append("---")
 blocks.append("")
 blocks.append("## 🌍 全球流动性")
 blocks.append("")
-liq = _read_json(SIGNALS_DIR / "liquidity_monitor.json")
+liq = _read_json(SIGNALS_DIR / "_macro/liquidity_monitor.json")
 if liq:
     p = liq.get("pressure", "?")
     regime = liq.get("regime", "?")
@@ -170,7 +170,7 @@ blocks.append("---")
 blocks.append("")
 blocks.append("## 🇨🇳 中国宏观快照")
 blocks.append("")
-snap = _read_json(SIGNALS_DIR / "macro_snapshot.json")
+snap = _read_json(SIGNALS_DIR / "_macro/macro_snapshot.json")
 if snap:
     env = snap.get("environment", "?")
     score = snap.get("score", "?")
@@ -206,7 +206,7 @@ blocks.append("---")
 blocks.append("")
 blocks.append("## 🇺🇸 US宏观环境")
 blocks.append("")
-usm = _read_json(SIGNALS_DIR / "us_macro_sensitivity.json")
+usm = _read_json(SIGNALS_DIR / "_macro/us_macro_sensitivity.json")
 if usm:
     env = usm.get("environment", {})
     blocks.append(f"**分类**: {_clean(env.get('environment', '?'), 20)} (score={env.get('score', '?')})")
@@ -224,7 +224,7 @@ blocks.append("---")
 blocks.append("")
 blocks.append("## 🇯🇵 日本宏观 / 套息交易")
 blocks.append("")
-jap = _read_json(SIGNALS_DIR / "japan_macro.json")
+jap = _read_json(SIGNALS_DIR / "_macro/japan_macro.json")
 if jap:
     blocks.append(f"- **BOJ利率**: {jap.get('boj_rate', '?')} ({jap.get('boj_signal', '?')})")
     blocks.append(f"- **日本CPI**: {jap.get('japan_cpi', '?')}")
@@ -242,7 +242,7 @@ blocks.append("---")
 blocks.append("")
 blocks.append("## 🇺🇸 US ETF动量 Top/Bottom")
 blocks.append("")
-etf = _read_json(SIGNALS_DIR / "us_sector_momentum.json")
+etf = _read_json(SIGNALS_DIR / "_macro/us_sector_momentum.json")
 if etf:
     items = [(e.get("name", "?"), e.get("x1", 0), e.get("close", "?"))
              for e in etf.get("etfs", [])]
@@ -262,7 +262,7 @@ blocks.append("---")
 blocks.append("")
 blocks.append("## ⭐ US明星股动量 Top/Bottom")
 blocks.append("")
-star = _read_json(SIGNALS_DIR / "us_star_momentum.json")
+star = _read_json(SIGNALS_DIR / "_macro/us_star_momentum.json")
 if star:
     items = [(s.get("name", "?"), s.get("x1", 0), s.get("close", "?"))
              for s in star.get("stocks", [])]
@@ -282,7 +282,7 @@ blocks.append("---")
 blocks.append("")
 blocks.append("## 🔗 概念链轮动")
 blocks.append("")
-cc = _read_json(SIGNALS_DIR / "us_concept_momentum.json")
+cc = _read_json(SIGNALS_DIR / "_macro/us_concept_momentum.json")
 if cc:
     items = [(c.get("chain", "?"), c.get("avg_x1", 0))
              for c in cc.get("chains", [])]
@@ -302,7 +302,7 @@ blocks.append("---")
 blocks.append("")
 blocks.append("## 📊 基本面因子溢价（最新窗口）")
 blocks.append("")
-fund = _read_json(SIGNALS_DIR / "fundamental_profile.json")
+fund = _read_json(SIGNALS_DIR / "_funds/fundamental_profile.json")
 if fund:
     series = fund.get("factor_premium_series", [])
     if series:
