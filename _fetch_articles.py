@@ -4,7 +4,7 @@ import urllib.request, urllib.parse, json, os, time, sys
 from datetime import datetime
 from config import PROJECT_ROOT
 
-KEY = os.environ.get('MPTEXT_API_KEY', '8a1e3faf9861407aa6a00eb6d4971e0c')
+KEY = os.environ.get('MPTEXT_API_KEY', '931355aec9274ea7aa25dd11f9042414')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'wechat_articles')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -16,6 +16,7 @@ ACCOUNTS = {
     'Mzk0MzY0OTU5Ng==': '卓哥投研笔记',
     'MzIzODg2NDQyMA==': '灰岩金融科技',
     'MzE5ODk2NjUwOA==': '猫笔刀',
+    'MzI3ODAyODI0Ng==': '中信建投证券研究',
 }
 
 def api_get(url, use_key=True, retries=3):
@@ -68,7 +69,7 @@ def get_article_links(fakeid, max_msgs=30):
 def download_article(article_url):
     encoded = urllib.parse.quote(article_url, safe='')
     url = f'https://down.mptext.top/api/public/v1/download?url={encoded}&format=text'
-    raw = api_get(url, use_key=False)
+    raw = api_get(url, use_key=True)
     if raw.startswith('HTTP_ERROR') or raw.startswith('ERROR'):
         return None
     if not raw or len(raw.strip()) < 50:

@@ -36,6 +36,8 @@ from tools.fundamental.capex_analyzer import CapexAnalyzer
 
 SIGNALS_DIR = _proj_root / "signals" / "tracking"
 OUTPUT_FILE = SIGNALS_DIR / "fundamental_profile.json"
+CACHE_FILE = SIGNALS_DIR / ".fundamental_cache.json"
+CW_DIR = Path("C:/zd_cjzq/vipdoc/cw")
 
 # Windows GBK console workaround
 if sys.platform == 'win32' and hasattr(sys.stdout, 'reconfigure'):
@@ -43,6 +45,51 @@ if sys.platform == 'win32' and hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
     except Exception:
         pass
+
+
+def _gpcw_snapshot() -> dict:
+    """返回 gpcw*.zip 文件 → 修改时间戳 的快照字典"""
+    snap = {}
+    for f in sorted(CW_DIR.glob("gpcw*.zip")):
+        if f.stat().st_size > 100_000:
+            snap[f.name] = f.stat().st_mtime
+    return snap
+
+
+def _check_updates() -> bool:
+    """检查 gpcw 数据是否有更新。有更新返回 True，无更新打印提示返回 False"""
+    current = _gpcw_snapshot()
+    if not current:
+        print("[fundamental] ⚠ gpcw 目录无数据文件，跳过")
+        return False
+
+    if not CACHE_FILE.exists():
+        print(f"[fundamental] 首次运行，{len(current)} 个季报文件待处理")
+        return True
+
+    try:
+        cached = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        cached = {}
+
+    new_files = [k for k in current if k not in cached]
+    changed_files = [k for k in current if k in cached and current[k] != cached[k]]
+
+    if not new_files and not changed_files:
+        print(f"[fundamental] 无更新 ({len(current)} 个季报文件未变化)，跳过")
+        return False
+
+    if new_files:
+        print(f"[fundamental] 新季报: {new_files}")
+    if changed_files:
+        print(f"[fundamental] 已更新: {changed_files}")
+    return True
+
+
+def _save_cache():
+    """保存当前 gpcw 快照到缓存"""
+    CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CACHE_FILE.write_text(json.dumps(_gpcw_snapshot(), indent=2), encoding="utf-8")
 
 
 def build_profile(panel: pd.DataFrame = None,
@@ -240,4 +287,7 @@ def build_profile(panel: pd.DataFrame = None,
 
 
 if __name__ == '__main__':
+    if not _check_updates():
+        import sys as _sys; _sys.exit(0)
     build_profile()
+    _save_cache()

@@ -2,7 +2,7 @@
 import urllib.request, urllib.parse, json, sys, os
 
 KEY = os.environ.get('MPTEXT_API_KEY', '8a1e3faf9861407aa6a00eb6d4971e0c')
-keywords = ['海里的小龙龙', '亨特研究笔记', '亨特hunter', '卓哥投研笔记', '灰岩金融科技', '猫笔刀', 'Dorian君']
+keywords = ['中信建投证券研究', '海里的小龙龙', '亨特研究笔记', '亨特hunter', '卓哥投研笔记', '灰岩金融科技', '猫笔刀', 'Dorian君']
 
 for kw in keywords:
     encoded = urllib.parse.quote(kw.encode('utf-8'))

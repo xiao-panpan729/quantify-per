@@ -119,6 +119,117 @@ def fetch_japan_macro() -> pd.DataFrame | None:
         return None
 
 
+# ══════════════════════════════════════════════════════════════
+# P0: China bond yield + FX rate
+# P1: Commodity prices (oil/copper/gold)
+# ══════════════════════════════════════════════════════════════
+
+SNAPSHOT_PATH = SIGNALS_DIR / "macro_snapshot.json"
+
+
+def fetch_china_bond_fx() -> dict:
+    """Fetch China 10Y govt bond yield + USD/CNY exchange rate.
+
+    Returns dict of latest values, or empty dict on failure.
+    """
+    result = {}
+    try:
+        # 中国国债收益率曲线
+        df = ak.bond_china_yield()
+        if df is not None and len(df) > 0:
+            # Find 10Y yield — column name varies, try common patterns
+            for col in df.columns:
+                col_s = str(col)
+                if '10' in col_s and ('年' in col_s or 'Y' in col_s.upper()):
+                    val = pd.to_numeric(df[col].iloc[-1], errors='coerce')
+                    if pd.notna(val):
+                        result['cn10y'] = round(val, 2)
+                        break
+            if 'cn10y' not in result:
+                # Fallback: use last row's first numeric column
+                for col in df.columns:
+                    val = pd.to_numeric(df[col].iloc[-1], errors='coerce')
+                    if pd.notna(val):
+                        result['cn10y'] = round(val, 2)
+                        break
+    except Exception as e:
+        print(f"  [WARN] bond yield fetch failed: {e}")
+
+    try:
+        # 美元兑人民币汇率 (中间价)
+        df = ak.currency_cny_spot()
+        if df is not None and len(df) > 0:
+            # Find USD/CNY column
+            for col in df.columns:
+                col_s = str(col)
+                if '美元' in col_s or 'USD' in col_s.upper():
+                    val = pd.to_numeric(df[col].iloc[-1], errors='coerce')
+                    if pd.notna(val):
+                        result['usd_cny'] = round(val, 4)
+                        break
+    except Exception as e:
+        print(f"  [WARN] FX fetch failed: {e}")
+
+    return result
+
+
+def fetch_commodity_prices() -> dict:
+    """Fetch crude oil (WTI), copper, gold benchmark prices.
+
+    Returns dict of latest values, or empty dict on failure.
+    """
+    result = {}
+    try:
+        # WTI crude oil futures (main contract)
+        df = ak.futures_foreign_hist(symbol="NYMEX", month="spot")
+        if df is not None and len(df) > 0:
+            wti = df[df['商品名称'].str.contains('WTI|原油', case=False, na=False)] if '商品名称' in df.columns else df
+            val = pd.to_numeric(wti['收盘'].iloc[-1], errors='coerce') if '收盘' in wti.columns else None
+            if pd.notna(val):
+                result['oil'] = round(val, 2)
+    except Exception as e:
+        print(f"  [WARN] oil fetch failed: {e}")
+
+    try:
+        # Gold futures
+        df = ak.futures_foreign_hist(symbol="COMEX", month="spot")
+        if df is not None and len(df) > 0:
+            au = df[df['商品名称'].str.contains('黄金|GOLD|gold|GC', case=False, na=False)] if '商品名称' in df.columns else df
+            val = pd.to_numeric(au['收盘'].iloc[-1], errors='coerce') if '收盘' in au.columns else None
+            if pd.notna(val):
+                result['gold'] = round(val, 2)
+    except Exception as e:
+        print(f"  [WARN] gold fetch failed: {e}")
+
+    try:
+        # Copper futures
+        df = ak.futures_foreign_hist(symbol="COMEX", month="spot")
+        if df is not None and len(df) > 0:
+            cu = df[df['商品名称'].str.contains('铜|COPPER|copper|HG', case=False, na=False)] if '商品名称' in df.columns else df
+            val = pd.to_numeric(cu['收盘'].iloc[-1], errors='coerce') if '收盘' in cu.columns else None
+            if pd.notna(val):
+                result['copper'] = round(val, 2)
+    except Exception as e:
+        print(f"  [WARN] copper fetch failed: {e}")
+
+    # Fallback: try akshare alternative for Chinese commodity prices
+    if not result:
+        try:
+            # 商品现货价格指数
+            df = ak.spot_goods()
+            if df is not None and len(df) > 0:
+                for keyword, key in [('原油', 'oil'), ('铜', 'copper'), ('黄金', 'gold')]:
+                    row = df[df['名称'].str.contains(keyword, na=False)] if '名称' in df.columns else None
+                    if row is not None and len(row) > 0:
+                        val = pd.to_numeric(row['价格'].iloc[-1], errors='coerce') if '价格' in row.columns else None
+                        if pd.notna(val):
+                            result[key] = round(val, 2)
+        except Exception:
+            pass
+
+    return result
+
+
 def merge_japan_factors(macro: pd.DataFrame, japan: pd.DataFrame) -> pd.DataFrame:
     """Merge Japan factors into macro DataFrame on month-end dates"""
     combined = macro.copy()
@@ -139,6 +250,18 @@ def merge_japan_factors(macro: pd.DataFrame, japan: pd.DataFrame) -> pd.DataFram
 def load_sentiment_shock() -> dict | None:
     """Read B-class shock detection output"""
     path = SIGNALS_DIR / "sentiment_shock.json"
+    if not path.exists():
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def load_liquidity() -> dict | None:
+    """Read liquidity monitor output"""
+    path = SIGNALS_DIR / "liquidity_monitor.json"
     if not path.exists():
         return None
     try:
@@ -221,6 +344,19 @@ def classify_environment(macro: pd.DataFrame) -> dict:
     elif shock_impact >= 2:
         total += 1  # positive shock → loosen overlay
 
+    # Liquidity pressure overlay (global: BTC/VIX/DXY/M2/Credit Impulse)
+    liq = load_liquidity()
+    liq_pressure = liq.get("pressure", 0) if liq else 0
+    liq_regime = liq.get("regime", "unknown") if liq else "unknown"
+    if liq_pressure > 0.4:
+        total += 2  # strong easing
+    elif liq_pressure > 0.15:
+        total += 1  # liquidity easing → loosen overlay
+    elif liq_pressure < -0.4:
+        total -= 2  # liquidity crisis
+    elif liq_pressure < -0.15:
+        total -= 1  # liquidity tightening → tighten overlay
+
     if total >= 2:
         label = '宽松'
     elif total <= -2:
@@ -247,6 +383,13 @@ def classify_environment(macro: pd.DataFrame) -> dict:
             'net_impact': shock_impact,
             'impact_level': shock_label,
             'shocks': shock.get('shocks', []),
+        }
+    if liq:
+        result['liquidity'] = {
+            'pressure': liq_pressure,
+            'regime': liq_regime,
+            'regime_label': liq.get('regime_label', ''),
+            'factors': liq.get('factors', {}),
         }
     return result
 
@@ -403,6 +546,51 @@ def main():
             print(f"  Japan: BOJ={jp['boj_rate']}%  CPI={jp['japan_cpi']}%  "
                   f"carry_pressure={jp['carry_pressure']:+.3f} ({jp['carry_regime']})")
         print(f"  Detail: {env['details']}")
+
+        # P0+P1: bond yield, FX, commodity prices
+        print("\n  [extra] China bond & FX...")
+        bond_fx = fetch_china_bond_fx()
+        for k, v in bond_fx.items():
+            print(f"    {k} = {v}")
+
+        print("  [extra] Commodity prices...")
+        comm = fetch_commodity_prices()
+        for k, v in comm.items():
+            print(f"    {k} = {v}")
+
+        # Build and save snapshot JSON
+        snapshot = {
+            'update_time': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'environment': env['environment'],
+            'score': env['score'],
+            'macro': {k: float(v) if not isinstance(v, str) else v
+                      for k, v in env['latest'].items()},
+        }
+        if bond_fx:
+            snapshot['bond_fx'] = bond_fx
+        if comm:
+            snapshot['commodity'] = comm
+        if 'japan' in env:
+            snapshot['japan'] = env['japan']
+        if 'sentiment_shock' in env:
+            snapshot['sentiment'] = {
+                'net_impact': env['sentiment_shock']['net_impact'],
+                'impact_level': env['sentiment_shock']['impact_level'],
+            }
+        if 'liquidity' in env:
+            snapshot['liquidity'] = {
+                'pressure': env['liquidity']['pressure'],
+                'regime': env['liquidity']['regime'],
+                'regime_label': env['liquidity']['regime_label'],
+            }
+
+        try:
+            with open(SNAPSHOT_PATH, 'w', encoding='utf-8') as f:
+                json.dump(snapshot, f, ensure_ascii=False, indent=2)
+            print(f"\n  -> saved: {SNAPSHOT_PATH}")
+        except Exception as e:
+            print(f"  [WARN] snapshot save failed: {e}")
+
         if env['score'] >= 2:
             print(f"  → 宽松环境：利好 PMI+ 板块 (半导体/芯片/汽车芯片)")
             print(f"    回避 PMI- 板块 (房地产/银行)")
@@ -412,7 +600,18 @@ def main():
         else:
             print(f"  → 中性环境：宏观层不过滤，以板块评分为主")
         if 'japan' in env and env['japan']['carry_regime'] in ('unwind', 'building'):
-            print(f"  ⚠ 套息压力 {env['japan']['carry_regime']} → 关注全球流动性收紧对科技/成长的压制")
+            print(f"  [!] 套息压力 {env['japan']['carry_regime']} → 关注全球流动性收紧对科技/成长的压制")
+        if 'sentiment_shock' in env:
+            ss = env['sentiment_shock']
+            print(f"  Sentiment shock: impact={ss['net_impact']} level={ss['impact_level']} ({len(ss['shocks'])} events)")
+            for s in ss['shocks'][:3]:
+                print(f"    [{s.get('impact','?')}] {s.get('event','?')}")
+        if 'liquidity' in env:
+            liq = env['liquidity']
+            print(f"  Liquidity: pressure={liq['pressure']:+.3f} regime={liq['regime_label']}")
+            for k, f in liq.get('factors', {}).items():
+                bar = '+' if f['score'] > 0 else ''
+                print(f"    {f['label']:6s} score={f['score']:+.3f}  raw={f.get('raw','?')}")
         return
 
     # 2. Sector list
