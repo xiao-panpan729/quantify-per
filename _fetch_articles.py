@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
-"""批量拉取微信公众号最新文章全文（带重试+更健壮）"""
-import urllib.request, urllib.parse, json, os, time, sys
+"""并行拉取微信公众号最新文章全文（增量，每个号最近5篇）"""
+import urllib.request, urllib.parse, json, os, time, sys, re
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from config import PROJECT_ROOT
 
 KEY = os.environ.get('MPTEXT_API_KEY', '931355aec9274ea7aa25dd11f9042414')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'wechat_articles')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+MAX_ARTICLES = 5  # 每个号只看最近5篇
 
 ACCOUNTS = {
     'Mzg2MDc2NzQ3MQ==': '表舅是养基大户',
@@ -19,6 +22,7 @@ ACCOUNTS = {
     'MzI3ODAyODI0Ng==': '中信建投证券研究',
 }
 
+
 def api_get(url, use_key=True, retries=3):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     if use_key:
@@ -26,68 +30,65 @@ def api_get(url, use_key=True, retries=3):
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers=headers)
-            resp = urllib.request.urlopen(req, timeout=60)
+            resp = urllib.request.urlopen(req, timeout=30)
             return resp.read().decode('utf-8', errors='replace')
         except urllib.error.HTTPError as e:
             if e.code == 429:
-                wait = 5 * (attempt + 1)
+                wait = 3 * (attempt + 1)
                 time.sleep(wait)
                 continue
             return f'HTTP_ERROR:{e.code}'
         except Exception as e:
             if attempt < retries - 1:
-                time.sleep(3)
+                time.sleep(2)
                 continue
             return f'ERROR:{str(e)[:50]}'
 
-def get_article_links(fakeid, max_msgs=30):
+
+def get_article_links(fakeid):
+    """取最近 MAX_ARTICLES 篇文章链接"""
+    url = f'https://down.mptext.top/api/public/v1/article?fakeid={fakeid}&begin=0&size={MAX_ARTICLES}'
+    raw = api_get(url)
+    if raw.startswith('HTTP_ERROR') or raw.startswith('ERROR') or not raw.strip():
+        return []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
     links = []
-    begin = 0
-    while begin < max_msgs:
-        url = f'https://down.mptext.top/api/public/v1/article?fakeid={fakeid}&begin={begin}&size=20'
-        raw = api_get(url)
-        if raw.startswith('HTTP_ERROR') or raw.startswith('ERROR') or not raw.strip():
-            break
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            break
-        articles = data.get('articles', [])
-        if not articles:
-            break
-        for a in articles:
-            if a.get('link') and not a.get('is_deleted', False):
-                links.append({
-                    'link': a['link'].strip(),
-                    'title': (a.get('title', '') or '').strip(),
-                    'time': a.get('update_time', 0),
-                })
-        begin += 20
-        time.sleep(0.3)
-    return links
+    for a in data.get('articles', []):
+        if a.get('link') and not a.get('is_deleted', False):
+            links.append({
+                'link': a['link'].strip(),
+                'title': (a.get('title', '') or '').strip(),
+                'time': a.get('update_time', 0),
+            })
+    return links[:MAX_ARTICLES]
+
 
 def download_article(article_url):
     encoded = urllib.parse.quote(article_url, safe='')
     url = f'https://down.mptext.top/api/public/v1/download?url={encoded}&format=text'
-    raw = api_get(url, use_key=True)
-    if raw.startswith('HTTP_ERROR') or raw.startswith('ERROR'):
+    raw = api_get(url)
+    if raw is None or raw.startswith('HTTP_ERROR') or raw.startswith('ERROR'):
         return None
-    if not raw or len(raw.strip()) < 50:
+    if len(raw.strip()) < 50:
         return None
     return raw
 
-for fakeid, name in ACCOUNTS.items():
-    print(f'\n===== {name} =====')
+
+def process_account(fakeid, name):
+    """处理单个公众号：拉链接→下载新文章→返回统计"""
     dir_path = os.path.join(OUTPUT_DIR, name)
     os.makedirs(dir_path, exist_ok=True)
 
-    links = get_article_links(fakeid, max_msgs=30)
-    print(f'  获取到 {len(links)} 篇文章链接')
-
+    links = get_article_links(fakeid)
     saved = 0
     skipped = 0
     failed = 0
-    for i, art in enumerate(links[:35]):
+    results = []
+
+    for art in links:
         ts = art['time']
         dt = datetime.fromtimestamp(ts) if ts else datetime.now()
         prefix = dt.strftime('%Y%m%d_%H%M')
@@ -108,15 +109,145 @@ for fakeid, name in ACCOUNTS.items():
                 f.write("="*50 + "\n")
                 f.write(content)
             saved += 1
-            sys.stdout.write(f'  [{dt.strftime("%m-%d %H:%M")}] OK {art["title"][:25]}\n')
-            sys.stdout.flush()
+            results.append(f'  [{dt.strftime("%m-%d %H:%M")}] OK {art["title"][:25]}')
         else:
             failed += 1
-            sys.stdout.write(f'  [{dt.strftime("%m-%d %H:%M")}] XX {art["title"][:25]}\n')
-            sys.stdout.flush()
+            results.append(f'  [{dt.strftime("%m-%d %H:%M")}] XX {art["title"][:25]}')
 
-        time.sleep(1.0)
+    return name, len(links), saved, skipped, failed, results
 
-    print(f'  -> 新增:{saved} 跳过:{skipped} 失败:{failed}')
 
-print(f'\n全部完成！文件保存在: {OUTPUT_DIR}')
+# ─── 网页信源（外资观点，零VPN） ───
+WEB_OUTPUT_DIR = os.path.join(OUTPUT_DIR, '_web_sources')
+os.makedirs(WEB_OUTPUT_DIR, exist_ok=True)
+
+FOREIGN_BANK_KEYWORDS = ['高盛', 'Goldman', '摩根士丹利', '大摩', 'Morgan Stanley',
+                         '摩根大通', '小摩', 'JPMorgan', '瑞银', 'UBS',
+                         '花旗', 'Citi', 'Citigroup', '美银', 'BofA',
+                         '外资行', '外资机构', '华尔街', '外资观点']
+
+
+def fetch_web_articles(url, source_name, extract_fn=None):
+    """抓取网页中命中外资行关键词的文章链接"""
+    try:
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        resp = urllib.request.urlopen(req, timeout=30)
+        html = resp.read().decode('utf-8', errors='replace')
+
+        if extract_fn:
+            return extract_fn(html, url)
+        return []
+    except Exception as e:
+        print(f'  [{source_name}] 抓取失败: {str(e)[:50]}')
+        return []
+
+
+def extract_reuters_links(html, base_url):
+    """从 Reuters 中文网首页提取外资观点相关文章"""
+    articles = []
+    for m in re.finditer(r'<a[^>]*href="(https?://cn\.reuters\.com[^"]*)"[^>]*>([^<]+)</a>', html):
+        link, title = m.group(1), m.group(2).strip()
+        if any(kw in title for kw in FOREIGN_BANK_KEYWORDS):
+            articles.append({'title': title, 'link': link, 'source': 'reuters_cn'})
+    if not articles:
+        for m in re.finditer(r'<a[^>]*href="(/article/[^"]*)"[^>]*>([^<]+)</a>', html):
+            link = base_url.rstrip('/') + m.group(1)
+            title = m.group(2).strip()
+            if any(kw in title for kw in FOREIGN_BANK_KEYWORDS):
+                articles.append({'title': title, 'link': link, 'source': 'reuters_cn'})
+    return articles[:5]
+
+
+def extract_cls_links(html, base_url):
+    """从财联社网站提取外资观点相关文章"""
+    articles = []
+    for m in re.finditer(r'<a[^>]*href="(https?://www\.cls\.cn[^"]*)"[^>]*>([^<]+)</a>', html):
+        link, title = m.group(1), m.group(2).strip()
+        if any(kw in title for kw in FOREIGN_BANK_KEYWORDS):
+            articles.append({'title': title, 'link': link, 'source': 'cls'})
+    if not articles:
+        for m in re.finditer(r'<a[^>]*href"(/[^"]*)"[^>]*>([^<]+)</a>', html):
+            link = base_url.rstrip('/') + m.group(1)
+            title = m.group(2).strip()
+            if any(kw in title for kw in FOREIGN_BANK_KEYWORDS):
+                articles.append({'title': title, 'link': link, 'source': 'cls'})
+    return articles[:5]
+
+
+def save_web_article(art):
+    """保存单条网页文章到 _web_sources/ 目录"""
+    now = datetime.now()
+    prefix = now.strftime('%Y%m%d_%H%M')
+    safe_title = ''.join(c if c.isalnum() or c in ' _-' else '_' for c in art['title'][:30])
+    filename = f"{prefix}_{art['source']}_{safe_title}.txt"
+    filepath = os.path.join(WEB_OUTPUT_DIR, filename)
+
+    if os.path.exists(filepath):
+        return 'skipped'
+
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(f"标题: {art['title']}\n")
+        f.write(f"来源: {art.get('source', 'web')}\n")
+        f.write(f"链接: {art.get('link', '')}\n")
+        f.write(f"抓取时间: {now.strftime('%Y-%m-%d %H:%M')}\n")
+        f.write("="*50 + "\n")
+        f.write("（内容待完善，请手动访问链接获取全文）\n")
+    return 'saved'
+
+
+def fetch_all_web_sources():
+    """并行抓取所有网页信源"""
+    web_sources = [
+        ('Reuters中文网', 'https://cn.reuters.com/', extract_reuters_links),
+        ('财联社', 'https://www.cls.cn/', extract_cls_links),
+    ]
+
+    total_saved = 0
+    total_skipped = 0
+
+    for name, url, extract_fn in web_sources:
+        print(f'\n===== {name} =====')
+        articles = fetch_web_articles(url, name, extract_fn)
+        if not articles:
+            print(f'  无外资观点文章')
+            continue
+        for art in articles:
+            result = save_web_article(art)
+            if result == 'saved':
+                total_saved += 1
+                print(f'  OK {art["title"][:40]}')
+            else:
+                total_skipped += 1
+                print(f'  -- {art["title"][:40]} (已存在)')
+
+    return total_saved, total_skipped
+
+
+# === 主流程：并行拉取 ===
+print(f'并行拉取 {len(ACCOUNTS)} 个公众号，每个号最近 {MAX_ARTICLES} 篇\n')
+
+total_saved = 0
+total_skipped = 0
+total_failed = 0
+
+with ThreadPoolExecutor(max_workers=5) as pool:
+    futures = {pool.submit(process_account, fid, name): name for fid, name in ACCOUNTS.items()}
+    for fut in as_completed(futures):
+        name, n_links, saved, skipped, failed, results = fut.result()
+        print(f'===== {name} =====')
+        print(f'  链接 {n_links} → 新增:{saved} 跳过:{skipped} 失败:{failed}')
+        for r in results:
+            print(r)
+        total_saved += saved
+        total_skipped += skipped
+        total_failed += failed
+
+print(f'\n全部完成！新增:{total_saved} 跳过:{total_skipped} 失败:{total_failed}')
+print(f'文件保存在: {OUTPUT_DIR}')
+
+# ─── 网页信源 ───
+print(f'\n--- 网页信源（外资观点） ---')
+web_saved, web_skipped = fetch_all_web_sources()
+print(f'网页信源完成！新增:{web_saved} 跳过:{web_skipped}')

@@ -1,0 +1,3133 @@
+{
+  "sh600105": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 12,
+        "win_rate": 8.3,
+        "avg_pct": -1.47,
+        "max_pct": 25.4,
+        "min_pct": -11.59,
+        "avg_retreat": -7.21,
+        "max_retreat": -27.31,
+        "avg_bars": 78.2,
+        "bars_range": "1~478",
+        "exit_reasons": {
+          "止损": 10,
+          "无条件卖": 1,
+          "减仓卖": 1
+        }
+      },
+      "jincha": {
+        "count": 8,
+        "win_rate": 37.5,
+        "avg_pct": 3.24,
+        "max_pct": 16.44,
+        "min_pct": -2.35,
+        "avg_retreat": -5.28,
+        "max_retreat": -14.73,
+        "avg_bars": 31.1,
+        "bars_range": "4~79",
+        "exit_reasons": {
+          "CCI极值止盈": 3,
+          "★卖止盈": 4,
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 76
+    }
+  },
+  "sh600111": {
+    "trend": "bearish",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -1.88,
+        "max_pct": -1.88,
+        "min_pct": -1.88,
+        "avg_retreat": -6.04,
+        "max_retreat": -6.04,
+        "avg_bars": 133.0,
+        "bars_range": "133~133",
+        "exit_reasons": {
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 6,
+        "win_rate": 66.7,
+        "avg_pct": -0.03,
+        "max_pct": 2.36,
+        "min_pct": -3.72,
+        "avg_retreat": -7.73,
+        "max_retreat": -16.78,
+        "avg_bars": 239.0,
+        "bars_range": "23~670",
+        "exit_reasons": {
+          "无条件卖": 4,
+          "止损": 2
+        }
+      },
+      "jincha": {
+        "count": 5,
+        "win_rate": 60.0,
+        "avg_pct": -0.4,
+        "max_pct": 2.18,
+        "min_pct": -2.69,
+        "avg_retreat": -2.65,
+        "max_retreat": -4.87,
+        "avg_bars": 15.8,
+        "bars_range": "11~22",
+        "exit_reasons": {
+          "★卖止盈": 3,
+          "止损": 2
+        }
+      },
+      "total_buy_signals": 102
+    }
+  },
+  "sh600176": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -3.87,
+        "max_pct": -3.87,
+        "min_pct": -3.87,
+        "avg_retreat": -6.02,
+        "max_retreat": -6.02,
+        "avg_bars": 49.0,
+        "bars_range": "49~49",
+        "exit_reasons": {
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 12,
+        "win_rate": 50.0,
+        "avg_pct": 1.14,
+        "max_pct": 21.73,
+        "min_pct": -3.87,
+        "avg_retreat": -5.25,
+        "max_retreat": -21.17,
+        "avg_bars": 120.0,
+        "bars_range": "1~776",
+        "exit_reasons": {
+          "无条件卖": 4,
+          "止损": 7,
+          "数据尾": 1
+        }
+      },
+      "jincha": {
+        "count": 9,
+        "win_rate": 55.6,
+        "avg_pct": 0.62,
+        "max_pct": 2.55,
+        "min_pct": -2.68,
+        "avg_retreat": -2.34,
+        "max_retreat": -3.11,
+        "avg_bars": 30.7,
+        "bars_range": "1~74",
+        "exit_reasons": {
+          "跌破白线": 4,
+          "★卖止盈": 3,
+          "止损": 1,
+          "CCI极值止盈": 1
+        }
+      },
+      "total_buy_signals": 72
+    }
+  },
+  "sh600183": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 13,
+        "win_rate": 69.2,
+        "avg_pct": 23.67,
+        "max_pct": 71.08,
+        "min_pct": -5.04,
+        "avg_retreat": -20.15,
+        "max_retreat": -44.91,
+        "avg_bars": 353.5,
+        "bars_range": "6~1000",
+        "exit_reasons": {
+          "无条件卖": 10,
+          "止损": 3
+        }
+      },
+      "jincha": {
+        "count": 5,
+        "win_rate": 60.0,
+        "avg_pct": -0.28,
+        "max_pct": 1.72,
+        "min_pct": -4.86,
+        "avg_retreat": -2.89,
+        "max_retreat": -4.86,
+        "avg_bars": 15.2,
+        "bars_range": "9~22",
+        "exit_reasons": {
+          "★卖止盈": 4,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 69
+    }
+  },
+  "sh600330": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 3,
+        "win_rate": 66.7,
+        "avg_pct": 21.28,
+        "max_pct": 54.35,
+        "min_pct": -1.87,
+        "avg_retreat": -20.76,
+        "max_retreat": -41.57,
+        "avg_bars": 401.7,
+        "bars_range": "50~770",
+        "exit_reasons": {
+          "无条件卖": 2,
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 21,
+        "win_rate": 61.9,
+        "avg_pct": 13.37,
+        "max_pct": 54.35,
+        "min_pct": -8.56,
+        "avg_retreat": -17.02,
+        "max_retreat": -41.57,
+        "avg_bars": 277.8,
+        "bars_range": "1~770",
+        "exit_reasons": {
+          "无条件卖": 16,
+          "止损": 5
+        }
+      },
+      "jincha": {
+        "count": 15,
+        "win_rate": 80.0,
+        "avg_pct": 2.98,
+        "max_pct": 9.02,
+        "min_pct": -9.47,
+        "avg_retreat": -6.03,
+        "max_retreat": -9.47,
+        "avg_bars": 29.1,
+        "bars_range": "1~48",
+        "exit_reasons": {
+          "CCI极值止盈": 5,
+          "★卖止盈": 6,
+          "跌破白线": 3,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 84
+    }
+  },
+  "sh600396": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -11.12,
+        "max_pct": -11.12,
+        "min_pct": -11.12,
+        "avg_retreat": -11.12,
+        "max_retreat": -11.12,
+        "avg_bars": 17.0,
+        "bars_range": "17~17",
+        "exit_reasons": {
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 9,
+        "win_rate": 33.3,
+        "avg_pct": 27.38,
+        "max_pct": 120.47,
+        "min_pct": -11.12,
+        "avg_retreat": -21.84,
+        "max_retreat": -60.42,
+        "avg_bars": 237.7,
+        "bars_range": "17~704",
+        "exit_reasons": {
+          "无条件卖": 4,
+          "止损": 5
+        }
+      },
+      "jincha": {
+        "count": 9,
+        "win_rate": 11.1,
+        "avg_pct": -2.35,
+        "max_pct": 0.2,
+        "min_pct": -9.24,
+        "avg_retreat": -2.77,
+        "max_retreat": -10.91,
+        "avg_bars": 19.1,
+        "bars_range": "3~63",
+        "exit_reasons": {
+          "★卖止盈": 5,
+          "跌破白线": 1,
+          "止损": 3
+        }
+      },
+      "total_buy_signals": 63
+    }
+  },
+  "sh600487": {
+    "trend": "bullish",
+    "min5": {
+      "ma_strict": {
+        "count": 4,
+        "win_rate": 50.0,
+        "avg_pct": 7.23,
+        "max_pct": 27.82,
+        "min_pct": -8.21,
+        "avg_retreat": -18.57,
+        "max_retreat": -29.4,
+        "avg_bars": 359.2,
+        "bars_range": "96~579",
+        "exit_reasons": {
+          "无条件卖": 2,
+          "止损": 2
+        }
+      },
+      "ma_delayed": {
+        "count": 14,
+        "win_rate": 50.0,
+        "avg_pct": 6.61,
+        "max_pct": 57.92,
+        "min_pct": -8.21,
+        "avg_retreat": -12.82,
+        "max_retreat": -40.1,
+        "avg_bars": 253.4,
+        "bars_range": "5~1286",
+        "exit_reasons": {
+          "止损": 6,
+          "无条件卖": 7,
+          "数据尾": 1
+        }
+      },
+      "jincha": {
+        "count": 7,
+        "win_rate": 57.1,
+        "avg_pct": 0.87,
+        "max_pct": 6.64,
+        "min_pct": -3.48,
+        "avg_retreat": -3.0,
+        "max_retreat": -7.48,
+        "avg_bars": 16.1,
+        "bars_range": "5~45",
+        "exit_reasons": {
+          "★卖止盈": 4,
+          "CCI极值止盈": 1,
+          "跌破白线": 1,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 70
+    }
+  },
+  "sh600498": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -5.7,
+        "max_pct": -5.7,
+        "min_pct": -5.7,
+        "avg_retreat": -7.32,
+        "max_retreat": -7.32,
+        "avg_bars": 29.0,
+        "bars_range": "29~29",
+        "exit_reasons": {
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 12,
+        "win_rate": 50.0,
+        "avg_pct": 8.66,
+        "max_pct": 60.59,
+        "min_pct": -5.7,
+        "avg_retreat": -14.61,
+        "max_retreat": -46.28,
+        "avg_bars": 174.4,
+        "bars_range": "1~814",
+        "exit_reasons": {
+          "无条件卖": 7,
+          "止损": 5
+        }
+      },
+      "jincha": {
+        "count": 10,
+        "win_rate": 40.0,
+        "avg_pct": -0.47,
+        "max_pct": 4.33,
+        "min_pct": -7.32,
+        "avg_retreat": -3.86,
+        "max_retreat": -8.34,
+        "avg_bars": 22.0,
+        "bars_range": "3~41",
+        "exit_reasons": {
+          "CCI极值止盈": 1,
+          "★卖止盈": 4,
+          "跌破白线": 2,
+          "止损": 3
+        }
+      },
+      "total_buy_signals": 91
+    }
+  },
+  "sh600522": {
+    "trend": "bullish",
+    "min5": {
+      "ma_strict": {
+        "count": 2,
+        "win_rate": 50.0,
+        "avg_pct": -0.66,
+        "max_pct": 4.23,
+        "min_pct": -5.56,
+        "avg_retreat": -7.98,
+        "max_retreat": -9.7,
+        "avg_bars": 170.5,
+        "bars_range": "96~245",
+        "exit_reasons": {
+          "无条件卖": 1,
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 19,
+        "win_rate": 52.6,
+        "avg_pct": 0.73,
+        "max_pct": 10.41,
+        "min_pct": -5.56,
+        "avg_retreat": -6.46,
+        "max_retreat": -17.45,
+        "avg_bars": 119.6,
+        "bars_range": "6~485",
+        "exit_reasons": {
+          "无条件卖": 11,
+          "止损": 7,
+          "数据尾": 1
+        }
+      },
+      "jincha": {
+        "count": 13,
+        "win_rate": 61.5,
+        "avg_pct": 0.81,
+        "max_pct": 8.6,
+        "min_pct": -3.99,
+        "avg_retreat": -4.28,
+        "max_retreat": -7.92,
+        "avg_bars": 25.2,
+        "bars_range": "10~51",
+        "exit_reasons": {
+          "无条件卖": 1,
+          "CCI极值止盈": 3,
+          "★卖止盈": 2,
+          "跌破白线": 4,
+          "止损": 3
+        }
+      },
+      "total_buy_signals": 85
+    }
+  },
+  "sh600549": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 100.0,
+        "avg_pct": 12.51,
+        "max_pct": 12.51,
+        "min_pct": 12.51,
+        "avg_retreat": -16.8,
+        "max_retreat": -16.8,
+        "avg_bars": 194.0,
+        "bars_range": "194~194",
+        "exit_reasons": {
+          "无条件卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 13,
+        "win_rate": 61.5,
+        "avg_pct": 6.17,
+        "max_pct": 26.78,
+        "min_pct": -4.32,
+        "avg_retreat": -11.19,
+        "max_retreat": -26.25,
+        "avg_bars": 148.7,
+        "bars_range": "6~338",
+        "exit_reasons": {
+          "无条件卖": 10,
+          "止损": 3
+        }
+      },
+      "jincha": {
+        "count": 8,
+        "win_rate": 100.0,
+        "avg_pct": 3.52,
+        "max_pct": 6.78,
+        "min_pct": 0.2,
+        "avg_retreat": -5.12,
+        "max_retreat": -8.65,
+        "avg_bars": 28.8,
+        "bars_range": "6~61",
+        "exit_reasons": {
+          "★卖止盈": 4,
+          "跌破白线": 1,
+          "CCI极值止盈": 3
+        }
+      },
+      "total_buy_signals": 79
+    }
+  },
+  "sh600584": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 10,
+        "win_rate": 40.0,
+        "avg_pct": 10.72,
+        "max_pct": 63.97,
+        "min_pct": -2.04,
+        "avg_retreat": -14.03,
+        "max_retreat": -49.15,
+        "avg_bars": 222.0,
+        "bars_range": "5~878",
+        "exit_reasons": {
+          "止损": 6,
+          "无条件卖": 4
+        }
+      },
+      "jincha": {
+        "count": 9,
+        "win_rate": 77.8,
+        "avg_pct": 2.37,
+        "max_pct": 6.67,
+        "min_pct": -1.47,
+        "avg_retreat": -4.04,
+        "max_retreat": -8.56,
+        "avg_bars": 15.3,
+        "bars_range": "6~29",
+        "exit_reasons": {
+          "止损": 1,
+          "CCI极值止盈": 1,
+          "★卖止盈": 6,
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 78
+    }
+  },
+  "sh600667": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 2,
+        "win_rate": 0.0,
+        "avg_pct": -7.24,
+        "max_pct": -6.54,
+        "min_pct": -7.94,
+        "avg_retreat": -12.49,
+        "max_retreat": -15.22,
+        "avg_bars": 192.0,
+        "bars_range": "96~288",
+        "exit_reasons": {
+          "止损": 2
+        }
+      },
+      "ma_delayed": {
+        "count": 12,
+        "win_rate": 0.0,
+        "avg_pct": -3.49,
+        "max_pct": -1.24,
+        "min_pct": -7.94,
+        "avg_retreat": -7.64,
+        "max_retreat": -15.72,
+        "avg_bars": 102.7,
+        "bars_range": "5~288",
+        "exit_reasons": {
+          "止损": 11,
+          "无条件卖": 1
+        }
+      },
+      "jincha": {
+        "count": 8,
+        "win_rate": 75.0,
+        "avg_pct": 2.95,
+        "max_pct": 11.42,
+        "min_pct": -2.34,
+        "avg_retreat": -4.96,
+        "max_retreat": -10.25,
+        "avg_bars": 29.4,
+        "bars_range": "1~48",
+        "exit_reasons": {
+          "跌破白线": 2,
+          "止损": 2,
+          "CCI极值止盈": 2,
+          "★卖止盈": 2
+        }
+      },
+      "total_buy_signals": 95
+    }
+  },
+  "sh601138": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 11,
+        "win_rate": 45.5,
+        "avg_pct": -0.82,
+        "max_pct": 5.25,
+        "min_pct": -7.16,
+        "avg_retreat": -11.01,
+        "max_retreat": -18.72,
+        "avg_bars": 219.3,
+        "bars_range": "15~500",
+        "exit_reasons": {
+          "止损": 4,
+          "无条件卖": 4,
+          "减仓卖": 3
+        }
+      },
+      "jincha": {
+        "count": 9,
+        "win_rate": 44.4,
+        "avg_pct": 0.61,
+        "max_pct": 4.67,
+        "min_pct": -5.01,
+        "avg_retreat": -4.05,
+        "max_retreat": -6.29,
+        "avg_bars": 22.6,
+        "bars_range": "5~36",
+        "exit_reasons": {
+          "跌破白线": 2,
+          "★卖止盈": 4,
+          "无条件卖": 2,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 82
+    }
+  },
+  "sh601208": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 15,
+        "win_rate": 20.0,
+        "avg_pct": 0.12,
+        "max_pct": 36.63,
+        "min_pct": -7.88,
+        "avg_retreat": -8.17,
+        "max_retreat": -31.17,
+        "avg_bars": 138.9,
+        "bars_range": "9~851",
+        "exit_reasons": {
+          "止损": 11,
+          "无条件卖": 4
+        }
+      },
+      "jincha": {
+        "count": 12,
+        "win_rate": 58.3,
+        "avg_pct": 1.11,
+        "max_pct": 6.1,
+        "min_pct": -2.66,
+        "avg_retreat": -3.18,
+        "max_retreat": -5.86,
+        "avg_bars": 20.5,
+        "bars_range": "2~65",
+        "exit_reasons": {
+          "★卖止盈": 6,
+          "止损": 2,
+          "无条件卖": 1,
+          "CCI极值止盈": 2,
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 77
+    }
+  },
+  "sh601869": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 14,
+        "win_rate": 35.7,
+        "avg_pct": 2.08,
+        "max_pct": 38.37,
+        "min_pct": -7.84,
+        "avg_retreat": -9.89,
+        "max_retreat": -34.29,
+        "avg_bars": 132.1,
+        "bars_range": "1~667",
+        "exit_reasons": {
+          "止损": 9,
+          "无条件卖": 3,
+          "数据尾": 2
+        }
+      },
+      "jincha": {
+        "count": 9,
+        "win_rate": 66.7,
+        "avg_pct": 0.18,
+        "max_pct": 4.42,
+        "min_pct": -5.16,
+        "avg_retreat": -3.74,
+        "max_retreat": -7.46,
+        "avg_bars": 21.0,
+        "bars_range": "7~51",
+        "exit_reasons": {
+          "跌破白线": 3,
+          "★卖止盈": 4,
+          "CCI极值止盈": 1,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 71
+    }
+  },
+  "sh601991": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 4,
+        "win_rate": 50.0,
+        "avg_pct": 4.29,
+        "max_pct": 21.2,
+        "min_pct": -5.11,
+        "avg_retreat": -11.95,
+        "max_retreat": -24.44,
+        "avg_bars": 132.5,
+        "bars_range": "30~324",
+        "exit_reasons": {
+          "止损": 2,
+          "无条件卖": 2
+        }
+      },
+      "jincha": {
+        "count": 4,
+        "win_rate": 50.0,
+        "avg_pct": -0.44,
+        "max_pct": 0.9,
+        "min_pct": -2.94,
+        "avg_retreat": -2.31,
+        "max_retreat": -3.18,
+        "avg_bars": 19.5,
+        "bars_range": "7~31",
+        "exit_reasons": {
+          "止损": 1,
+          "★卖止盈": 3
+        }
+      },
+      "total_buy_signals": 72
+    }
+  },
+  "sh603083": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 6,
+        "win_rate": 50.0,
+        "avg_pct": 3.45,
+        "max_pct": 20.31,
+        "min_pct": -1.97,
+        "avg_retreat": -8.1,
+        "max_retreat": -26.68,
+        "avg_bars": 89.5,
+        "bars_range": "2~406",
+        "exit_reasons": {
+          "止损": 3,
+          "无条件卖": 3
+        }
+      },
+      "jincha": {
+        "count": 6,
+        "win_rate": 66.7,
+        "avg_pct": -0.0,
+        "max_pct": 4.46,
+        "min_pct": -9.96,
+        "avg_retreat": -4.61,
+        "max_retreat": -9.96,
+        "avg_bars": 31.2,
+        "bars_range": "7~51",
+        "exit_reasons": {
+          "CCI极值止盈": 2,
+          "★卖止盈": 3,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 74
+    }
+  },
+  "sh603228": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 3,
+        "win_rate": 0.0,
+        "avg_pct": -0.91,
+        "max_pct": -0.3,
+        "min_pct": -1.22,
+        "avg_retreat": -3.3,
+        "max_retreat": -4.61,
+        "avg_bars": 20.3,
+        "bars_range": "5~28",
+        "exit_reasons": {
+          "无条件卖": 2,
+          "止损": 1
+        }
+      },
+      "jincha": {
+        "count": 3,
+        "win_rate": 0.0,
+        "avg_pct": -0.26,
+        "max_pct": -0.12,
+        "min_pct": -0.54,
+        "avg_retreat": -1.23,
+        "max_retreat": -2.6,
+        "avg_bars": 12.0,
+        "bars_range": "8~20",
+        "exit_reasons": {
+          "★卖止盈": 2,
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 99
+    }
+  },
+  "sh603296": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 6,
+        "win_rate": 0.0,
+        "avg_pct": -3.48,
+        "max_pct": -0.14,
+        "min_pct": -6.6,
+        "avg_retreat": -4.36,
+        "max_retreat": -7.44,
+        "avg_bars": 52.7,
+        "bars_range": "10~110",
+        "exit_reasons": {
+          "止损": 5,
+          "无条件卖": 1
+        }
+      },
+      "jincha": {
+        "count": 4,
+        "win_rate": 25.0,
+        "avg_pct": -0.3,
+        "max_pct": 1.96,
+        "min_pct": -1.54,
+        "avg_retreat": -2.51,
+        "max_retreat": -3.41,
+        "avg_bars": 29.8,
+        "bars_range": "11~76",
+        "exit_reasons": {
+          "CCI极值止盈": 1,
+          "跌破白线": 2,
+          "★卖止盈": 1
+        }
+      },
+      "total_buy_signals": 105
+    }
+  },
+  "sh603629": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 13,
+        "win_rate": 46.2,
+        "avg_pct": 5.37,
+        "max_pct": 57.54,
+        "min_pct": -4.04,
+        "avg_retreat": -10.24,
+        "max_retreat": -41.52,
+        "avg_bars": 250.8,
+        "bars_range": "8~1433",
+        "exit_reasons": {
+          "止损": 7,
+          "无条件卖": 5,
+          "减仓卖": 1
+        }
+      },
+      "jincha": {
+        "count": 10,
+        "win_rate": 60.0,
+        "avg_pct": 1.9,
+        "max_pct": 14.07,
+        "min_pct": -4.92,
+        "avg_retreat": -4.9,
+        "max_retreat": -12.37,
+        "avg_bars": 20.7,
+        "bars_range": "5~45",
+        "exit_reasons": {
+          "跌破白线": 4,
+          "CCI极值止盈": 2,
+          "止损": 2,
+          "★卖止盈": 2
+        }
+      },
+      "total_buy_signals": 63
+    }
+  },
+  "sh603986": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 2,
+        "win_rate": 50.0,
+        "avg_pct": 14.18,
+        "max_pct": 30.06,
+        "min_pct": -1.7,
+        "avg_retreat": -17.89,
+        "max_retreat": -30.13,
+        "avg_bars": 504.5,
+        "bars_range": "49~960",
+        "exit_reasons": {
+          "无条件卖": 2
+        }
+      },
+      "ma_delayed": {
+        "count": 16,
+        "win_rate": 12.5,
+        "avg_pct": -0.97,
+        "max_pct": 30.06,
+        "min_pct": -7.46,
+        "avg_retreat": -6.87,
+        "max_retreat": -30.13,
+        "avg_bars": 111.7,
+        "bars_range": "4~960",
+        "exit_reasons": {
+          "无条件卖": 4,
+          "止损": 12
+        }
+      },
+      "jincha": {
+        "count": 13,
+        "win_rate": 7.7,
+        "avg_pct": -2.32,
+        "max_pct": 2.15,
+        "min_pct": -7.66,
+        "avg_retreat": -3.52,
+        "max_retreat": -7.66,
+        "avg_bars": 23.5,
+        "bars_range": "5~47",
+        "exit_reasons": {
+          "★卖止盈": 3,
+          "止损": 5,
+          "跌破白线": 5
+        }
+      },
+      "total_buy_signals": 79
+    }
+  },
+  "sz000021": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 12,
+        "win_rate": 25.0,
+        "avg_pct": -2.21,
+        "max_pct": 8.88,
+        "min_pct": -7.15,
+        "avg_retreat": -7.54,
+        "max_retreat": -28.01,
+        "avg_bars": 102.7,
+        "bars_range": "4~647",
+        "exit_reasons": {
+          "无条件卖": 3,
+          "止损": 9
+        }
+      },
+      "jincha": {
+        "count": 10,
+        "win_rate": 40.0,
+        "avg_pct": 0.26,
+        "max_pct": 8.27,
+        "min_pct": -5.31,
+        "avg_retreat": -4.83,
+        "max_retreat": -10.64,
+        "avg_bars": 24.7,
+        "bars_range": "3~54",
+        "exit_reasons": {
+          "无条件卖": 1,
+          "★卖止盈": 3,
+          "止损": 3,
+          "CCI极值止盈": 2,
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 75
+    }
+  },
+  "sz000066": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -1.58,
+        "max_pct": -1.58,
+        "min_pct": -1.58,
+        "avg_retreat": -2.54,
+        "max_retreat": -2.54,
+        "avg_bars": 15.0,
+        "bars_range": "15~15",
+        "exit_reasons": {
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 5,
+        "win_rate": 20.0,
+        "avg_pct": -1.41,
+        "max_pct": 1.98,
+        "min_pct": -2.85,
+        "avg_retreat": -4.39,
+        "max_retreat": -10.3,
+        "avg_bars": 54.2,
+        "bars_range": "6~153",
+        "exit_reasons": {
+          "止损": 4,
+          "无条件卖": 1
+        }
+      },
+      "jincha": {
+        "count": 4,
+        "win_rate": 25.0,
+        "avg_pct": -0.27,
+        "max_pct": 0.96,
+        "min_pct": -2.02,
+        "avg_retreat": -2.8,
+        "max_retreat": -8.59,
+        "avg_bars": 27.8,
+        "bars_range": "9~40",
+        "exit_reasons": {
+          "★卖止盈": 2,
+          "跌破白线": 2
+        }
+      },
+      "total_buy_signals": 98
+    }
+  },
+  "sz000338": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 2,
+        "win_rate": 50.0,
+        "avg_pct": 0.09,
+        "max_pct": 1.99,
+        "min_pct": -1.8,
+        "avg_retreat": -5.41,
+        "max_retreat": -7.88,
+        "avg_bars": 107.0,
+        "bars_range": "69~145",
+        "exit_reasons": {
+          "无条件卖": 1,
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 15,
+        "win_rate": 26.7,
+        "avg_pct": -0.65,
+        "max_pct": 6.8,
+        "min_pct": -4.49,
+        "avg_retreat": -5.29,
+        "max_retreat": -16.55,
+        "avg_bars": 85.9,
+        "bars_range": "23~418",
+        "exit_reasons": {
+          "无条件卖": 8,
+          "止损": 7
+        }
+      },
+      "jincha": {
+        "count": 8,
+        "win_rate": 62.5,
+        "avg_pct": 0.51,
+        "max_pct": 2.91,
+        "min_pct": -0.8,
+        "avg_retreat": -2.0,
+        "max_retreat": -3.53,
+        "avg_bars": 15.9,
+        "bars_range": "7~28",
+        "exit_reasons": {
+          "★卖止盈": 6,
+          "跌破白线": 2
+        }
+      },
+      "total_buy_signals": 81
+    }
+  },
+  "sz000636": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 2,
+        "win_rate": 100.0,
+        "avg_pct": 2.41,
+        "max_pct": 3.28,
+        "min_pct": 1.54,
+        "avg_retreat": -12.3,
+        "max_retreat": -15.46,
+        "avg_bars": 382.0,
+        "bars_range": "363~401",
+        "exit_reasons": {
+          "无条件卖": 1,
+          "减仓卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 9,
+        "win_rate": 44.4,
+        "avg_pct": 6.75,
+        "max_pct": 57.68,
+        "min_pct": -2.66,
+        "avg_retreat": -9.76,
+        "max_retreat": -41.57,
+        "avg_bars": 213.1,
+        "bars_range": "3~635",
+        "exit_reasons": {
+          "无条件卖": 5,
+          "止损": 2,
+          "减仓卖": 1,
+          "数据尾": 1
+        }
+      },
+      "jincha": {
+        "count": 4,
+        "win_rate": 25.0,
+        "avg_pct": -0.84,
+        "max_pct": 0.36,
+        "min_pct": -2.17,
+        "avg_retreat": -2.68,
+        "max_retreat": -4.87,
+        "avg_bars": 30.8,
+        "bars_range": "8~73",
+        "exit_reasons": {
+          "跌破白线": 1,
+          "CCI极值止盈": 1,
+          "止损": 1,
+          "★卖止盈": 1
+        }
+      },
+      "total_buy_signals": 77
+    }
+  },
+  "sz000657": {
+    "trend": "bullish",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 15,
+        "win_rate": 53.3,
+        "avg_pct": 10.39,
+        "max_pct": 33.0,
+        "min_pct": -5.8,
+        "avg_retreat": -14.88,
+        "max_retreat": -30.23,
+        "avg_bars": 229.7,
+        "bars_range": "7~668",
+        "exit_reasons": {
+          "无条件卖": 7,
+          "止损": 7,
+          "数据尾": 1
+        }
+      },
+      "jincha": {
+        "count": 13,
+        "win_rate": 76.9,
+        "avg_pct": 2.45,
+        "max_pct": 11.17,
+        "min_pct": -0.55,
+        "avg_retreat": -4.52,
+        "max_retreat": -12.7,
+        "avg_bars": 27.0,
+        "bars_range": "9~69",
+        "exit_reasons": {
+          "跌破白线": 3,
+          "★卖止盈": 9,
+          "CCI极值止盈": 1
+        }
+      },
+      "total_buy_signals": 80
+    }
+  },
+  "sz000977": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 2,
+        "win_rate": 100.0,
+        "avg_pct": 2.46,
+        "max_pct": 4.6,
+        "min_pct": 0.33,
+        "avg_retreat": -7.54,
+        "max_retreat": -9.45,
+        "avg_bars": 199.0,
+        "bars_range": "187~211",
+        "exit_reasons": {
+          "无条件卖": 1,
+          "减仓卖": 1
+        }
+      },
+      "jincha": {
+        "count": 2,
+        "win_rate": 0.0,
+        "avg_pct": -1.76,
+        "max_pct": -1.76,
+        "min_pct": -1.76,
+        "avg_retreat": -2.48,
+        "max_retreat": -2.48,
+        "avg_bars": 15.0,
+        "bars_range": "15~15",
+        "exit_reasons": {
+          "止损": 2
+        }
+      },
+      "total_buy_signals": 89
+    }
+  },
+  "sz000988": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 4,
+        "win_rate": 0.0,
+        "avg_pct": -3.33,
+        "max_pct": -2.39,
+        "min_pct": -4.52,
+        "avg_retreat": -8.43,
+        "max_retreat": -12.31,
+        "avg_bars": 92.0,
+        "bars_range": "27~195",
+        "exit_reasons": {
+          "止损": 4
+        }
+      },
+      "jincha": {
+        "count": 3,
+        "win_rate": 0.0,
+        "avg_pct": -0.85,
+        "max_pct": -0.85,
+        "min_pct": -0.85,
+        "avg_retreat": -0.86,
+        "max_retreat": -0.86,
+        "avg_bars": 4.0,
+        "bars_range": "4~4",
+        "exit_reasons": {
+          "★卖止盈": 3
+        }
+      },
+      "total_buy_signals": 88
+    }
+  },
+  "sz001309": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 100.0,
+        "avg_pct": 2.51,
+        "max_pct": 2.51,
+        "min_pct": 2.51,
+        "avg_retreat": -9.23,
+        "max_retreat": -9.23,
+        "avg_bars": 171.0,
+        "bars_range": "171~171",
+        "exit_reasons": {
+          "无条件卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 9,
+        "win_rate": 33.3,
+        "avg_pct": 2.77,
+        "max_pct": 31.79,
+        "min_pct": -4.03,
+        "avg_retreat": -6.69,
+        "max_retreat": -29.5,
+        "avg_bars": 91.9,
+        "bars_range": "4~383",
+        "exit_reasons": {
+          "无条件卖": 4,
+          "减仓卖": 1,
+          "止损": 4
+        }
+      },
+      "jincha": {
+        "count": 5,
+        "win_rate": 80.0,
+        "avg_pct": 0.08,
+        "max_pct": 0.45,
+        "min_pct": -0.54,
+        "avg_retreat": -1.73,
+        "max_retreat": -3.13,
+        "avg_bars": 7.2,
+        "bars_range": "5~8",
+        "exit_reasons": {
+          "★卖止盈": 5
+        }
+      },
+      "total_buy_signals": 67
+    }
+  },
+  "sz001896": {
+    "trend": "bullish",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 6,
+        "win_rate": 50.0,
+        "avg_pct": 25.84,
+        "max_pct": 137.61,
+        "min_pct": -2.74,
+        "avg_retreat": -21.64,
+        "max_retreat": -61.86,
+        "avg_bars": 476.0,
+        "bars_range": "26~1235",
+        "exit_reasons": {
+          "无条件卖": 3,
+          "止损": 3
+        }
+      },
+      "jincha": {
+        "count": 6,
+        "win_rate": 16.7,
+        "avg_pct": -1.39,
+        "max_pct": 0.63,
+        "min_pct": -3.38,
+        "avg_retreat": -2.89,
+        "max_retreat": -4.11,
+        "avg_bars": 10.7,
+        "bars_range": "5~29",
+        "exit_reasons": {
+          "★卖止盈": 3,
+          "跌破白线": 3
+        }
+      },
+      "total_buy_signals": 67
+    }
+  },
+  "sz002008": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 11,
+        "win_rate": 18.2,
+        "avg_pct": -1.39,
+        "max_pct": 1.68,
+        "min_pct": -3.42,
+        "avg_retreat": -4.36,
+        "max_retreat": -14.2,
+        "avg_bars": 56.4,
+        "bars_range": "2~271",
+        "exit_reasons": {
+          "无条件卖": 2,
+          "止损": 9
+        }
+      },
+      "jincha": {
+        "count": 10,
+        "win_rate": 60.0,
+        "avg_pct": 0.54,
+        "max_pct": 4.56,
+        "min_pct": -1.98,
+        "avg_retreat": -2.31,
+        "max_retreat": -4.7,
+        "avg_bars": 14.1,
+        "bars_range": "9~29",
+        "exit_reasons": {
+          "止损": 3,
+          "跌破白线": 5,
+          "CCI极值止盈": 2
+        }
+      },
+      "total_buy_signals": 74
+    }
+  },
+  "sz002050": {
+    "trend": "bearish",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 5,
+        "win_rate": 20.0,
+        "avg_pct": -1.16,
+        "max_pct": 0.92,
+        "min_pct": -2.22,
+        "avg_retreat": -2.57,
+        "max_retreat": -3.97,
+        "avg_bars": 42.2,
+        "bars_range": "2~98",
+        "exit_reasons": {
+          "止损": 4,
+          "无条件卖": 1
+        }
+      },
+      "jincha": {
+        "count": 3,
+        "win_rate": 33.3,
+        "avg_pct": -0.33,
+        "max_pct": 0.4,
+        "min_pct": -0.7,
+        "avg_retreat": -1.25,
+        "max_retreat": -1.62,
+        "avg_bars": 6.0,
+        "bars_range": "6~6",
+        "exit_reasons": {
+          "跌破白线": 2,
+          "★卖止盈": 1
+        }
+      },
+      "total_buy_signals": 97
+    }
+  },
+  "sz002138": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 7,
+        "win_rate": 28.6,
+        "avg_pct": 0.28,
+        "max_pct": 8.06,
+        "min_pct": -2.1,
+        "avg_retreat": -4.44,
+        "max_retreat": -10.9,
+        "avg_bars": 104.4,
+        "bars_range": "3~386",
+        "exit_reasons": {
+          "止损": 5,
+          "无条件卖": 1,
+          "数据尾": 1
+        }
+      },
+      "jincha": {
+        "count": 4,
+        "win_rate": 75.0,
+        "avg_pct": 1.48,
+        "max_pct": 3.66,
+        "min_pct": -0.21,
+        "avg_retreat": -2.37,
+        "max_retreat": -3.62,
+        "avg_bars": 12.0,
+        "bars_range": "8~19",
+        "exit_reasons": {
+          "CCI极值止盈": 1,
+          "★卖止盈": 3
+        }
+      },
+      "total_buy_signals": 86
+    }
+  },
+  "sz002156": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 5,
+        "win_rate": 60.0,
+        "avg_pct": -0.52,
+        "max_pct": 5.35,
+        "min_pct": -8.67,
+        "avg_retreat": -11.62,
+        "max_retreat": -22.77,
+        "avg_bars": 180.2,
+        "bars_range": "53~325",
+        "exit_reasons": {
+          "无条件卖": 2,
+          "减仓卖": 1,
+          "止损": 2
+        }
+      },
+      "jincha": {
+        "count": 5,
+        "win_rate": 80.0,
+        "avg_pct": 0.61,
+        "max_pct": 1.22,
+        "min_pct": -0.49,
+        "avg_retreat": -2.72,
+        "max_retreat": -5.73,
+        "avg_bars": 13.6,
+        "bars_range": "8~24",
+        "exit_reasons": {
+          "★卖止盈": 4,
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 94
+    }
+  },
+  "sz002185": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 6,
+        "win_rate": 50.0,
+        "avg_pct": -1.01,
+        "max_pct": 1.98,
+        "min_pct": -3.94,
+        "avg_retreat": -4.19,
+        "max_retreat": -6.02,
+        "avg_bars": 76.2,
+        "bars_range": "14~193",
+        "exit_reasons": {
+          "止损": 2,
+          "无条件卖": 3,
+          "减仓卖": 1
+        }
+      },
+      "jincha": {
+        "count": 5,
+        "win_rate": 40.0,
+        "avg_pct": -1.77,
+        "max_pct": 0.35,
+        "min_pct": -4.83,
+        "avg_retreat": -2.9,
+        "max_retreat": -5.14,
+        "avg_bars": 22.8,
+        "bars_range": "4~43",
+        "exit_reasons": {
+          "止损": 2,
+          "跌破白线": 2,
+          "★卖止盈": 1
+        }
+      },
+      "total_buy_signals": 85
+    }
+  },
+  "sz002281": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 100.0,
+        "avg_pct": 3.88,
+        "max_pct": 3.88,
+        "min_pct": 3.88,
+        "avg_retreat": -13.39,
+        "max_retreat": -13.39,
+        "avg_bars": 151.0,
+        "bars_range": "151~151",
+        "exit_reasons": {
+          "无条件卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 16,
+        "win_rate": 56.2,
+        "avg_pct": 14.37,
+        "max_pct": 55.42,
+        "min_pct": -3.48,
+        "avg_retreat": -15.4,
+        "max_retreat": -40.54,
+        "avg_bars": 214.6,
+        "bars_range": "1~580",
+        "exit_reasons": {
+          "止损": 6,
+          "无条件卖": 10
+        }
+      },
+      "jincha": {
+        "count": 15,
+        "win_rate": 60.0,
+        "avg_pct": 1.33,
+        "max_pct": 9.81,
+        "min_pct": -3.9,
+        "avg_retreat": -3.92,
+        "max_retreat": -11.97,
+        "avg_bars": 20.1,
+        "bars_range": "3~44",
+        "exit_reasons": {
+          "CCI极值止盈": 2,
+          "止损": 3,
+          "跌破白线": 1,
+          "★卖止盈": 9
+        }
+      },
+      "total_buy_signals": 88
+    }
+  },
+  "sz002353": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 14,
+        "win_rate": 42.9,
+        "avg_pct": 0.88,
+        "max_pct": 16.89,
+        "min_pct": -7.69,
+        "avg_retreat": -10.3,
+        "max_retreat": -22.9,
+        "avg_bars": 219.1,
+        "bars_range": "1~676",
+        "exit_reasons": {
+          "无条件卖": 7,
+          "止损": 7
+        }
+      },
+      "jincha": {
+        "count": 9,
+        "win_rate": 55.6,
+        "avg_pct": -1.3,
+        "max_pct": 2.2,
+        "min_pct": -9.31,
+        "avg_retreat": -4.12,
+        "max_retreat": -9.42,
+        "avg_bars": 26.8,
+        "bars_range": "10~72",
+        "exit_reasons": {
+          "★卖止盈": 4,
+          "止损": 3,
+          "跌破白线": 1,
+          "CCI极值止盈": 1
+        }
+      },
+      "total_buy_signals": 73
+    }
+  },
+  "sz002361": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -6.29,
+        "max_pct": -6.29,
+        "min_pct": -6.29,
+        "avg_retreat": -6.29,
+        "max_retreat": -6.29,
+        "avg_bars": 50.0,
+        "bars_range": "50~50",
+        "exit_reasons": {
+          "无条件卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 6,
+        "win_rate": 66.7,
+        "avg_pct": 19.23,
+        "max_pct": 107.7,
+        "min_pct": -6.29,
+        "avg_retreat": -18.58,
+        "max_retreat": -56.07,
+        "avg_bars": 295.2,
+        "bars_range": "2~1037",
+        "exit_reasons": {
+          "无条件卖": 5,
+          "止损": 1
+        }
+      },
+      "jincha": {
+        "count": 5,
+        "win_rate": 80.0,
+        "avg_pct": 3.94,
+        "max_pct": 10.09,
+        "min_pct": -1.12,
+        "avg_retreat": -5.45,
+        "max_retreat": -10.15,
+        "avg_bars": 19.8,
+        "bars_range": "16~31",
+        "exit_reasons": {
+          "跌破白线": 1,
+          "★卖止盈": 3,
+          "CCI极值止盈": 1
+        }
+      },
+      "total_buy_signals": 75
+    }
+  },
+  "sz002371": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 15,
+        "win_rate": 26.7,
+        "avg_pct": 1.37,
+        "max_pct": 19.53,
+        "min_pct": -2.99,
+        "avg_retreat": -6.14,
+        "max_retreat": -22.95,
+        "avg_bars": 112.1,
+        "bars_range": "2~482",
+        "exit_reasons": {
+          "无条件卖": 5,
+          "止损": 10
+        }
+      },
+      "jincha": {
+        "count": 11,
+        "win_rate": 27.3,
+        "avg_pct": -0.37,
+        "max_pct": 3.78,
+        "min_pct": -2.41,
+        "avg_retreat": -2.49,
+        "max_retreat": -4.46,
+        "avg_bars": 9.9,
+        "bars_range": "2~22",
+        "exit_reasons": {
+          "跌破白线": 2,
+          "止损": 3,
+          "★卖止盈": 5,
+          "数据尾": 1
+        }
+      },
+      "total_buy_signals": 97
+    }
+  },
+  "sz002384": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 12,
+        "win_rate": 33.3,
+        "avg_pct": 11.48,
+        "max_pct": 73.7,
+        "min_pct": -8.72,
+        "avg_retreat": -13.79,
+        "max_retreat": -45.16,
+        "avg_bars": 223.4,
+        "bars_range": "1~859",
+        "exit_reasons": {
+          "止损": 8,
+          "无条件卖": 4
+        }
+      },
+      "jincha": {
+        "count": 10,
+        "win_rate": 30.0,
+        "avg_pct": -1.14,
+        "max_pct": 2.4,
+        "min_pct": -5.94,
+        "avg_retreat": -2.73,
+        "max_retreat": -6.25,
+        "avg_bars": 20.3,
+        "bars_range": "4~67",
+        "exit_reasons": {
+          "★卖止盈": 3,
+          "跌破白线": 2,
+          "止损": 4,
+          "CCI极值止盈": 1
+        }
+      },
+      "total_buy_signals": 85
+    }
+  },
+  "sz002428": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 100.0,
+        "avg_pct": 24.34,
+        "max_pct": 24.34,
+        "min_pct": 24.34,
+        "avg_retreat": -29.29,
+        "max_retreat": -29.29,
+        "avg_bars": 409.0,
+        "bars_range": "409~409",
+        "exit_reasons": {
+          "无条件卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 13,
+        "win_rate": 38.5,
+        "avg_pct": 6.97,
+        "max_pct": 48.66,
+        "min_pct": -7.81,
+        "avg_retreat": -14.79,
+        "max_retreat": -44.66,
+        "avg_bars": 238.2,
+        "bars_range": "2~1166",
+        "exit_reasons": {
+          "止损": 8,
+          "无条件卖": 5
+        }
+      },
+      "jincha": {
+        "count": 11,
+        "win_rate": 45.5,
+        "avg_pct": -0.42,
+        "max_pct": 4.16,
+        "min_pct": -7.81,
+        "avg_retreat": -5.16,
+        "max_retreat": -8.58,
+        "avg_bars": 25.4,
+        "bars_range": "1~78",
+        "exit_reasons": {
+          "跌破白线": 5,
+          "★卖止盈": 2,
+          "止损": 3,
+          "CCI极值止盈": 1
+        }
+      },
+      "total_buy_signals": 69
+    }
+  },
+  "sz002436": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 9,
+        "win_rate": 33.3,
+        "avg_pct": 0.08,
+        "max_pct": 6.34,
+        "min_pct": -7.17,
+        "avg_retreat": -5.64,
+        "max_retreat": -10.9,
+        "avg_bars": 104.3,
+        "bars_range": "1~386",
+        "exit_reasons": {
+          "止损": 4,
+          "无条件卖": 5
+        }
+      },
+      "jincha": {
+        "count": 7,
+        "win_rate": 42.9,
+        "avg_pct": -2.66,
+        "max_pct": 2.54,
+        "min_pct": -8.84,
+        "avg_retreat": -4.48,
+        "max_retreat": -8.84,
+        "avg_bars": 27.6,
+        "bars_range": "5~45",
+        "exit_reasons": {
+          "★卖止盈": 3,
+          "止损": 3,
+          "CCI极值止盈": 1
+        }
+      },
+      "total_buy_signals": 76
+    }
+  },
+  "sz002463": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 8,
+        "win_rate": 37.5,
+        "avg_pct": -1.13,
+        "max_pct": 9.02,
+        "min_pct": -7.3,
+        "avg_retreat": -8.0,
+        "max_retreat": -14.47,
+        "avg_bars": 142.1,
+        "bars_range": "17~379",
+        "exit_reasons": {
+          "无条件卖": 3,
+          "止损": 5
+        }
+      },
+      "jincha": {
+        "count": 4,
+        "win_rate": 75.0,
+        "avg_pct": 1.58,
+        "max_pct": 6.17,
+        "min_pct": -0.15,
+        "avg_retreat": -3.0,
+        "max_retreat": -7.52,
+        "avg_bars": 12.0,
+        "bars_range": "4~34",
+        "exit_reasons": {
+          "★卖止盈": 2,
+          "跌破白线": 2
+        }
+      },
+      "total_buy_signals": 89
+    }
+  },
+  "sz002475": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 4,
+        "win_rate": 25.0,
+        "avg_pct": 0.41,
+        "max_pct": 10.75,
+        "min_pct": -5.1,
+        "avg_retreat": -6.56,
+        "max_retreat": -15.72,
+        "avg_bars": 75.0,
+        "bars_range": "7~228",
+        "exit_reasons": {
+          "止损": 3,
+          "无条件卖": 1
+        }
+      },
+      "jincha": {
+        "count": 1,
+        "win_rate": 100.0,
+        "avg_pct": 0.01,
+        "max_pct": 0.01,
+        "min_pct": 0.01,
+        "avg_retreat": -1.9,
+        "max_retreat": -1.9,
+        "avg_bars": 38.0,
+        "bars_range": "38~38",
+        "exit_reasons": {
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 104
+    }
+  },
+  "sz002484": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 14,
+        "win_rate": 57.1,
+        "avg_pct": 31.74,
+        "max_pct": 102.72,
+        "min_pct": -6.26,
+        "avg_retreat": -21.46,
+        "max_retreat": -55.06,
+        "avg_bars": 356.3,
+        "bars_range": "2~990",
+        "exit_reasons": {
+          "止损": 6,
+          "无条件卖": 8
+        }
+      },
+      "jincha": {
+        "count": 12,
+        "win_rate": 41.7,
+        "avg_pct": -0.09,
+        "max_pct": 3.45,
+        "min_pct": -2.58,
+        "avg_retreat": -3.26,
+        "max_retreat": -5.65,
+        "avg_bars": 13.6,
+        "bars_range": "2~27",
+        "exit_reasons": {
+          "止损": 2,
+          "跌破白线": 5,
+          "★卖止盈": 5
+        }
+      },
+      "total_buy_signals": 97
+    }
+  },
+  "sz002491": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -0.86,
+        "max_pct": -0.86,
+        "min_pct": -0.86,
+        "avg_retreat": -19.25,
+        "max_retreat": -19.25,
+        "avg_bars": 193.0,
+        "bars_range": "193~193",
+        "exit_reasons": {
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 11,
+        "win_rate": 36.4,
+        "avg_pct": 5.32,
+        "max_pct": 38.22,
+        "min_pct": -6.8,
+        "avg_retreat": -14.73,
+        "max_retreat": -43.58,
+        "avg_bars": 220.5,
+        "bars_range": "2~864",
+        "exit_reasons": {
+          "止损": 6,
+          "无条件卖": 5
+        }
+      },
+      "jincha": {
+        "count": 12,
+        "win_rate": 33.3,
+        "avg_pct": -0.6,
+        "max_pct": 2.2,
+        "min_pct": -5.55,
+        "avg_retreat": -4.0,
+        "max_retreat": -8.27,
+        "avg_bars": 24.5,
+        "bars_range": "2~57",
+        "exit_reasons": {
+          "止损": 2,
+          "跌破白线": 3,
+          "★卖止盈": 7
+        }
+      },
+      "total_buy_signals": 75
+    }
+  },
+  "sz002837": {
+    "trend": "bearish",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 3,
+        "win_rate": 33.3,
+        "avg_pct": 11.21,
+        "max_pct": 35.28,
+        "min_pct": -1.21,
+        "avg_retreat": -12.52,
+        "max_retreat": -29.69,
+        "avg_bars": 223.0,
+        "bars_range": "32~497",
+        "exit_reasons": {
+          "无条件卖": 3
+        }
+      },
+      "jincha": {
+        "count": 3,
+        "win_rate": 33.3,
+        "avg_pct": -0.34,
+        "max_pct": 2.56,
+        "min_pct": -1.79,
+        "avg_retreat": -2.97,
+        "max_retreat": -4.7,
+        "avg_bars": 20.0,
+        "bars_range": "16~22",
+        "exit_reasons": {
+          "跌破白线": 1,
+          "无条件卖": 2
+        }
+      },
+      "total_buy_signals": 95
+    }
+  },
+  "sz002851": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 8,
+        "win_rate": 25.0,
+        "avg_pct": -1.44,
+        "max_pct": 5.45,
+        "min_pct": -9.58,
+        "avg_retreat": -5.59,
+        "max_retreat": -18.52,
+        "avg_bars": 87.8,
+        "bars_range": "7~424",
+        "exit_reasons": {
+          "无条件卖": 3,
+          "止损": 5
+        }
+      },
+      "jincha": {
+        "count": 6,
+        "win_rate": 66.7,
+        "avg_pct": -1.22,
+        "max_pct": 1.07,
+        "min_pct": -9.58,
+        "avg_retreat": -2.91,
+        "max_retreat": -10.16,
+        "avg_bars": 28.2,
+        "bars_range": "6~118",
+        "exit_reasons": {
+          "★卖止盈": 5,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 87
+    }
+  },
+  "sz002916": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 9,
+        "win_rate": 33.3,
+        "avg_pct": 0.93,
+        "max_pct": 13.94,
+        "min_pct": -3.62,
+        "avg_retreat": -5.3,
+        "max_retreat": -16.16,
+        "avg_bars": 68.0,
+        "bars_range": "2~244",
+        "exit_reasons": {
+          "止损": 6,
+          "无条件卖": 3
+        }
+      },
+      "jincha": {
+        "count": 5,
+        "win_rate": 20.0,
+        "avg_pct": -0.6,
+        "max_pct": 4.79,
+        "min_pct": -3.07,
+        "avg_retreat": -3.06,
+        "max_retreat": -4.77,
+        "avg_bars": 28.0,
+        "bars_range": "3~45",
+        "exit_reasons": {
+          "跌破白线": 3,
+          "★卖止盈": 1,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 88
+    }
+  },
+  "sz002938": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 12,
+        "win_rate": 25.0,
+        "avg_pct": 1.76,
+        "max_pct": 18.31,
+        "min_pct": -4.06,
+        "avg_retreat": -9.22,
+        "max_retreat": -27.39,
+        "avg_bars": 145.8,
+        "bars_range": "8~439",
+        "exit_reasons": {
+          "止损": 7,
+          "无条件卖": 5
+        }
+      },
+      "jincha": {
+        "count": 8,
+        "win_rate": 50.0,
+        "avg_pct": -0.03,
+        "max_pct": 2.65,
+        "min_pct": -2.51,
+        "avg_retreat": -2.3,
+        "max_retreat": -3.78,
+        "avg_bars": 16.4,
+        "bars_range": "5~26",
+        "exit_reasons": {
+          "★卖止盈": 5,
+          "止损": 1,
+          "跌破白线": 2
+        }
+      },
+      "total_buy_signals": 86
+    }
+  },
+  "sz300136": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 11,
+        "win_rate": 54.5,
+        "avg_pct": 16.75,
+        "max_pct": 80.52,
+        "min_pct": -4.42,
+        "avg_retreat": -18.65,
+        "max_retreat": -55.12,
+        "avg_bars": 177.9,
+        "bars_range": "6~576",
+        "exit_reasons": {
+          "无条件卖": 8,
+          "止损": 3
+        }
+      },
+      "jincha": {
+        "count": 10,
+        "win_rate": 50.0,
+        "avg_pct": 0.44,
+        "max_pct": 6.75,
+        "min_pct": -4.58,
+        "avg_retreat": -4.39,
+        "max_retreat": -7.05,
+        "avg_bars": 15.4,
+        "bars_range": "5~36",
+        "exit_reasons": {
+          "★卖止盈": 4,
+          "跌破白线": 5,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 88
+    }
+  },
+  "sz300274": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 2,
+        "win_rate": 50.0,
+        "avg_pct": -2.74,
+        "max_pct": 0.38,
+        "min_pct": -5.86,
+        "avg_retreat": -5.91,
+        "max_retreat": -8.83,
+        "avg_bars": 70.0,
+        "bars_range": "44~96",
+        "exit_reasons": {
+          "无条件卖": 1,
+          "止损": 1
+        }
+      },
+      "jincha": {
+        "count": 2,
+        "win_rate": 50.0,
+        "avg_pct": -0.17,
+        "max_pct": 1.01,
+        "min_pct": -1.34,
+        "avg_retreat": -2.0,
+        "max_retreat": -2.93,
+        "avg_bars": 11.0,
+        "bars_range": "6~16",
+        "exit_reasons": {
+          "★卖止盈": 1,
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 88
+    }
+  },
+  "sz300285": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -2.95,
+        "max_pct": -2.95,
+        "min_pct": -2.95,
+        "avg_retreat": -3.49,
+        "max_retreat": -3.49,
+        "avg_bars": 15.0,
+        "bars_range": "15~15",
+        "exit_reasons": {
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 20,
+        "win_rate": 45.0,
+        "avg_pct": 12.83,
+        "max_pct": 58.86,
+        "min_pct": -5.61,
+        "avg_retreat": -15.09,
+        "max_retreat": -42.35,
+        "avg_bars": 214.8,
+        "bars_range": "10~904",
+        "exit_reasons": {
+          "止损": 9,
+          "无条件卖": 10,
+          "数据尾": 1
+        }
+      },
+      "jincha": {
+        "count": 18,
+        "win_rate": 50.0,
+        "avg_pct": -0.37,
+        "max_pct": 4.04,
+        "min_pct": -5.61,
+        "avg_retreat": -4.24,
+        "max_retreat": -7.48,
+        "avg_bars": 23.4,
+        "bars_range": "6~47",
+        "exit_reasons": {
+          "跌破白线": 6,
+          "止损": 4,
+          "★卖止盈": 5,
+          "无条件卖": 2,
+          "CCI极值止盈": 1
+        }
+      },
+      "total_buy_signals": 91
+    }
+  },
+  "sz300308": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 4,
+        "win_rate": 25.0,
+        "avg_pct": 0.52,
+        "max_pct": 9.32,
+        "min_pct": -2.67,
+        "avg_retreat": -9.3,
+        "max_retreat": -14.66,
+        "avg_bars": 262.8,
+        "bars_range": "53~550",
+        "exit_reasons": {
+          "无条件卖": 1,
+          "止损": 3
+        }
+      },
+      "jincha": {
+        "count": 4,
+        "win_rate": 75.0,
+        "avg_pct": -0.28,
+        "max_pct": 2.1,
+        "min_pct": -4.0,
+        "avg_retreat": -2.78,
+        "max_retreat": -4.47,
+        "avg_bars": 25.8,
+        "bars_range": "7~47",
+        "exit_reasons": {
+          "★卖止盈": 3,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 71
+    }
+  },
+  "sz300394": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 8,
+        "win_rate": 25.0,
+        "avg_pct": 4.44,
+        "max_pct": 49.19,
+        "min_pct": -5.28,
+        "avg_retreat": -10.29,
+        "max_retreat": -39.45,
+        "avg_bars": 138.1,
+        "bars_range": "10~672",
+        "exit_reasons": {
+          "无条件卖": 4,
+          "止损": 4
+        }
+      },
+      "jincha": {
+        "count": 5,
+        "win_rate": 40.0,
+        "avg_pct": -1.57,
+        "max_pct": 1.8,
+        "min_pct": -6.84,
+        "avg_retreat": -3.46,
+        "max_retreat": -6.84,
+        "avg_bars": 17.6,
+        "bars_range": "1~69",
+        "exit_reasons": {
+          "★卖止盈": 3,
+          "止损": 2
+        }
+      },
+      "total_buy_signals": 84
+    }
+  },
+  "sz300395": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 4,
+        "win_rate": 0.0,
+        "avg_pct": -0.84,
+        "max_pct": -0.46,
+        "min_pct": -1.63,
+        "avg_retreat": -3.98,
+        "max_retreat": -6.31,
+        "avg_bars": 59.0,
+        "bars_range": "6~144",
+        "exit_reasons": {
+          "无条件卖": 2,
+          "止损": 1,
+          "减仓卖": 1
+        }
+      },
+      "jincha": null,
+      "total_buy_signals": 84
+    }
+  },
+  "sz300408": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 13,
+        "win_rate": 53.8,
+        "avg_pct": 9.21,
+        "max_pct": 41.83,
+        "min_pct": -4.02,
+        "avg_retreat": -13.43,
+        "max_retreat": -35.67,
+        "avg_bars": 240.8,
+        "bars_range": "9~664",
+        "exit_reasons": {
+          "无条件卖": 7,
+          "止损": 6
+        }
+      },
+      "jincha": {
+        "count": 10,
+        "win_rate": 40.0,
+        "avg_pct": -0.47,
+        "max_pct": 2.27,
+        "min_pct": -2.44,
+        "avg_retreat": -2.65,
+        "max_retreat": -6.26,
+        "avg_bars": 13.0,
+        "bars_range": "1~32",
+        "exit_reasons": {
+          "止损": 4,
+          "★卖止盈": 3,
+          "跌破白线": 3
+        }
+      },
+      "total_buy_signals": 90
+    }
+  },
+  "sz300475": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 5,
+        "win_rate": 0.0,
+        "avg_pct": -4.18,
+        "max_pct": -1.82,
+        "min_pct": -5.37,
+        "avg_retreat": -6.24,
+        "max_retreat": -8.98,
+        "avg_bars": 43.0,
+        "bars_range": "16~65",
+        "exit_reasons": {
+          "止损": 5
+        }
+      },
+      "jincha": {
+        "count": 2,
+        "win_rate": 100.0,
+        "avg_pct": 2.36,
+        "max_pct": 2.36,
+        "min_pct": 2.36,
+        "avg_retreat": -3.79,
+        "max_retreat": -3.79,
+        "avg_bars": 3.0,
+        "bars_range": "3~3",
+        "exit_reasons": {
+          "★卖止盈": 2
+        }
+      },
+      "total_buy_signals": 87
+    }
+  },
+  "sz300476": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 6,
+        "win_rate": 66.7,
+        "avg_pct": 8.59,
+        "max_pct": 16.07,
+        "min_pct": -1.56,
+        "avg_retreat": -13.51,
+        "max_retreat": -18.61,
+        "avg_bars": 275.5,
+        "bars_range": "15~386",
+        "exit_reasons": {
+          "止损": 2,
+          "无条件卖": 4
+        }
+      },
+      "jincha": {
+        "count": 6,
+        "win_rate": 66.7,
+        "avg_pct": 0.14,
+        "max_pct": 1.68,
+        "min_pct": -0.58,
+        "avg_retreat": -2.42,
+        "max_retreat": -3.15,
+        "avg_bars": 20.8,
+        "bars_range": "18~23",
+        "exit_reasons": {
+          "跌破白线": 3,
+          "★卖止盈": 3
+        }
+      },
+      "total_buy_signals": 96
+    }
+  },
+  "sz300502": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 5,
+        "win_rate": 40.0,
+        "avg_pct": -0.19,
+        "max_pct": 6.23,
+        "min_pct": -4.04,
+        "avg_retreat": -7.69,
+        "max_retreat": -14.16,
+        "avg_bars": 119.8,
+        "bars_range": "18~344",
+        "exit_reasons": {
+          "无条件卖": 3,
+          "止损": 2
+        }
+      },
+      "jincha": {
+        "count": 5,
+        "win_rate": 60.0,
+        "avg_pct": -0.07,
+        "max_pct": 1.87,
+        "min_pct": -3.97,
+        "avg_retreat": -2.72,
+        "max_retreat": -4.08,
+        "avg_bars": 19.6,
+        "bars_range": "7~47",
+        "exit_reasons": {
+          "★卖止盈": 4,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 71
+    }
+  },
+  "sz300548": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 15,
+        "win_rate": 20.0,
+        "avg_pct": -1.09,
+        "max_pct": 12.59,
+        "min_pct": -7.77,
+        "avg_retreat": -7.94,
+        "max_retreat": -25.28,
+        "avg_bars": 134.9,
+        "bars_range": "7~639",
+        "exit_reasons": {
+          "无条件卖": 6,
+          "止损": 9
+        }
+      },
+      "jincha": {
+        "count": 12,
+        "win_rate": 58.3,
+        "avg_pct": 1.2,
+        "max_pct": 6.31,
+        "min_pct": -4.13,
+        "avg_retreat": -4.4,
+        "max_retreat": -8.92,
+        "avg_bars": 17.2,
+        "bars_range": "5~40",
+        "exit_reasons": {
+          "跌破白线": 3,
+          "★卖止盈": 6,
+          "CCI极值止盈": 1,
+          "止损": 2
+        }
+      },
+      "total_buy_signals": 86
+    }
+  },
+  "sz300570": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 4,
+        "win_rate": 25.0,
+        "avg_pct": 1.06,
+        "max_pct": 10.98,
+        "min_pct": -2.83,
+        "avg_retreat": -9.53,
+        "max_retreat": -25.54,
+        "avg_bars": 164.0,
+        "bars_range": "11~528",
+        "exit_reasons": {
+          "止损": 3,
+          "无条件卖": 1
+        }
+      },
+      "jincha": {
+        "count": 3,
+        "win_rate": 66.7,
+        "avg_pct": 0.91,
+        "max_pct": 4.21,
+        "min_pct": -1.87,
+        "avg_retreat": -4.64,
+        "max_retreat": -6.5,
+        "avg_bars": 35.0,
+        "bars_range": "17~62",
+        "exit_reasons": {
+          "止损": 1,
+          "★卖止盈": 2
+        }
+      },
+      "total_buy_signals": 82
+    }
+  },
+  "sz300604": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 100.0,
+        "avg_pct": 22.16,
+        "max_pct": 22.16,
+        "min_pct": 22.16,
+        "avg_retreat": -21.42,
+        "max_retreat": -21.42,
+        "avg_bars": 443.0,
+        "bars_range": "443~443",
+        "exit_reasons": {
+          "无条件卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 13,
+        "win_rate": 53.8,
+        "avg_pct": 7.6,
+        "max_pct": 32.48,
+        "min_pct": -4.92,
+        "avg_retreat": -12.26,
+        "max_retreat": -30.92,
+        "avg_bars": 207.5,
+        "bars_range": "7~623",
+        "exit_reasons": {
+          "止损": 6,
+          "无条件卖": 7
+        }
+      },
+      "jincha": {
+        "count": 8,
+        "win_rate": 75.0,
+        "avg_pct": 0.61,
+        "max_pct": 3.22,
+        "min_pct": -2.56,
+        "avg_retreat": -3.52,
+        "max_retreat": -4.96,
+        "avg_bars": 16.1,
+        "bars_range": "4~37",
+        "exit_reasons": {
+          "CCI极值止盈": 2,
+          "★卖止盈": 3,
+          "跌破白线": 1,
+          "止损": 2
+        }
+      },
+      "total_buy_signals": 80
+    }
+  },
+  "sz300620": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -2.28,
+        "max_pct": -2.28,
+        "min_pct": -2.28,
+        "avg_retreat": -4.58,
+        "max_retreat": -4.58,
+        "avg_bars": 26.0,
+        "bars_range": "26~26",
+        "exit_reasons": {
+          "无条件卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 8,
+        "win_rate": 12.5,
+        "avg_pct": -2.22,
+        "max_pct": 2.06,
+        "min_pct": -4.89,
+        "avg_retreat": -6.46,
+        "max_retreat": -10.98,
+        "avg_bars": 60.0,
+        "bars_range": "26~162",
+        "exit_reasons": {
+          "无条件卖": 6,
+          "止损": 2
+        }
+      },
+      "jincha": {
+        "count": 9,
+        "win_rate": 44.4,
+        "avg_pct": 0.41,
+        "max_pct": 5.2,
+        "min_pct": -2.5,
+        "avg_retreat": -3.0,
+        "max_retreat": -5.47,
+        "avg_bars": 15.3,
+        "bars_range": "4~41",
+        "exit_reasons": {
+          "★卖止盈": 4,
+          "跌破白线": 3,
+          "CCI极值止盈": 1,
+          "无条件卖": 1
+        }
+      },
+      "total_buy_signals": 76
+    }
+  },
+  "sz300666": {
+    "trend": "bullish",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 14,
+        "win_rate": 28.6,
+        "avg_pct": 1.93,
+        "max_pct": 25.59,
+        "min_pct": -4.18,
+        "avg_retreat": -7.51,
+        "max_retreat": -28.25,
+        "avg_bars": 159.1,
+        "bars_range": "5~822",
+        "exit_reasons": {
+          "止损": 9,
+          "无条件卖": 4,
+          "减仓卖": 1
+        }
+      },
+      "jincha": {
+        "count": 12,
+        "win_rate": 41.7,
+        "avg_pct": -0.85,
+        "max_pct": 1.91,
+        "min_pct": -3.98,
+        "avg_retreat": -2.66,
+        "max_retreat": -4.4,
+        "avg_bars": 30.0,
+        "bars_range": "3~117",
+        "exit_reasons": {
+          "止损": 3,
+          "★卖止盈": 6,
+          "跌破白线": 3
+        }
+      },
+      "total_buy_signals": 81
+    }
+  },
+  "sz300672": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 10,
+        "win_rate": 20.0,
+        "avg_pct": 0.55,
+        "max_pct": 24.89,
+        "min_pct": -8.44,
+        "avg_retreat": -11.46,
+        "max_retreat": -37.55,
+        "avg_bars": 138.1,
+        "bars_range": "11~605",
+        "exit_reasons": {
+          "止损": 6,
+          "无条件卖": 4
+        }
+      },
+      "jincha": {
+        "count": 7,
+        "win_rate": 71.4,
+        "avg_pct": 3.45,
+        "max_pct": 6.82,
+        "min_pct": -0.32,
+        "avg_retreat": -5.57,
+        "max_retreat": -8.06,
+        "avg_bars": 17.6,
+        "bars_range": "8~29",
+        "exit_reasons": {
+          "★卖止盈": 6,
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 76
+    }
+  },
+  "sz300757": {
+    "trend": "neutral",
+    "min5": {
+      "ma_strict": {
+        "count": 3,
+        "win_rate": 66.7,
+        "avg_pct": 2.25,
+        "max_pct": 21.63,
+        "min_pct": -15.29,
+        "avg_retreat": -18.66,
+        "max_retreat": -24.76,
+        "avg_bars": 481.7,
+        "bars_range": "54~864",
+        "exit_reasons": {
+          "无条件卖": 2,
+          "止损": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 19,
+        "win_rate": 36.8,
+        "avg_pct": 1.37,
+        "max_pct": 21.63,
+        "min_pct": -15.29,
+        "avg_retreat": -13.11,
+        "max_retreat": -24.99,
+        "avg_bars": 313.3,
+        "bars_range": "1~887",
+        "exit_reasons": {
+          "无条件卖": 7,
+          "止损": 11,
+          "数据尾": 1
+        }
+      },
+      "jincha": {
+        "count": 11,
+        "win_rate": 9.1,
+        "avg_pct": -0.48,
+        "max_pct": 0.92,
+        "min_pct": -2.29,
+        "avg_retreat": -2.77,
+        "max_retreat": -3.58,
+        "avg_bars": 15.5,
+        "bars_range": "8~23",
+        "exit_reasons": {
+          "★卖止盈": 5,
+          "跌破白线": 6
+        }
+      },
+      "total_buy_signals": 78
+    }
+  },
+  "sz300857": {
+    "trend": "bearish",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 11,
+        "win_rate": 27.3,
+        "avg_pct": -0.64,
+        "max_pct": 11.88,
+        "min_pct": -4.79,
+        "avg_retreat": -6.6,
+        "max_retreat": -15.78,
+        "avg_bars": 105.4,
+        "bars_range": "17~299",
+        "exit_reasons": {
+          "止损": 5,
+          "无条件卖": 6
+        }
+      },
+      "jincha": {
+        "count": 12,
+        "win_rate": 16.7,
+        "avg_pct": -1.43,
+        "max_pct": 6.02,
+        "min_pct": -5.07,
+        "avg_retreat": -3.63,
+        "max_retreat": -5.67,
+        "avg_bars": 18.5,
+        "bars_range": "1~46",
+        "exit_reasons": {
+          "★卖止盈": 3,
+          "CCI极值止盈": 1,
+          "止损": 3,
+          "无条件卖": 3,
+          "跌破白线": 2
+        }
+      },
+      "total_buy_signals": 85
+    }
+  },
+  "sz300975": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 0.0,
+        "avg_pct": -2.82,
+        "max_pct": -2.82,
+        "min_pct": -2.82,
+        "avg_retreat": -7.33,
+        "max_retreat": -7.33,
+        "avg_bars": 323.0,
+        "bars_range": "323~323",
+        "exit_reasons": {
+          "无条件卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 13,
+        "win_rate": 30.8,
+        "avg_pct": 1.11,
+        "max_pct": 12.7,
+        "min_pct": -9.3,
+        "avg_retreat": -8.94,
+        "max_retreat": -21.31,
+        "avg_bars": 148.2,
+        "bars_range": "1~417",
+        "exit_reasons": {
+          "无条件卖": 7,
+          "止损": 6
+        }
+      },
+      "jincha": {
+        "count": 10,
+        "win_rate": 20.0,
+        "avg_pct": -1.42,
+        "max_pct": 13.77,
+        "min_pct": -9.3,
+        "avg_retreat": -4.77,
+        "max_retreat": -12.1,
+        "avg_bars": 23.4,
+        "bars_range": "3~47",
+        "exit_reasons": {
+          "CCI极值止盈": 1,
+          "止损": 5,
+          "★卖止盈": 3,
+          "无条件卖": 1
+        }
+      },
+      "total_buy_signals": 82
+    }
+  },
+  "sz301205": {
+    "trend": "bullish",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 22,
+        "win_rate": 31.8,
+        "avg_pct": 0.81,
+        "max_pct": 25.78,
+        "min_pct": -10.6,
+        "avg_retreat": -9.25,
+        "max_retreat": -27.96,
+        "avg_bars": 119.0,
+        "bars_range": "2~571",
+        "exit_reasons": {
+          "无条件卖": 10,
+          "止损": 12
+        }
+      },
+      "jincha": {
+        "count": 19,
+        "win_rate": 78.9,
+        "avg_pct": 2.17,
+        "max_pct": 7.54,
+        "min_pct": -2.39,
+        "avg_retreat": -5.3,
+        "max_retreat": -10.01,
+        "avg_bars": 23.7,
+        "bars_range": "7~59",
+        "exit_reasons": {
+          "★卖止盈": 8,
+          "CCI极值止盈": 4,
+          "止损": 1,
+          "跌破白线": 5,
+          "无条件卖": 1
+        }
+      },
+      "total_buy_signals": 86
+    }
+  },
+  "sz301308": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": {
+        "count": 1,
+        "win_rate": 100.0,
+        "avg_pct": 9.66,
+        "max_pct": 9.66,
+        "min_pct": 9.66,
+        "avg_retreat": -19.95,
+        "max_retreat": -19.95,
+        "avg_bars": 770.0,
+        "bars_range": "770~770",
+        "exit_reasons": {
+          "无条件卖": 1
+        }
+      },
+      "ma_delayed": {
+        "count": 11,
+        "win_rate": 54.5,
+        "avg_pct": 8.7,
+        "max_pct": 44.55,
+        "min_pct": -6.85,
+        "avg_retreat": -16.77,
+        "max_retreat": -39.72,
+        "avg_bars": 277.5,
+        "bars_range": "3~770",
+        "exit_reasons": {
+          "止损": 4,
+          "无条件卖": 3,
+          "减仓卖": 4
+        }
+      },
+      "jincha": {
+        "count": 8,
+        "win_rate": 75.0,
+        "avg_pct": 2.81,
+        "max_pct": 11.34,
+        "min_pct": -0.98,
+        "avg_retreat": -4.33,
+        "max_retreat": -11.29,
+        "avg_bars": 16.6,
+        "bars_range": "1~35",
+        "exit_reasons": {
+          "CCI极值止盈": 1,
+          "★卖止盈": 6,
+          "跌破白线": 1
+        }
+      },
+      "total_buy_signals": 83
+    }
+  },
+  "sz301511": {
+    "trend": "bullish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 14,
+        "win_rate": 50.0,
+        "avg_pct": 45.73,
+        "max_pct": 150.95,
+        "min_pct": -3.85,
+        "avg_retreat": -25.19,
+        "max_retreat": -62.54,
+        "avg_bars": 415.6,
+        "bars_range": "1~1403",
+        "exit_reasons": {
+          "止损": 7,
+          "无条件卖": 7
+        }
+      },
+      "jincha": {
+        "count": 13,
+        "win_rate": 46.2,
+        "avg_pct": -1.34,
+        "max_pct": 3.91,
+        "min_pct": -6.79,
+        "avg_retreat": -4.32,
+        "max_retreat": -7.74,
+        "avg_bars": 18.5,
+        "bars_range": "5~27",
+        "exit_reasons": {
+          "★卖止盈": 6,
+          "止损": 5,
+          "跌破白线": 2
+        }
+      },
+      "total_buy_signals": 73
+    }
+  },
+  "sz301526": {
+    "trend": "bullish",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 15,
+        "win_rate": 53.3,
+        "avg_pct": 11.79,
+        "max_pct": 53.29,
+        "min_pct": -8.74,
+        "avg_retreat": -17.12,
+        "max_retreat": -46.87,
+        "avg_bars": 304.7,
+        "bars_range": "6~867",
+        "exit_reasons": {
+          "无条件卖": 11,
+          "止损": 4
+        }
+      },
+      "jincha": {
+        "count": 13,
+        "win_rate": 53.8,
+        "avg_pct": 1.33,
+        "max_pct": 5.59,
+        "min_pct": -1.97,
+        "avg_retreat": -4.12,
+        "max_retreat": -6.59,
+        "avg_bars": 25.2,
+        "bars_range": "8~52",
+        "exit_reasons": {
+          "跌破白线": 4,
+          "CCI极值止盈": 2,
+          "止损": 1,
+          "★卖止盈": 6
+        }
+      },
+      "total_buy_signals": 86
+    }
+  },
+  "sz301666": {
+    "trend": "bearish_bias",
+    "min5": {
+      "ma_strict": null,
+      "ma_delayed": {
+        "count": 2,
+        "win_rate": 50.0,
+        "avg_pct": 29.86,
+        "max_pct": 61.37,
+        "min_pct": -1.64,
+        "avg_retreat": -23.55,
+        "max_retreat": -45.21,
+        "avg_bars": 238.5,
+        "bars_range": "8~469",
+        "exit_reasons": {
+          "无条件卖": 1,
+          "止损": 1
+        }
+      },
+      "jincha": {
+        "count": 2,
+        "win_rate": 50.0,
+        "avg_pct": -3.16,
+        "max_pct": 2.59,
+        "min_pct": -8.91,
+        "avg_retreat": -8.19,
+        "max_retreat": -9.36,
+        "avg_bars": 29.5,
+        "bars_range": "20~39",
+        "exit_reasons": {
+          "★卖止盈": 1,
+          "止损": 1
+        }
+      },
+      "total_buy_signals": 12
+    }
+  }
+}

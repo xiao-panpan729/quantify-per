@@ -338,5 +338,5 @@ if "--ai" in sys.argv:
     print(f"   文件: {output_path}")
     print()
     print("🤖 AI分析：由 Claude 手动触发")
-    print("   对我说"写日报"即可开始分析")
+    print('   对我说"写日报"即可开始分析')
     print("="*50)

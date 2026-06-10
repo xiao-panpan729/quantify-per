@@ -118,6 +118,22 @@ if %errorlevel% neq 0 (
 :endopen
 
 echo.
+echo [11/11] 信号事件流提取（关键词匹配）...
+python tools/signal_extractor.py
+if %errorlevel% neq 0 (
+    echo [警告] 信号提取失败
+    set /a ERR_CNT+=1
+)
+echo.
+
+echo [12/12] ★深度精读（LLM全量分析公众号）...
+python tools/signal_deep_reader.py
+if %errorlevel% neq 0 (
+    echo [警告] 深度精读失败
+    set /a ERR_CNT+=1
+)
+echo.
+
 echo ==========================================
 echo 	更新完成
 if %ERR_CNT% gtr 0 (

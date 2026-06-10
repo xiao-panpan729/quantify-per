@@ -30,14 +30,10 @@ reports/daily/
 reports/
 
 # ===== 跟踪数据（每日生成，不需要 git 版本）=====
-signals/tracking/*/daily_signals.csv
-signals/tracking/*/min5_signals.csv
-signals/tracking/*/min15_signals.csv
-signals/tracking/*/min30_signals.csv
-signals/tracking/*/min60_signals.csv
-signals/tracking/*/closes.json
-signals/tracking/latest.json
-tracking_db.sqlite
+signals/tracking/**/*.csv
+signals/tracking/**/*.json
+signals/tracking/**/*.db
+signals/tracking/**/stock_names.csv
 
 # ===== IDE 配置 =====
 .idea/

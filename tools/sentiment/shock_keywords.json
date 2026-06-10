@@ -138,6 +138,18 @@
         "网络安全审查", "游戏版号", "算法推荐", "APP下架"
       ]
     },
+    "macro_cmc_list": {
+      "label": "CMC清单/涉军企业",
+      "level": "macro",
+      "impact_sign": -1,
+      "impact_magnitude": 2,
+      "keywords": [
+        "中国军工企业", "CMC清单", "军事企业名单", "涉军企业",
+        "DoD名单", "国防部名单", "军工企业名单", "Chinese military company",
+        "CCMC", "1260H条款", "小米名单", "制裁名单",
+        "美国防部", "美国国防部"
+      ]
+    },
     "market_blackswan": {
       "label": "黑天鹅/流动性危机",
       "level": "market",
@@ -190,6 +202,25 @@
         "美联储降息", "鸽派", "宽松信号", "暂停加息",
         "结束缩表", "开启降息", "通胀回落", "就业放缓",
         "dovish", "rate cut", "pivot"
+      ]
+    },
+    "institutional_views": {
+      "label": "外资行观点",
+      "level": "market",
+      "impact_sign": 0,
+      "impact_magnitude": 1,
+      "keywords": [
+        "高盛", "Goldman Sachs", "GS",
+        "摩根士丹利", "大摩", "Morgan Stanley",
+        "摩根大通", "小摩", "JPMorgan", "J.P. Morgan",
+        "瑞银", "UBS",
+        "花旗", "Citi", "Citigroup",
+        "美银", "Bank of America", "BofA",
+        "外资行", "外资机构", "华尔街",
+        "看多A股", "看空A股", "超配A股", "低配A股",
+        "上调中国", "下调中国", "上调A股", "下调A股",
+        "上调评级", "下调评级",
+        "China strategy", "超配中国", "低配中国"
       ]
     }
   }
