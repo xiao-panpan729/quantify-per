@@ -15,6 +15,10 @@ WECHAT_DIR = PROJECT_ROOT / "wechat_articles"
 OUTPUT_DIR = PROJECT_ROOT / "reports" / "sources"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Force UTF-8 on Windows
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 today = datetime.now().strftime("%Y%m%d")
 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 output_path = OUTPUT_DIR / f"{today}_sources.md"
@@ -322,21 +326,141 @@ blocks.append("")
 # ─── 写入基础摘要 ───
 raw_summary = "\n".join(blocks)
 output_path.write_text(raw_summary, encoding="utf-8")
-print(f"✅ 摘要已生成: {output_path}")
+print(f"[OK] 摘要已生成: {output_path}")
 
 # ═══════════════════════════════════════════
-# AI 分析（--ai 模式 → 由 Claude 写分析，不再调 V4 Flash）
+# AI 分析（--ai 模式 → 调 API 翻译成可读报告）
 # ═══════════════════════════════════════════
-#
-# 2026-06-08 变更：数据采集完成后，由用户触发 Claude 写分析。
-# 用户说"写日报"时，Claude 读取全部原文数据，按框架输出。
-# 这里不再调 call_llm，只打印指引。
 
 if "--ai" in sys.argv:
-    print("\n" + "="*50)
-    print("📋 纯数据摘要已生成")
-    print(f"   文件: {output_path}")
-    print()
-    print("🤖 AI分析：由 Claude 手动触发")
-    print('   对我说"写日报"即可开始分析')
-    print("="*50)
+    from ai_analyzer import call_llm
+
+    # ═══ 历史快照对比 ═══
+    HISTORY_FILE = SIGNALS_DIR / "_macro/momentum_history.json"
+    today_str = today
+
+    def _load_history():
+        if HISTORY_FILE.exists():
+            try:
+                return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+            except: pass
+        return {}
+
+    def _save_history(etf_map, stock_map, chain_map, fund_latest):
+        hist = _load_history()
+        if etf_map: hist.setdefault("etfs", {})[today_str] = etf_map
+        if stock_map: hist.setdefault("stocks", {})[today_str] = stock_map
+        if chain_map: hist.setdefault("chains", {})[today_str] = chain_map
+        if fund_latest: hist.setdefault("fundamentals", {})[today_str] = fund_latest
+        HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        HISTORY_FILE.write_text(json.dumps(hist, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _last_date(hist, section):
+        dates = sorted(hist.get(section, {}).keys())
+        return dates[-2] if len(dates) >= 2 else None  # 上一个非今天的日期
+
+    # 收集当前快照
+    hist = _load_history()
+    prev_date = _last_date(hist, "etfs") or _last_date(hist, "stocks")
+
+    etf_data = _read_json(SIGNALS_DIR / "_macro/us_sector_momentum.json")
+    cur_etfs = {e["symbol"]: e["x1"] for e in (etf_data.get("etfs", []) if etf_data else []) if e.get("x1") is not None}
+    star_data = _read_json(SIGNALS_DIR / "_macro/us_star_momentum.json")
+    cur_stocks = {s["symbol"]: s["x1"] for s in (star_data.get("stocks", []) if star_data else []) if s.get("x1") is not None}
+    chain_data = _read_json(SIGNALS_DIR / "_macro/us_concept_momentum.json")
+    cur_chains = {c["chain"]: c["avg_x1"] for c in (chain_data.get("chains", []) if chain_data else []) if c.get("avg_x1") is not None}
+    fund_data = _read_json(SIGNALS_DIR / "_funds/fundamental_profile.json")
+    fund_latest = {}
+    if fund_data:
+        series = fund_data.get("factor_premium_series", [])
+        if series:
+            fund_latest = {k: v for k, v in series[-1].items() if k != "window_end" and isinstance(v, (int, float))}
+
+    # 生成对比文本
+    change_lines = []
+    if prev_date:
+        prev_etfs = hist.get("etfs", {}).get(prev_date, {})
+        prev_stocks = hist.get("stocks", {}).get(prev_date, {})
+        prev_chains = hist.get("chains", {}).get(prev_date, {})
+
+        # ETF 变化（只看 Top/Bottom 变化大的）
+        etf_changes = []
+        all_etf_syms = set(list(cur_etfs.keys())[:10] + list(cur_etfs.keys())[-10:])
+        for sym in all_etf_syms:
+            cur = cur_etfs.get(sym)
+            prev = prev_etfs.get(sym)
+            if cur is not None and prev is not None and abs(cur - prev) >= 1.5:
+                direction = "↑" if cur > prev else "↓"
+                etf_changes.append(f"  {sym}: {prev:.1f} → {cur:.1f} ({direction} {abs(cur-prev):.1f})")
+        if etf_changes:
+            change_lines.append(f"【ETF 变化 vs {prev_date}】")
+            change_lines.extend(etf_changes)
+
+        # 明星股变化
+        stock_changes = []
+        all_stock_syms = set(list(cur_stocks.keys())[:5] + list(cur_stocks.keys())[-5:])
+        for sym in all_stock_syms:
+            cur = cur_stocks.get(sym)
+            prev = prev_stocks.get(sym)
+            if cur is not None and prev is not None and abs(cur - prev) >= 1.5:
+                direction = "↑" if cur > prev else "↓"
+                stock_changes.append(f"  {sym}: {prev:.1f} → {cur:.1f} ({direction} {abs(cur-prev):.1f})")
+        if stock_changes:
+            change_lines.append(f"【明星股变化 vs {prev_date}】")
+            change_lines.extend(stock_changes)
+
+        # 概念链变化
+        chain_changes = []
+        all_chains = set(list(cur_chains.keys())[:3] + list(cur_chains.keys())[-3:])
+        for ch in all_chains:
+            cur = cur_chains.get(ch)
+            prev = prev_chains.get(ch)
+            if cur is not None and prev is not None and abs(cur - prev) >= 0.5:
+                direction = "↑" if cur > prev else "↓"
+                chain_changes.append(f"  {ch}: {prev:.2f} → {cur:.2f} ({direction} {abs(cur-prev):.2f})")
+        if chain_changes:
+            change_lines.append(f"【概念链变化 vs {prev_date}】")
+            change_lines.extend(chain_changes)
+
+    change_text = "\n".join(change_lines) if change_lines else f"（首次快照，无 {prev_date or '历史'} 对比数据）"
+
+    # 保存本轮快照（在调用 LLM 之前存，不影响 content）
+    _save_history(cur_etfs, cur_stocks, cur_chains, fund_latest)
+
+    # 把数据块+变化发给 LLM（纯数据快照，公众号观点由 gen_daily_brief 负责）
+    analysis_prompt = f"""你是一个市场分析报告编辑，任务是下面量化数据改写为中文简报。
+标注【数据】【解读】分清原始数据和你的推理。不提公众号观点。
+
+【US ETF动量 / 明星股动量】
+翻译名称+行业分类+分数。有历史对比写变化幅度。标【数据】【解读】。
+
+【概念链轮动】本期分数，标【数据】【解读】。
+
+【基本面因子溢价】正=奖励负=惩罚，标【数据】【解读】。
+
+中文+英文符号，↑↓方向。不写"x₁="。500-700字。不写"综上所述"。
+
+=== 本期数据 ===
+{raw_summary}
+=== 历史变化（vs {prev_date or '无'}）===
+{change_text}"""
+    # ────── end of analysis_prompt ──────
+
+
+    print("\n  [AI] 翻译数据为可读报告...", end=" ", flush=True)
+    try:
+        raw_response, provider = call_llm(
+            system_prompt="你是市场分析编辑，擅长把枯燥的量化数据翻译成直观、可读的中文简报。",
+            user_message=analysis_prompt,
+            max_tokens=4096
+        )
+        if raw_response:
+            # 用AI输出覆盖报表
+            ai_output = f"# 信源聚合报告 {now_str}\n\n---\n\n{raw_response.strip()}"
+            output_path.write_text(ai_output, encoding="utf-8")
+            print(f"✓ ({provider})")
+            print(f"  → {output_path}")
+        else:
+            print("✗ AI返回为空，保留原始数据摘要")
+    except Exception as e:
+        print(f"✗ {e}")

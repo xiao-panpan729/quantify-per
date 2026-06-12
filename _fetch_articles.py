@@ -5,7 +5,9 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from config import PROJECT_ROOT
 
-KEY = os.environ.get('MPTEXT_API_KEY', '931355aec9274ea7aa25dd11f9042414')
+sys.stdout.reconfigure(encoding='utf-8')
+
+KEY = os.environ.get('MPTEXT_API_KEY', '09b9d3bb2dec4d6f8e18fcf55a4853de')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'wechat_articles')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -45,15 +47,23 @@ def api_get(url, use_key=True, retries=3):
             return f'ERROR:{str(e)[:50]}'
 
 
-def get_article_links(fakeid):
+def get_article_links(fakeid, account_name=""):
     """取最近 MAX_ARTICLES 篇文章链接"""
     url = f'https://down.mptext.top/api/public/v1/article?fakeid={fakeid}&begin=0&size={MAX_ARTICLES}'
     raw = api_get(url)
     if raw.startswith('HTTP_ERROR') or raw.startswith('ERROR') or not raw.strip():
+        print(f'  ⚠ [{account_name}] API请求失败: {raw}')
         return []
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
+        print(f'  ⚠ [{account_name}] API返回格式异常')
+        return []
+    # 检测API业务错误（Key过期/无效等）
+    base_resp = data.get('base_resp', {})
+    if base_resp.get('ret', 0) != 0:
+        err_msg = base_resp.get('err_msg', '未知错误')
+        print(f'  ⚠ [{account_name}] API错误: {err_msg}')
         return []
     links = []
     for a in data.get('articles', []):
@@ -72,6 +82,14 @@ def download_article(article_url):
     raw = api_get(url)
     if raw is None or raw.startswith('HTTP_ERROR') or raw.startswith('ERROR'):
         return None
+    # 检测API业务错误
+    try:
+        err_data = json.loads(raw)
+        base_resp = err_data.get('base_resp', {})
+        if base_resp.get('ret', 0) != 0:
+            return None
+    except json.JSONDecodeError:
+        pass
     if len(raw.strip()) < 50:
         return None
     return raw
@@ -82,7 +100,7 @@ def process_account(fakeid, name):
     dir_path = os.path.join(OUTPUT_DIR, name)
     os.makedirs(dir_path, exist_ok=True)
 
-    links = get_article_links(fakeid)
+    links = get_article_links(fakeid, name)
     saved = 0
     skipped = 0
     failed = 0

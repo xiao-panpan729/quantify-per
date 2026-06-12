@@ -29,6 +29,7 @@ OUTPUT_DIR = SIGNALS_DIR / "_signals" / "daily_signals"
 
 # ADDED FOR AGGREGATION: paths for aggregation report and prompts
 REPORTS_SOURCES_DIR = PROJECT_ROOT / "reports" / "sources"
+REPORT_DEEP_DIR = PROJECT_ROOT / "reports" / "deep_signals"
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 CROSS_BLOCK_PROMPT_PATH = PROMPTS_DIR / "cross_block_analysis_prompt.md"
 
@@ -576,8 +577,19 @@ def _run_single(date: str, system_prompt: str):
     print(f"\n深度精读 — {date}")
     articles = _read_articles_for_date(date)
     if not articles:
-        print("  无公众号文章")
-        return
+        # 没找到 → 自动回退到最近有文章的日期
+        import datetime as _dt
+        fallback = _dt.datetime.strptime(date, "%Y%m%d")
+        for _ in range(14):  # 最多往回退14天
+            fallback -= _dt.timedelta(days=1)
+            fb_date = fallback.strftime("%Y%m%d")
+            articles = _read_articles_for_date(fb_date)
+            if articles:
+                print(f"  → 回退到 {fb_date} ({len(articles)} 篇)")
+                break
+        if not articles:
+            print("  无公众号文章")
+            return
 
     print(f"  文章数: {len(articles)}")
 
@@ -630,12 +642,7 @@ def _run_single(date: str, system_prompt: str):
         json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    md_content = build_markdown(date, results, stats)
-    md_path = OUTPUT_DIR / f"{date}_deep_signals.md"
-    md_path.write_text(md_content, encoding="utf-8")
-
     print(f"\n  [OK] {json_path.name}")
-    print(f"  [OK] {md_path.name}")
     print(f"  信号: {total_signals}条 / 文章: {success}成功 {failed}失败")
 
     # ADDED FOR AGGREGATION: 文章精读完成后，额外跑聚合日报跨块分析

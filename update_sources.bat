@@ -108,17 +108,11 @@ python gen_source_summary.py --ai
 if %errorlevel% neq 0 (
     echo [警告] 摘要生成失败
     set /a ERR_CNT+=1
-) else (
-    REM 打开最新摘要报告
-    for /f "delims=" %%f in ('dir /b /o-d reports\sources\*_sources.md 2^>nul') do (
-        start "" "reports\sources\%%f"
-        goto :endopen
-    )
 )
-:endopen
+REM 弹窗推迟到 gen_daily_brief 之后
 
 echo.
-echo [11/11] 信号事件流提取（关键词匹配）...
+echo [11/13] 信号事件流提取（关键词匹配）...
 python tools/signal_extractor.py
 if %errorlevel% neq 0 (
     echo [警告] 信号提取失败
@@ -126,12 +120,27 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [12/12] ★深度精读（LLM全量分析公众号）...
+echo [12/13] ★深度精读（LLM全量分析公众号）...
 python tools/signal_deep_reader.py
 if %errorlevel% neq 0 (
     echo [警告] 深度精读失败
     set /a ERR_CNT+=1
 )
+echo.
+
+echo [13/13] ★观点聚合+共振判断...
+python gen_daily_brief.py
+if %errorlevel% neq 0 (
+    echo [警告] 观点聚合失败
+    set /a ERR_CNT+=1
+) else (
+    REM 全部完成后才弹窗，确保是完整报告
+    for /f "delims=" %%f in ('dir /b /o-d reports\sources\*_sources.md 2^>nul') do (
+        start "" "reports\sources\%%f"
+        goto :endopen
+    )
+)
+:endopen
 echo.
 
 echo ==========================================
