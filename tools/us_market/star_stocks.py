@@ -21,6 +21,9 @@ from pathlib import Path
 
 import numpy as np
 
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import akshare as ak
@@ -151,13 +154,24 @@ def calc_all_us_stock_scores() -> list[dict]:
             close, volume = arrs
             x1 = calc_index_x1(close, volume)
             latest_close = float(close[-1])
-            print(f"X_1={x1:.2f}  收盘={latest_close:.2f}")
+            # 每日涨跌幅
+            daily_chg = round((close[-1] / close[-2] - 1) * 100, 2) if len(close) >= 2 else 0
+            # 周涨跌幅（5个交易日）
+            week_chg = round((close[-1] / close[-6] - 1) * 100, 2) if len(close) >= 6 else 0
+            vol_ratio = 0
+            if len(volume) >= 21:
+                avg_vol = float(np.mean(volume[-21:-1]))
+                vol_ratio = round(volume[-1] / avg_vol, 2) if avg_vol > 0 else 0
+            print(f"X_1={x1:.2f}  日涨跌={daily_chg:+.2f}%  收盘={latest_close:.2f}")
             results.append({
                 "symbol": symbol,
                 "name": name,
                 "category": cat,
                 "x1": round(x1, 2),
                 "close": latest_close,
+                "daily_chg": daily_chg,
+                "week_chg": week_chg,
+                "vol_ratio": vol_ratio,
                 "n_days": len(close),
             })
             time.sleep(0.3)
@@ -204,6 +218,27 @@ def report_stock_rankings(results: list[dict], category: str = None):
     failed = [r for r in results if r.get("x1") is None]
     if failed:
         print(f"\n  失败 ({len(failed)}): {', '.join(r['symbol'] for r in failed)}")
+
+
+def report_top_movers(results: list[dict], n: int = 10):
+    """打印每日涨跌榜 Top N"""
+    valid = [r for r in results if r.get("x1") is not None and r.get("daily_chg") is not None]
+    gainers = sorted(valid, key=lambda r: r.get("daily_chg", 0), reverse=True)[:n]
+    losers = sorted(valid, key=lambda r: r.get("daily_chg", 0))[:n]
+
+    print("\n" + "=" * 70)
+    print("  US 明星股每日涨幅 Top %d" % n)
+    print("=" * 70)
+    print(f"  {'代码':<8} {'名称':<15} {'类别':<22} {'涨幅':>7} {'X_1':>6} {'量比':>6}")
+    for r in gainers:
+        print(f"  {r['symbol']:<8} {r['name']:<15} {r['category']:<22} {r['daily_chg']:>+7.2f}% {r['x1']:>6.1f} {r.get('vol_ratio',0):>6.2f}")
+
+    print("\n" + "=" * 70)
+    print("  US 明星股每日跌幅 Top %d" % n)
+    print("=" * 70)
+    print(f"  {'代码':<8} {'名称':<15} {'类别':<22} {'跌幅':>7} {'X_1':>6} {'量比':>6}")
+    for r in losers:
+        print(f"  {r['symbol']:<8} {r['name']:<15} {r['category']:<22} {r['daily_chg']:>+7.2f}% {r['x1']:>6.1f} {r.get('vol_ratio',0):>6.2f}")
 
 
 def save_stock_results(results: list[dict], date_str: str = None):
@@ -331,6 +366,8 @@ def main():
     parser.add_argument("--search", type=str, help="搜索指定个股")
     parser.add_argument("--category", type=str, help="仅显示指定类别")
     parser.add_argument("--date", type=str, help="日期标签 (默认今天)")
+    parser.add_argument("--movers", action="store_true", help="显示每日涨跌榜（按日涨跌幅排序）")
+    parser.add_argument("--movers-top", type=int, default=10, help="涨跌榜显示数 (默认10)")
     args = parser.parse_args()
 
     total = sum(len(v) for v in US_STAR_STOCKS.values())
@@ -342,6 +379,8 @@ def main():
 
     if args.search:
         search_stock(results, args.search)
+    elif args.movers:
+        report_top_movers(results, args.movers_top)
     else:
         report_stock_rankings(results, args.category)
 

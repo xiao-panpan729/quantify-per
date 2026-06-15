@@ -2405,3 +2405,238 @@ Phase 2a 用5个并行 agent 更新了22条时间线文件（`narratives/timelin
 
 #并行Agent #叙事分级 #SABCD #跨块分析 #deep_reader #研报灌溉 #传导链 #铝超级周期 #Chain006 #Phase1 #Phase2
 
+---
+
+## 实验 #25: 信源日报管道架构修正 — 精读/聚合/出报告 顺序与去重 (2026-06-12)
+
+### 背景
+
+信源日报管道（实验 #15 #14 建立）存在三个运行缺陷：
+
+1. **顺序倒置**：gen_source_summary --ai 在 deep_reader 精读之前写报告（无公众号观点），deep_reader 精读后又弹出一份 .md，等于出两份报告
+2. **去重失效**：gen_daily_brief 用文章标题做去重，标题模糊匹配导致昨天/前天已读文章每天被重新引用，观点无法延续
+3. **来源标签模糊**：sources.md 分不清【数据快照】【公众号观点】【交叉验证】【综合判断】，读者无法追溯信息来源
+
+### 缺陷分析
+
+**顺序倒置的根因**：gen_source_summary 最初设计为"信源AI日报生成器（8公众号聚合→分析→报告）"，但实际上它消费的是量化数据快照（宏观/流动性/板块势能/US映射），不消费公众号原文。deep_reader 才是消费公众号原文的精读层。两个功能混在一个管道阶段，导致：
+
+```
+旧管道:
+  gen_source_summary --ai  →  出 sources.md（无公众号观点）
+  deep_reader              →  出第二份 .md（精读报告）
+  gen_daily_brief          →  追加观点聚合到 sources.md
+```
+
+结果：sources.md 第一版缺公众号内容，deep_reader 单独弹窗，用户看到两份报告。
+
+**去重失效的根因**：gen_daily_brief 用文章标题做 `covered_titles` 去重匹配。但公众号标题常有细微差异（标点/空格/子标题），加上 gen_source_summary 输出的标题格式不统一（有 `- **标题**: ` 和 `└ 标题` 两种前缀），导致同一篇文章被识别为不同文章。
+
+### 解决方案
+
+**管道顺序修正**：
+
+```
+新管道:
+  gen_source_summary --ai  →  数据快照（标注【数据】【解读】）
+  deep_reader              →  JSON only（结构化信号，不再出 .md）
+  gen_daily_brief          →  消费 JSON + 原文 → 完整合并报告
+```
+
+三个模块各司其职：
+- gen_source_summary：纯量化数据（宏观/流动性/板块/基本面），不问公众号
+- deep_reader：消费公众号原文，输出结构化信号 JSON（中间层，不弹窗）
+- gen_daily_brief：消费 JSON + 原文 → 观点聚合 + 宏观共振 → 一次性追加完整报告
+
+**去重方案**：从标题模糊匹配改为文件名精确匹配，通过 `<!--dedup-file: filepath-->` HTML 注释埋入 sources.md：
+
+```python
+# 方法A: dedup-file 标记（文件名精确匹配，最可靠）
+for m in re.finditer(r'<!--dedup-file: (.+?)-->', text):
+    covered_files.add(m.group(1).strip())
+# 然后比对:
+if rel_path in covered_files:
+    continue  # 精确匹配，跳过
+```
+
+**标签体系**：三类信息各司其职
+- 【数据】— 量化系统产出（宏观/流动性/板块势能）
+- 【解读】— AI对数据的推理
+- 【观点:公众号名】— 作者原文观点
+- 【交叉验证:共振/分歧/新变量】— 宏观 vs 观点的对比
+- 【综合判断】— 最终结论
+
+### 文件变更
+
+| 文件 | 变更 | 行数变化 |
+|------|------|---------|
+| gen_source_summary.py | 移除 `_read_article_excerpts()`，恢复纯数据 prompt | -18 行 |
+| gen_daily_brief.py | 去重改为文件名匹配；增量模式对比文件路径；新增详细输出 | +29 行 |
+| signal_deep_reader.py | 移除 .md 报告输出（JSON only） | -7 行 |
+| update_sources.bat | 弹窗从 gen_source_summary 后挪到 gen_daily_brief 后 | 微调 |
+
+### 当前短板
+
+1. **未实跑验证**：改动后未运行完整 pipeline（等待用户下次执行 update_sources.bat）
+2. **第一天全量 vs 第二天增量**：dedup-file 标记只从当日 sources.md 读取，第二天运行时标记丢失（因为标记不在旧文件的 sources.md 中）→ 需要跨日读取历史 sources.md 的 dedup-file 标记（已在 get_unread_articles 中实现：扫描过去7天）
+3. **gen_source_summary --ai prompt 的【数据】【解读】标签输出效果待验证**
+
+### 关键词
+
+#信源日报 #管道架构 #deep_reader #gen_daily_brief #去重 #标签体系 #pipeline #实验#15 #实验#14
+
+---
+
+## 实验 #25b: 信源日报管道实装 — topic_classifier + gen_daily_brief 重写 (2026-06-14)
+
+### 背景
+
+实验 #25（2026-06-12）设计了管道架构修正方案，但未实跑验证。本次将设计落地：新建 `tools/topic_classifier.py`（规则匹配分类器）+ 重写 `gen_daily_brief.py`（集成分类器+去重修复）。
+
+### 文件变更
+
+| 文件 | 变更 | 行数 |
+|------|------|------|
+| `tools/topic_classifier.py` | **新增** — 规则主题分类器（关键词→主题分组，非LLM） | ~80行 |
+| `gen_daily_brief.py` | 重写 — 集成 topic_classifier；去重改为文件名匹配；新增历史观点提取(cmp)；新增LLM prompt 统一渲染 | +548行 |
+| `_fetch_articles.py` | 新增4个情绪热点信源（盘前纪要/盘前/一思一记/安静拆主线） | +21行 |
+| `update_sources.bat` | 管道流程对齐 | 微调 |
+| `experts/research_log.md` | 9个专家文档大补（模块清单+能力评估+设计决策） | +583行 |
+
+### 架构
+
+```
+旧管道问题:
+  gen_source_summary --ai → sources.md（缺公众号观点）
+  deep_reader            → 第二份 .md（精读报告，弹两次窗）
+  gen_daily_brief        → 追加观点聚合（去重靠标题匹配，无效）
+
+新管道:
+  gen_source_summary --ai → sources.md（纯数据快照【数据】【解读】标签）
+  deep_reader            → JSON only（结构化信号，不出 .md）
+  gen_daily_brief        → 消费 JSON + 原文 → 一站式合并报告
+```
+
+### 关键设计决策
+
+1. **规则分类器替代LLM分类**：`topic_classifier.py` 用关键词正则匹配做主题分组，省token+速度快。每个主题定义 `importance`（high/medium/low）和 keyword 列表。分类后 `format_groups_summary()` 输出结构化摘要供 prompt 使用
+2. **去重方案升级**：从标题模糊匹配 → `<!--dedup-file: filepath-->` HTML 注释精确匹配。扫描过去7天（含今天）的 sources.md 提取已读文件路径
+3. **历史观点对比**：`extract_prev_views()` 从昨日 sources.md 提取作者历史观点，prompt 里做观点延续/变化判断
+4. **8→12信源扩张**：原7个宏观/观点公众号 + 4个情绪热点（盘前纪要/盘前/一思一记/安静拆主线）+ 1个新宏观号"一思一记"。分类为「宏观/观点」和「情绪热点」，情绪热点尚未整合到日报输出
+
+### 当前短板
+
+1. **gen_daily_brief 新管道未实跑**（周日无新文章，demo 模式跑过但未全线联调）
+2. **情绪热点4信源**已接数据层但日报不消费，需要决定是否做独立"盘前情绪简报"或合并到 sources.md
+3. **topic_classifier 关键词库**当前约80个关键词覆盖12个主题，需随新话题出现持续扩增
+4. **deep_reader JSON only** 改动已做但未验证 deep_reader 输出格式与 gen_daily_brief 的兼容性
+5. **/neat 第1.6步** 原来跳过了本次实验记录（判断为"记录价值有限"），路由优先规则缺陷已修复
+
+### 2026-06-14 后续修正
+
+**MACRO_ACCOUNTS 过滤层**（解决短板 #2）：
+- 情绪热点 4 信源（盘前纪要/盘前/一思一记/安静拆主线）从日报彻底排除
+- `gen_daily_brief.py` 新增 `MACRO_ACCOUNTS` 常量集（8个宏观信源），`get_unread_articles()` 先过滤目录名
+- 根因：上次混入是因为绕过 `ACCOUNT_CATEGORIES` 分类系统直接用了文件列表
+
+**update_sources.bat 新增 US 异动步骤**：
+- 新增 [3/11] `python tools/us_market/us_movers_extract.py --save`
+- 全流程从 13 步 → 14 步，重编号为 [1/11]→[11/11] + [12/14]→[14/14]
+
+**us_movers_extract.py 新增**：
+- 从 shock_detector 快讯提取美股个股/板块/ETF 异动事件（23只个股/9板块/2ETF/75条事件）
+- 与 X₁ 势能系统互补：新闻事件 vs 收盘数据验证
+
+### 关键词
+
+#信源日报 #topic_classifier #gen_daily_brief #管道架构 #规则分类 #实验#25 #情绪热点 #去重 #deep_reader #us_movers_extract #pipeline
+
+---
+
+## 实验 #26: 缠论适配器 — S/Pow/C/G 纯净映射 + GG/DD 中枢扩张修复 (2026-06-15)
+
+### 背景
+
+专家融合框架实验#2落地了 StandardSignal + 量领/宏观双适配器。本次补齐第三个适配器：**缠论（ta_chanlun）**。缠论的结构化输出（线段/中枢/背驰）天然适合翻译为标准维度，但首次实现时方向逻辑反复修正了三轮。
+
+### 文件变更
+
+| 文件 | 变更 | 行数 |
+|------|------|------|
+| `experts/signal_adapter/adapter_chanlun.py` | **新增** — 缠论→StandardSignal适配器 | 248行 |
+| `notebook/chanlun/positions.py` | `_check_level_div` GG/DD中枢扩张检测修复 | +345行 (211→556) |
+| `experts/signal_adapter/__init__.py` | 新增 adapter_chanlun 导出 | +1行 |
+
+### 核心设计：三维纯净映射
+
+缠论的四个核心概念直接映射到 StandardSignal 的三个维度，不混合加权：
+
+```
+S   ← 纯结构方向（线段方向 / 中枢突破 / 中枢偏向）
+       背驰不参与方向判断。顶背驰+上涨≠空，最多转震荡。
+Pow ← 有背驰: 力度衰减率 = (进入段-离开段) / 进入段
+       无背驰: 从position推断结构力度（突破=0.7, 震荡偏强=0.45, 中枢震荡=0.3）
+C   ← 背驰类型基础置信 (trend=0.80/consolidation=0.55/minor=0.30/none=0.40)
+       + 结构突破加成 (突破/跌破中枢 → max(C, 0.65))
+       + 中枢共振加成 (共振同向 +0.10)
+       + 买卖点确认 (方向一致 +0.05)
+G   ← 背驰级别: A(trend) / B(consolidation) / C(minor)
+```
+
+### 关键设计迭代（三轮修正）
+
+**v1 — 加权求和（被推翻）**：
+线段+背驰+买卖点+共振+一致性 五个因子加权求和→从总分反推S/C/Pow。维度含义模糊，每个值都说不清来源。
+
+**v2 — 背驰定方向（被用户推翻）**：
+中枢震荡时背驰方向决定S（底背驰→S=+, 顶背驰→S=-）。sh588200还在涨却给了S=-，用户指出"背驰不是空的理由，最多转为震荡，震荡也不是空。"
+
+**v3 — 纯结构定方向（当前）**：
+S完全由结构性因素决定：上涨线段 > 下跌线段 > 突破/跌破中枢 > 中枢偏向 > 日线笔方向。背驰只管Pow和C，不影响S。
+
+### GG/DD 中枢扩张修复（positions.py）
+
+**问题**：`_check_level_div` 合并中枢时只检查 ZG/ZD 是否重叠，不查 GG/DD。结果 sz300118 的 4 个中枢被判定为独立（ZG/ZD 不重叠），判为趋势背驰A级。但实际上所有相邻中枢的 GG/DD 都交叉穿透 → 中枢扩张 → 四个中枢实为一个。
+
+**修复**：合并逻辑新增 GG/DD 交叉检查：
+```
+两个中枢真正独立 = ZG(下) < ZD(上) AND GG(下) ≤ DD(上)
+GG(下) > DD(上) → 中枢扩张 → 合并为大级别中枢
+```
+修复后 sz300118：4中枢→1中枢 → 趋势背驰(A) → 盘整背驰(B)。
+
+### 运行结果（14只标的，2026-06-15）
+
+- 12条 B级盘整背驰 + 2条无背驰信号
+- 无A级趋势背驰（GG/DD修复后，之前虚假的趋势背驰全部降级）
+- 方向分布：多8条 / 空6条
+- 全B级的原因：当前市场处于震荡做中枢阶段，日线级别无确立趋势，30分钟子级别背驰均属盘整
+
+### 结论
+
+1. **缠论适配器三重映射可行** — S(结构)/Pow(衰减)/C(质量) 各自独立，含义清晰，融合引擎可明确解读
+2. **GG/DD中枢扩张检测是关键补丁** — 不检查GG/DD会系统性地将盘整背驰误判为趋势背驰
+3. **背驰≠方向** — 这是本实验最重要的语义修正。背驰=力度衰减信号，方向由结构决定
+4. **待后续验证** — Pow无背驰时的力度对比目前用position字符串推断（粗糙），需改为从bi_list提取实际线段力度
+
+### 关键词
+
+#缠论 #适配器 #StandardSignal #背驰 #中枢扩张 #GG/DD #纯净映射 #实验#26 #positions #adapter_chanlun
+
+### 后续优化：S规则修正 + 价格单位bug + 信号分段（2026-06-15 下午）
+
+**S规则修正**（adapter_chanlun.py）：
+- 新高+顶背驰→S=0，新低+底背驰→S=0（价格极端+力度衰减→方向不明确）
+- 中枢震荡偏强/偏弱配合 daily_dir：顺势才给方向，逆势归零
+
+**Bug修复**（positions.py）：
+`_zhongshu_segment` 中 daily_close 取自CSV原始值（sh000001: 409），但中枢边界来自CZSC已归一化（GG=0.43）。409≥0.43 误判为"突破中枢上轨"。修复：改用 `daily_bars[-1].close` 保证与中枢边界同量级。
+
+**信号分段**：
+历史事件（买卖点）不再混入当前状态描述，改为 `（括号标注）`。格式统一为 `当前状态，微观细节（历史事件）`。
+
+**输出变化**：
+- v3方向分布：多8/空6
+- 修正后：S=+仅1只、S=-仅1只、S=0共12只
+- S=0成为主流，真实反映当前市场中枢震荡状态
+

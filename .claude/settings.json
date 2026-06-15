@@ -504,7 +504,29 @@
       "Bash(python -c \"import json; d=json.load\\(open\\('signals/tracking/_signals/daily_signals/20260612_deep_signals.json','r',encoding='utf-8'\\)\\); print\\(f'文章{len\\(d.get\\(\\\\\"articles\\\\\",[]\\)\\)}篇, 成功{d.get\\(\\\\\"statistics\\\\\",{}\\).get\\(\\\\\"success\\\\\",0\\)}篇, 信号{d.get\\(\\\\\"statistics\\\\\",{}\\).get\\(\\\\\"total_signals\\\\\",0\\)}条'\\)\")",
       "Bash(echo \"| 06-12 | **信源日报聚合层上线** — 新建 gen_daily_brief.py，公众号作者观点 vs 宏观数据共振判断；全量去重（历史报告参照，5天窗口，无每号上限）；_fetch_articles.py API 到期自动告警；update_sources.bat 新增第13步 | 新增 |\" >> ~/.claude/projects/C--Users-Administrator/evolution-timeline.md && tail -1 ~/.claude/projects/C--Users-Administrator/evolution-timeline.md)",
       "Bash(python -c \"import py_compile; py_compile.compile\\('gen_source_summary.py', doraise=True\\); print\\('语法检查通过'\\)\")",
-      "Bash(python -c \"import py_compile; py_compile.compile\\('gen_source_summary.py', doraise=True\\); py_compile.compile\\('gen_daily_brief.py', doraise=True\\); py_compile.compile\\('tools/signal_deep_reader.py', doraise=True\\); print\\('三文件语法检查全部通过'\\)\")"
+      "Bash(python -c \"import py_compile; py_compile.compile\\('gen_source_summary.py', doraise=True\\); py_compile.compile\\('gen_daily_brief.py', doraise=True\\); py_compile.compile\\('tools/signal_deep_reader.py', doraise=True\\); print\\('三文件语法检查全部通过'\\)\")",
+      "Bash(python -X utf8 d:/quantify-per/_search_accounts.py 盘前纪要 盘前 一思一记 安静拆主线)",
+      "Bash(python -X utf8 d:/quantify-per/_fetch_hot_accounts.py)",
+      "Bash(python -X utf8 -c \"import py_compile; py_compile.compile\\('gen_daily_brief.py', doraise=True\\); print\\('OK'\\)\")",
+      "Bash(python -X utf8 gen_daily_brief.py --date 20260614)",
+      "Bash(python tools/topic_classifier.py)",
+      "Bash(python gen_daily_brief.py --dry-run)",
+      "Bash(python demo_new_pipeline.py)",
+      "Bash(python \"C:/Users/Administrator/.claude/projects/C--Users-Administrator/memory/scripts/mem_merge.py\" --scan --freq-up)",
+      "Bash(python -X utf8 tools/sentiment/shock_detector.py)",
+      "Bash(python tools/us_market/us_movers_extract.py --markdown)",
+      "Bash(python tools/us_market/us_movers_extract.py --save)",
+      "Bash(python -c *)",
+      "Bash(python tools/us_market/star_stocks.py --movers --movers-top 5)",
+      "Bash(python d:/quantify-per/_replace_section.py)",
+      "Bash(python adapter_macro_sector.py)",
+      "Bash(python adapter_volume_leader.py)",
+      "Bash(python demo_joint_query.py)",
+      "Bash(python update_tracking.py)",
+      "Bash(python -m experts.signal_adapter.adapter_chanlun)",
+      "Bash(python adapter_chanlun.py)",
+      "Bash(python experts/signal_adapter/adapter_chanlun.py)",
+      "Bash(python \"C:/Users/Administrator/.claude/skills/neat/mem_merge.py\" --scan --freq-up)"
     ],
     "additionalDirectories": [
       "\\tmp",
@@ -512,7 +534,8 @@
       "C:\\Users\\Administrator\\.claude\\projects\\C--Users-Administrator",
       "C:\\Users\\Administrator\\.claude\\projects\\C--Users-Administrator\\memory",
       "C:\\Users\\Administrator\\.claude\\projects\\C--Users-Administrator\\archives",
-      "d:\\quantify-per\\signals\\tracking\\_signals\\daily_signals"
+      "d:\\quantify-per\\signals\\tracking\\_signals\\daily_signals",
+      "C:\\Users\\Administrator\\Desktop"
     ],
     "mode": "auto"
   }
