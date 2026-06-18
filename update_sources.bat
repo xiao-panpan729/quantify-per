@@ -22,7 +22,7 @@ echo.
 
 set ERR_CNT=0
 
-echo [1/11] 微信公众号文章（7个信源）...
+echo [1/11] 微信公众号文章（8个信源）...
 python _fetch_articles.py
 if %errorlevel% neq 0 (
     echo ==========================================
@@ -117,7 +117,7 @@ echo.
 
 echo ==========================================
 echo 生成信源摘要报告...
-python gen_source_summary.py --ai
+python gen_source_summary.py
 if %errorlevel% neq 0 (
     echo [警告] 摘要生成失败
     set /a ERR_CNT+=1
@@ -146,20 +146,36 @@ python gen_daily_brief.py
 if %errorlevel% neq 0 (
     echo [警告] 观点聚合失败
     set /a ERR_CNT+=1
-) else (
-    REM 全部完成后才弹窗，确保是完整报告
-    for /f "delims=" %%f in ('dir /b /o-d reports\sources\*_sources.md 2^>nul') do (
-        start "" "reports\sources\%%f"
-        goto :endopen
-    )
 )
-:endopen
+echo.
+
+echo 检查变量分类器候选项...
+python -c "from tools.variable_taxonomy import get_candidates; pending=get_candidates('pending'); print(len(pending))" > "%TEMP%\cand_cnt.txt" 2>nul
+set /p CAND_CNT=<"%TEMP%\cand_cnt.txt"
+if defined CAND_CNT (
+    if %CAND_CNT% gtr 0 (
+        echo ==========================================
+        echo   ⚠ %CAND_CNT% 个新话题未分类 -^> /taxonomy-review
+        echo ==========================================
+    )
+    del "%TEMP%\cand_cnt.txt" 2>nul
+)
 echo.
 
 echo ==========================================
-echo 	更新完成
-if %ERR_CNT% gtr 0 (
-    echo 	警告: %ERR_CNT% 个步骤有异常
-)
+echo [★] Claude Code 联网验证+数据填充（话题验证 → 数据段占位符）
+echo     按 prompts/source_analysis_prompt.md 执行全流程（第-2步→第0.75步）
+echo     关键约束：不得修改表格格式（ETF/个股的英文名列必须保留）
 echo ==========================================
+set "CLAUDE_BIN=C:\Users\Administrator\.workbuddy\binaries\node\versions\22.12.0\node_modules\@anthropic-ai\claude-code\bin\claude.exe"
+if exist "%CLAUDE_BIN%" (
+    "%CLAUDE_BIN%" -p "按 prompts/source_analysis_prompt.md 完整流程执行：第-2步通读信源→第-1步读sources.md→第0步数据自检→第0.25步知识缺口扫描（逐话题判断触发条件，命中则搜索追加）→第0.5步叙事定位→第0.75步数据段占位符填充。关键：不得修改表格格式（ETF/个股的英文名列必须保留，不可替换为中文）。" --permission-mode acceptEdits --print
+    )
+)
+
 echo.
+echo ==========================================
+echo 全部完成！打开今日信源日报...
+echo ==========================================
+for /f %%i in ('powershell -Command "Get-Date -Format yyyyMMdd"') do set TODAY=%%i
+start "" "reports/sources/%TODAY%_sources.md"

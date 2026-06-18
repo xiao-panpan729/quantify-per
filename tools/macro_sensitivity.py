@@ -124,7 +124,7 @@ def fetch_japan_macro() -> pd.DataFrame | None:
 # P1: Commodity prices (oil/copper/gold)
 # ══════════════════════════════════════════════════════════════
 
-SNAPSHOT_PATH = SIGNALS_DIR / "macro_snapshot.json"
+SNAPSHOT_PATH = SIGNALS_DIR / "_macro" / "macro_snapshot.json"
 
 
 def fetch_china_bond_fx() -> dict:

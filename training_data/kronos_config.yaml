@@ -1,0 +1,53 @@
+# Kronos fine-tuning config — A股日线缠论结构微调
+#
+# 使用方法（在项目根目录运行）:
+#   python tmp_kronos/finetune_csv/train_sequential.py \
+#       --config training_data/kronos_config.yaml
+#
+# RTX 4060 (8GB) 预估时间: ~20-40分钟 (20 epochs)
+# 如果OOM，先把 batch_size 减到 8 或 lookback_window 减到 128
+
+data:
+  # 训练数据路径（相对于 CWD = 项目根目录）
+  data_path: "training_data/kronos_training_data.csv"
+  lookback_window: 256
+  predict_window: 24
+  max_context: 256
+  clip: 5.0
+  train_ratio: 0.85
+  val_ratio: 0.10
+  test_ratio: 0.05
+
+training:
+  tokenizer_epochs: 15
+  basemodel_epochs: 20
+  batch_size: 16
+  log_interval: 50
+  num_workers: 2
+  seed: 42
+  tokenizer_learning_rate: 0.0001
+  predictor_learning_rate: 0.0000005
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  adam_weight_decay: 0.1
+  accumulation_steps: 2
+
+model_paths:
+  # ★★★ 下载Kronos权重后，修改为实际路径 ★★★
+  pretrained_tokenizer: "./models/kronos-tokenizer"
+  pretrained_predictor: "./models/kronos-mini"
+
+  exp_name: "kronos_chanlun_ft_v1"
+  base_path: "./finetuned/"
+
+experiment:
+  name: "kronos_chanlun_finetune_v1"
+  description: "Kronos-mini fine-tune on A-share ETF/stock daily data with chanlun structural context"
+  use_comet: false
+  train_tokenizer: true
+  train_basemodel: true
+  skip_existing: false
+
+device:
+  use_cuda: true
+  device_id: 0

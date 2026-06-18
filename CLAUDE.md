@@ -36,7 +36,7 @@ python gen_report_md.py                 # 步骤5: 可读 Markdown 报告
 python operation_tracker.py --status    # 战役级操作追踪
 
 # ─── 信源管理（微信公众号） ───
-python _fetch_articles.py               # 批量拉取7个信源的最新文章全文 → wechat_articles/
+python _fetch_articles.py               # 批量拉取8个信源的最新文章全文 → wechat_articles/
 python _search_accounts.py              # 搜索公众号 fakeid（新增信源时用）
 python gen_source_summary.py            # ★信源AI日报生成（纯数据摘要，无AI）
 python gen_source_summary.py --ai       # ★数据聚合完成后提示用户触发AI分析

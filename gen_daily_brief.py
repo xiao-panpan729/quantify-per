@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 # 规则主题分类器（代替LLM分类）
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from tools.topic_classifier import classify_articles, format_groups_summary
+from tools.variable_taxonomy import lookup_variable, add_candidates
 
 # ─── 只处理"宏观/观点"类信源，排除"情绪热点"类（如盘前纪要/一思一记等） ───
 # 同步于 _fetch_articles.py 的 ACCOUNT_CATEGORIES
@@ -309,23 +310,80 @@ def build_llm_prompt(articles: list, macro_text: str, is_incremental: bool,
         blocks.append(f"\n===== 历史观点对比 =====")
         blocks.append(prev_views_text)
 
-    # ── 4. 给 LLM 的指令（极简） ──
+    # ── 4. 给 LLM 的指令（消息面精炼 + 话题深度分析JSON，Dorian技巧嵌入到JSON字段中） ──
     blocks.append("""
 ===== 分析指令 =====
-你对以上每个【主题】输出一段分析（纯文本，不要JSON），包含：
-1. 该主题的核心事件/驱动是什么（一句话）
-2. 各作者的核心观点和方向（谁说了什么）
-3. 有没有共识或分歧：多人说一样的事=重要
-4. 提到的关键股票代码
+输出分两部分，严格按顺序：
 
-然后单独输出一段 Dorian 六步分析（针对全局）：
-① 核心变量 ② 传导路径 ③ 历史对标 ④ 情景分析 ⑤ 交易含义 ⑥ 失效条件
+=== 第一部分：消息面精炼 ===
+用 ```msg ``` 包裹，格式为 5 条以内的 markdown 要点：
 
-不要分块报告，不要列"公众号部分/量化部分"，不要平铺数据。
-用交易员的语言，短句，一段不超过5行。
+**① 🇮🇷 主题名 → 一句话驱动**
+- 核心事实（具体数字/金额/百分比）
+- 公众号交叉引用：作者名"原话"+作者名"原话"
+- ⏰ 时间节点/关键日期
+
+**② ...**
+
+要求：
+- 每条 3 行以内
+- 必须有 emoji 国旗/分类标识
+- 必须引用公众号作者原话（交叉验证）
+- 不能只是转载新闻标题，要提炼"所以呢"
+
+=== 第二部分：话题深度分析 JSON ===
+输出一个 JSON 数组（用 ```json ``` 包裹），每个元素代表一个主题：
+{
+  "topic": "主题名",
+  "importance": "high/medium/low",
+  "importance_reason": "N位信源同时指向，当前市场绝对主线（说明理由，不要重复前面importance字段的"高/中/低"前缀）",
+  "variable_type": "核心变量/结构性变量/null（真正的核心变量才标「核心变量」，次要但仍重要的标「结构性变量」）",
+  "consensus_detail": "一句话共识/分歧判断（如：高共识，AI上游景气度最强）",
+  "is_variable": true/false,
+  "author_details": [
+    {
+      "author": "作者名（短名，如laoduo/猫笔刀/卓哥/表舅/中信建投，不要带emoji）",
+      "key_point": "一句话核心观点（嵌入Dorian式的判断：是核心矛盾还是传导链？是对标历史还是情景概率？）",
+      "narrative_change": "叙事变化（🆕 新叙事/⬆️ 加强/⬇️ 减弱/➡️ 维持/🟡 情绪过热信号/🔄 转向）",
+      "stocks": ["股票或ETF代码"]
+    }
+  ]
+}
+
+要求：
+- 作者名不要带emoji，不要带"偏多/偏空/中性"
+- 叙事变化列体现Dorian技巧——是变盘信号？是历史对标？还是情景概率改变？
+- variable_type 区分"核心变量"和"结构性变量"，宁缺毋滥
+- 没有把握的字段留null
+- 宁少勿滥，不重要的话题不写
 """)
 
     return "\n".join(blocks)
+
+
+def parse_llm_topics(llm_text: str) -> list:
+    """从 LLM 输出中提取结构化主题列表（JSON 数组）"""
+    if not llm_text:
+        return []
+    # 找 ```json [...] ``` 代码块
+    m = re.search(r'```(?:json)?\s*(\[[\s\S]*?\])\s*```', llm_text)
+    if m:
+        try:
+            topics = json.loads(m.group(1))
+            if isinstance(topics, list):
+                return topics
+        except json.JSONDecodeError:
+            pass
+    # 找裸 [...]（无代码块包裹）
+    m = re.search(r'(\[[\s\S]*?\])', llm_text)
+    if m:
+        try:
+            topics = json.loads(m.group(1))
+            if isinstance(topics, list):
+                return topics
+        except json.JSONDecodeError:
+            pass
+    return []
 
 
 def parse_llm_json(raw: str) -> dict:
@@ -350,186 +408,187 @@ def parse_llm_json(raw: str) -> dict:
 
 
 def _render_topic(topic: dict) -> list:
-    """渲染单个热点条目"""
+    """渲染单个话题 —— v2 demo 格式：覆盖→重要性→三列表(作者|核心观点|叙事变化)→共识判断→是否为变量"""
     lines = []
-    importance = topic.get("importance", "medium")
-    imp_map = {"high": "🔴", "medium": "🟡", "low": "⚪"}
-    imp_label = {"high": "高重要性", "medium": "一般", "low": "低"}
+    imp_icon = {"high": "🔴", "medium": "🟡", "low": "⚪"}
+    imp_label = {"high": "高", "medium": "中", "low": "低"}
 
-    heat = topic.get("heat_change", "")
-    heat_str = {"升温": "🔥 热度上升", "降温": "❄️ 热度下降", "维持": "➖ 热度维持"}.get(heat, "")
-
-    info_type = topic.get("info_type", "")
-    type_tag = {"新增": "🆕 新增", "延续": "➡️ 延续", "消退": "⬇️ 消退"}.get(info_type, info_type)
-
-    consensus = topic.get("consensus", "")
-    cons_map = {"一致看多": "🟢", "一致看空": "🔴", "分歧": "🟡", "无明显共识": "⚪"}
-
-    # 主题行
+    variable_type = topic.get("variable_type", "")
     topic_name = topic.get("topic", "未命名主题")
-    lines.append(f"### {imp_map[importance]} {topic_name}")
-    meta_parts = [f"{imp_label[importance]}"]
-    if type_tag:
-        meta_parts.append(type_tag)
-    if heat_str:
-        meta_parts.append(heat_str)
-    if consensus:
-        meta_parts.append(f"{cons_map.get(consensus, '')} {consensus}")
-    lines.append(f"> {' · '.join(meta_parts)}")
+    title = f"{imp_icon.get(topic.get('importance', 'medium'), '⚪')} {topic_name}"
+    if variable_type:
+        title += f" — {variable_type}"
+    lines.append(f"### {title}")
+    lines.append("")
 
-    # 事件驱动
-    driver = topic.get("event_driver", "")
-    if driver:
-        lines.append(f"> **事件**: {driver}")
-
-    # 作者观点表
+    # 覆盖：作者数 + 具体名单
     authors = topic.get("author_details", [])
+    author_names = "、".join(a.get("author", "") for a in authors) if authors else "?"
+    lines.append(f"**覆盖**: {len(authors)}位作者 ({author_names})")
+
+    # 重要性判断（去重LLM可能在前缀重复的"高 —"）
+    imp = topic.get("importance", "medium")
+    reason = topic.get("importance_reason", "")
+    if reason:
+        reason = re.sub(r'^(高|中|低)\s*[—\-]\s*', '', reason).strip()
+        lines.append(f"**重要性判断**: {imp_label.get(imp, '')} — {reason}")
+
+    # 作者观点表（三列：作者 | 核心观点 | 叙事变化）
     if authors:
         lines.append("")
-        lines.append("| 作者 | 方向 | 变化 | 核心观点 | 标的 |")
-        lines.append("|------|------|------|----------|------|")
-        stance_emoji = {"偏多": "🟢", "偏空": "🔴", "中性": "⚪"}
+        lines.append("| 作者 | 核心观点 | 叙事变化 |")
+        lines.append("|------|---------|---------|")
         for a in authors:
-            emoji = stance_emoji.get(a.get("stance", ""), "⚪")
-            change = a.get("change_vs_yesterday", "首次")
-            change_icon = {"加强": "⬆️", "维持": "➡️", "减弱": "⬇️", "扭转": "🔄", "首次": "🆕"}
-            ci = change_icon.get(change, "")
-            stocks = ", ".join(a.get("stocks", [])[:4]) if a.get("stocks") else "—"
-            lines.append(f"| {emoji} {a.get('author','')} | {a.get('stance','')} | {ci}{change} | {a.get('key_point','')} | {stocks} |")
+            name = a.get("author", "")
+            key_point = a.get("key_point", "")
+            narrative_change = a.get("narrative_change", "")
+            lines.append(f"| {name} | {key_point} | {narrative_change} |")
 
-    # 关键标的汇总
-    stocks = topic.get("key_stocks", [])
-    if stocks:
+    # 共识判断
+    consensus = topic.get("consensus_detail", "")
+    if consensus:
         lines.append("")
-        lines.append(f"**关键标的**: {'、'.join(stocks[:8])}")
+        lines.append(f"**共识判断**: {consensus}")
 
-    sectors = topic.get("related_sectors", [])
-    if sectors:
-        lines.append(f"**关联板块**: {'、'.join(sectors[:5])}")
+    # 是否为变量（variable_type 存在即视为变量）
+    vt = topic.get("variable_type", "")
+    is_var = topic.get("is_variable", False) or bool(vt)
+    if is_var and vt:
+        lines.append(f"**是否为变量**: **是，{vt}**")
 
     lines.append("")
     return lines
 
 
-def generate_dorian_section(dorian: dict) -> list:
-    """生成 Dorian 六步分析区块"""
-    if not dorian:
-        return []
 
-    lines = [
-        "",
-        "---",
-        "## 🔗 Dorian 六步拆解",
-        "",
-    ]
+def generate_topic_analysis(articles: list, llm_text: str) -> str:
+    """生成话题深度分析（不含Dorian独立章节——Dorian技巧已嵌入到话题块的叙事变化列中）"""
+    lines = []
 
-    steps = [
-        ("① 核心变量", dorian.get("core_variable", "")),
-        ("② 传导路径", dorian.get("transmission_path", "")),
-        ("③ 历史对标", dorian.get("historical_analog", "")),
-    ]
-    for label, content in steps:
-        if content:
-            lines.append(f"**{label}**: {content}")
-            lines.append("")
-
-    # 情景分析表
-    scenarios = dorian.get("scenarios", [])
-    if scenarios:
-        lines.append("**④ 情景分析**:")
-        lines.append("")
-        lines.append("| 情景 | 概率 | 影响 |")
-        lines.append("|------|------|------|")
-        for s in scenarios:
-            lines.append(f"| {s.get('condition','')} | {s.get('probability','')} | {s.get('impact','')} |")
-        lines.append("")
-
-    ti = dorian.get("trading_implication", "")
-    if ti:
-        lines.append(f"**⑤ 交易含义**: {ti}")
-        lines.append("")
-
-    fs = dorian.get("failure_signals", "")
-    if fs:
-        lines.append(f"**⑥ 失效条件**: {fs}")
-        lines.append("")
-
-    return lines
-
-
-def generate_full_section(parsed: dict, articles: list, llm_text: str) -> str:
-    """生成完整聚合区块 — 盘前纪要风格（规则分组 + 轻量 LLM 摘要）"""
-    lines = ["\n---\n", "## 📋 本期覆盖文章\n"]
-
-    # ── 1. 文章清单（透明） ──
-    lines.append("| 作者 | 日期 | 文章 |")
-    lines.append("|------|------|------|")
-    for art in articles:
-        date_str = art["file"][-20:-12] if len(art["file"]) > 12 else "?"
-        title = art["title"][:40]
-        lines.append(f"| {art['author']} | {date_str} | {title} |")
-    lines.append("")
-
-    # ── 2. 规则分类展示 ──
-    groups = classify_articles(articles)
-    if groups:
-        lines.extend(["\n---\n", "## 📰 热点事件分类\n"])
-        rank = {"high": 0, "medium": 1, "low": 2}
-        sorted_topics = sorted(
-            groups.items(),
-            key=lambda x: (rank.get(x[1]["importance"], 3), -len(x[1]["authors"])),
-        )
-        for topic, info in sorted_topics:
-            imp = info["importance"]
-            imp_icon = {"high": "🔴", "medium": "🟡", "low": "⚪"}.get(imp, "⚪")
-            imp_label = {"high": "高重要性", "medium": "一般", "low": "低"}.get(imp, "")
-            author_count = len(info["authors"])
-            author_names = "、".join(sorted(info["authors"]))
-            lines.append(f"### {imp_icon} {topic}")
-            lines.append(f"> {imp_label} · {author_count}位作者提及: {author_names}")
-            lines.append("")
-            for a in info["articles"]:
-                lines.append(f"- **{a['author']}** 《{a['title'][:50]}》")
-            if info["importance"] == "high" and author_count >= 3:
-                lines.append(f"> ⚡ **重点信号**: {author_count}位作者同题，为当前市场核心矛盾")
-            lines.append("")
+    topics = parse_llm_topics(llm_text)
+    if topics:
+        lines.extend(["\n---\n", "## 🧠 话题深度分析\n"])
+        for t in topics:
+            lines.extend(_render_topic(t))
     else:
-        lines.append("（暂无分类文章）\n")
-
-    # ── 3. AI 摘要区块 ──
-    if llm_text:
-        lines.extend(["\n---\n", "## 🤖 AI 观点分析\n"])
-        # 分离 Dorian 部分（如果在 llm_text 中）
-        if "① 核心变量" in llm_text or "Dorian" in llm_text:
-            # 把 Dorian 部分单独提取出来
-            dorian_parts = []
-            ai_parts = []
-            in_dorian = False
-            for line in llm_text.split("\n"):
-                if "① 核心变量" in line or "Dorian" in line:
-                    in_dorian = True
-                if in_dorian:
-                    dorian_parts.append(line)
-                else:
-                    ai_parts.append(line)
-            if ai_parts:
-                lines.extend(ai_parts)
+        groups = classify_articles(articles)
+        if groups:
+            lines.extend(["\n---\n", "## 🧠 话题深度分析\n"])
+            rank = {"high": 0, "medium": 1, "low": 2}
+            sorted_topics = sorted(
+                groups.items(),
+                key=lambda x: (rank.get(x[1]["importance"], 3), -len(x[1]["authors"])),
+            )
+            for topic, info in sorted_topics:
+                imp = info["importance"]
+                imp_icon = {"high": "🔴", "medium": "🟡", "low": "⚪"}.get(imp, "⚪")
+                imp_label = {"high": "高重要性", "medium": "一般", "low": "低"}.get(imp, "")
+                author_count = len(info["authors"])
+                author_names = "、".join(sorted(info["authors"]))
+                lines.append(f"### {imp_icon} {topic}")
+                lines.append(f"> {imp_label} · {author_count}位作者提及: {author_names}")
                 lines.append("")
-            if dorian_parts:
-                lines.extend(["\n---\n", "## 🔗 Dorian 六步拆解\n"])
-                lines.extend(dorian_parts)
+                for a in info["articles"]:
+                    lines.append(f"- **{a['author']}** 《{a['title'][:50]}》")
+                if info["importance"] == "high" and author_count >= 3:
+                    lines.append(f"> ⚡ **重点信号**: {author_count}位作者同题，为当前市场核心矛盾")
                 lines.append("")
         else:
-            lines.append(llm_text.strip())
-            lines.append("")
-    else:
-        lines.extend(["\n---\n", "## 🤖 AI 观点分析\n（AI 分析暂不可用）\n"])
-
-    # ── 4. dedup 文件标记 ──
-    for art in articles:
-        lines.append(f"<!--dedup-file: {art['file']}-->")
+            lines.append("（暂无分类文章）\n")
 
     return "\n".join(lines) + "\n"
+
+
+def format_article_table(articles: list) -> str:
+    """生成简洁文章清单表格（放末尾），日期格式 MMDD，列名为 作者|日期|内容"""
+    # 作者名缩写映射
+    AUTHOR_SHORT = {
+        "中信建投证券研究": "中信建投",
+        "亨特研究笔记": "亨特",
+        "卓哥投研笔记": "卓哥",
+        "表舅是养基大户": "表舅",
+    }
+    lines = ["\n---\n", "## 📋 本期覆盖文章\n"]
+    lines.append("| 作者 | 日期 | 内容 |")
+    lines.append("|------|------|------|")
+    for art in articles:
+        # 从文件名提取日期格式化为 MMDD
+        fname = art["file"].split("\\")[-1] if "\\" in art["file"] else art["file"].split("/")[-1]
+        if len(fname) >= 8 and fname[:8].isdigit():
+            date_str = fname[4:8]  # YYYYMMDD → MMDD
+        else:
+            date_str = "??"
+        # 缩写作者名
+        author = AUTHOR_SHORT.get(art["author"], art["author"])
+        # 精简标题
+        title = art["title"]
+        # 去掉"首席经济学家XXX："前缀
+        title = re.sub(r'^首席经济学家\S+[：:]?\s*', '', title)
+        # 去掉"中信建投"前缀（包括"中信建投：""中信建投 |"等变体）
+        title = re.sub(r'^中信建投\s*[：|]?\s*', '', title)
+        if len(title) > 36:
+            title = title[:35] + "…"
+        if not title.strip():
+            title = "（标题暂缺）"
+        lines.append(f"| {author} | {date_str} | {title} |")
+    lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def _extract_msg_block(llm_text: str) -> str:
+    """从 LLM 输出中提取 ```msg``` 块内容"""
+    m = re.search(r'```msg\s*(.*?)\s*```', llm_text, re.DOTALL)
+    return m.group(1).strip() if m else ""
+
+
+def _strip_msg_block(llm_text: str) -> str:
+    """从 LLM 文本中移除 ```msg``` 块"""
+    return re.sub(r'```msg\s*.*?\s*```\s*', '', llm_text, flags=re.DOTALL).strip()
+
+
+def generate_full_section(parsed: dict, articles: list, llm_text: str,
+                          existing_content: str = "") -> str:
+    """生成完整报告 — 消息面要点(LLM精炼) → 话题深度分析 → 其余数据 → 文章清单"""
+    msg_refined = _extract_msg_block(llm_text)
+    cleaned_llm_text = _strip_msg_block(llm_text)
+    topic_section = generate_topic_analysis(articles, cleaned_llm_text)
+    article_table = format_article_table(articles)
+
+    if existing_content:
+        msg_match = re.search(
+            r'(## 🔴 消息面要点.*?)(?=\n## )',
+            existing_content, re.DOTALL
+        )
+        if msg_match and msg_refined:
+            refined_section = "## 🔴 消息面要点\n\n" + msg_refined + "\n"
+            rest = existing_content[msg_match.end():]
+            # 去掉旧 LLM 生成的区块（话题分析/Dorian/文章清单），避免重复
+            for header in ['## 🧠 话题深度分析', '## 🔗 Dorian 六步拆解', '## 🔗 Dorian', '## 📋 本期覆盖文章']:
+                rest = re.sub(
+                    rf'\n{re.escape(header)}.*?(?=\n## +|\Z)',
+                    '', rest, flags=re.DOTALL
+                )
+            rest = re.sub(r'\n<!--dedup-file:.*?-->', '', rest)
+            result = refined_section + "\n\n" + topic_section.strip() + "\n\n" + rest.strip()
+        elif msg_match:
+            msg_part = msg_match.group(1)
+            rest = existing_content[msg_match.end():]
+            for header in ['## 🧠 话题深度分析', '## 🔗 Dorian 六步拆解', '## 🔗 Dorian', '## 📋 本期覆盖文章']:
+                rest = re.sub(
+                    rf'\n{re.escape(header)}.*?(?=\n## +|\Z)',
+                    '', rest, flags=re.DOTALL
+                )
+            rest = re.sub(r'\n<!--dedup-file:.*?-->', '', rest)
+            result = msg_part + "\n\n" + topic_section.strip() + "\n\n" + rest.strip()
+        else:
+            result = existing_content + "\n" + topic_section
+        result += article_table
+        result = re.sub(r'\n(---\n){2,}', '\n---\n', result)
+        return result
+    else:
+        result = topic_section
+        result += article_table
+        return result
 
 
 def generate_incremental_section(parsed: dict, old_titles: set,
@@ -677,15 +736,51 @@ def main():
         print(f"  ⚠ LLM 调用失败: {e}")
         llm_text = ""
 
-    # ── 6. 生成 Markdown（规则分组展示 + LLM摘要） ──
+    # ── 5b. 变量分类器匹配 ──
+    candidate_count = 0
+    if llm_text:
+        topics = parse_llm_topics(llm_text)
+        unmatched = []
+        for topic in topics:
+            topic_name = topic.get("topic", "")
+            if not topic_name:
+                continue
+            match_kws = [topic_name]
+            for ad in topic.get("author_details", []):
+                key_point = ad.get("key_point", "")
+                if key_point:
+                    match_kws.append(key_point[:30])
+            results = lookup_variable(match_kws)
+            if results:
+                best = results[0]
+                topic["_taxonomy"] = {
+                    "var_id": best["id"],
+                    "level": best["level"],
+                    "chain": best.get("chain", ""),
+                    "narratives": best.get("narratives", []),
+                    "pricing": best.get("pricing", ""),
+                    "validation": best.get("validation", []),
+                }
+            else:
+                unmatched.append(topic_name)
+
+        if unmatched:
+            candidate_count = add_candidates(unmatched, f"gen_daily_brief_{date}")
+            matched = len(topics) - len(unmatched)
+            print(f"  变量分类器: {matched}/{len(topics)} 话题已匹配")
+
+    if candidate_count > 0:
+        print(f"  ⚠ {candidate_count} 个新话题（待分类） → /taxonomy-review")
+
+    # ── 6. 生成 Markdown（话题深度分析插在消息面要点后，文章清单放末尾） ──
     if mode == "full":
         parsed = {"_llm_text": llm_text} if llm_text else {}
-        section = generate_full_section(parsed, articles, llm_text)
+        section = generate_full_section(parsed, articles, llm_text, existing_content=report_content)
+        sources_md.write_text(section, encoding="utf-8")
     else:
         parsed = {"_llm_text": llm_text} if llm_text else {}
         section = generate_incremental_section(parsed, prev_files, articles, now_str)
-
-    sources_md.write_text(report_content + section, encoding="utf-8")
+        sources_md.write_text(report_content + section, encoding="utf-8")
     print(f"[gen_daily_brief] ✅ 聚合层已追加到 {sources_md.name}")
 
     # ── 7. 打印摘要 ──

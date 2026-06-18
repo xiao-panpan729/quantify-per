@@ -2640,3 +2640,318 @@ GG(下) > DD(上) → 中枢扩张 → 合并为大级别中枢
 - 修正后：S=+仅1只、S=-仅1只、S=0共12只
 - S=0成为主流，真实反映当前市场中枢震荡状态
 
+---
+
+## 实验 #27: 信源日报管道重构 — 纯API → Claude Code 接棒 (2026-06-16)
+
+### 背景
+
+`gen_source_summary.py --ai` 调用 `ai_analyzer.call_llm()`，走 NVIDIA/SiliconFlow/DeepSeek 纯 API，**没有搜索工具**。0615信源日报中日银加息"概率近9成"直接复述表舅文章未交叉验证，被用户抓出。
+
+### 方案
+
+改为两段式：数据摘要（Python 纯脚本）→ 分析写作（Claude Code 非交互模式 + 全工具）：
+
+```
+gen_source_summary.py   ← 只跑数据摘要（去掉 --ai）
+    ↓
+claude.exe -p "..."    ← Claude Code -p 非交互模式
+    ↓ 读取 sources.md + wechat_articles/
+    ↓ 第0.25步 知识缺口扫描（anysearch MCP 搜索）
+    ↓ 《第0.25步：文献检索笔记》4条触发条件
+    ↓ 写分析覆盖 sources.md
+```
+
+### 4 条触发条件（source_analysis_prompt.md 第0.25步）
+
+| # | 触发条件 | 示例 | 搜索动作 |
+|---|---------|------|---------|
+| 1 | **具体概率/百分比/数字声明** | "加息概率近9成" | 搜2+独立来源核实 |
+| 2 | **被标为「核心变量」的条目** | 核心变量 | 深挖1层最新进展 |
+| 3 | **指定了具体日期的事件** | "周四美联储" | 搜最新进展/市场定价 |
+| 4 | **新人/新角色首次登场** | "沃什首秀" | 搜背景+预期 |
+
+### 变更文件
+
+- `update_sources.bat`: 去掉 `gen_source_summary.py --ai`，末尾添加 `claude.exe -p` 调用
+- `prompts/source_analysis_prompt.md`: 新增第0.25步强制卡口 + 检查清单项
+- `gen_source_summary.py`: 维持原有功能但不再需要管理 `--ai` 分支（仅做纯数据摘要）
+
+### 设计约束
+
+- 非交互模式不走权限批准（--print 自动跳过 workspace trust 弹窗）
+- Claude CLI 二进制已随 VS Code 扩展安装，但有 229MB 冷启动延迟
+- 写入必须有 `--print` 标记，否则卡在交互模式
+
+### 待改进
+
+- 4条触发条件现在依赖 AI 自觉识别规则模式。后续可改为 Python 正则扫描 + 强制触发标记
+
+### 关键词
+
+#信源日报 #管道重构 #知识缺口扫描 #ClaudeCode #anysearch #非交互模式 #实验#27
+
+---
+
+## 实验 #28: 信源日报输出格式规范化 + 格式决策文档化 (2026-06-16)
+
+### 背景
+
+本次会话的核心工作是对6月14日/15日已经反复修正但从未文档化的**输出格式问题**做彻底的规范化。根因：source_analysis_prompt.md 从未随格式修正同步更新，导致每次 Claude Code 重新生成时都回退到旧的叙事散文格式。
+
+### 变更清单
+
+| # | 变更 | 文件 | 类型 |
+|---|------|------|------|
+| 1 | **prompt 重写**：五段叙事散文 → 结构化附录格式（仅保留第0.25步知识缺口扫描，其余全部移除） | `prompts/source_analysis_prompt.md` | prompt架构 |
+| 2 | **管道修正**：Claude Code 步从"覆盖写回主文"改为"以附录形式追加" | `update_sources.bat` | 管道架构 |
+| 3 | **孤儿函数发现**：`gen_daily_brief.py._render_topic()` 已实现正确的对比表格式(作者\|核心观点\|叙事变化)但从未被 `generate_full_section()` 调用，导致LLM输出格式日间不一致 | `gen_daily_brief.py:352-411` vs `:460-532` | 代码架构 |
+| 4 | **文档化缺口**：消息面精简/US异动格式/宏观跟踪叙事/盘前纪要风格——4个格式决策在多次会话中反复纠正但从未写入任何文档 | 全系统 | 过程缺陷 |
+
+### 格式规范（本次确立，以后所有信源日报遵守）
+
+**消息面突发事件 → 消息面要点**：
+- 盘前纪要风格：按主题归类，只看3-5条最重要的
+- 必须和公众号文章有交叉验证标记（✅ 共振 / ⚠️ 单源）
+- 不展示完整shock_detector原始输出
+
+**US ETF动量/明星股动量 → 美股板块异动/明星股异动**：
+- 一思一记风格：具体个股涨跌幅+百分比+股价创历史新高标注
+- 不展示抽象x₁势能分数
+- 格式：`KLAC +12.92% 股价创历史新高`（非 `KLAC x₁=9`）
+
+**宏观板块（全球流动性/中国宏观/US宏观/日本宏观）**：
+- 必须带跟踪叙事（趋势描述+方向判断）
+- 不能只是数据快照平铺
+- 含"较上期变化"标注
+
+**是否为变量**：
+- 如有联网搜索验证结果，以1/2/3要点式附加在结论下方
+- 不隐藏搜索发现
+
+### prompt 文件修正根因
+
+用户原话："这个问题你之前就犯过错，昨天应该修正过了……难道你做好后prompt文档没有修改过来？？？"
+
+根本原因：0615 用户纠正了叙事格式问题，但我只改了当日的 sources.md 输出，没有同时更新 `prompts/source_analysis_prompt.md`。`update_sources.bat` 中 Claude Code 的指令也没有同步更新。导致 0616 重跑时又回到旧的叙事散文格式。
+
+**教训**：prompt 文件不是"参考文档"，是**可执行代码**。改输出格式必须同步改 prompt 文件，否则下次重跑一定回退。
+
+### 未完成：`_render_topic()` 集成
+
+`gen_daily_brief.py:352-411` 的 `_render_topic()` 能产出正确的对比表格式，但未被 `generate_full_section()` 调用（第460-532行当前使用 `classify_articles()` 做简单列表输出）。需要将 `generate_full_section()` 中的渲染逻辑替换为 `_render_topic()` 调用，才能从代码层面保证格式一致性。当前搁置（用户未明确要求），属于"已知代码质量缺陷"。
+
+### 关键词
+
+#信源日报 #输出格式 #prompt修正 #对比表 #孤儿函数 #管道架构 #格式规范化 #实验#28
+
+---
+
+## 实验 #29: gen_daily_brief 格式回归 + 关系图谱地基 (2026-06-16)
+
+### 背景
+
+用户发现 0616 版日报的话题深度分析与 0614/0615 的 v2 demo 格式完全不同：
+- 旧格式：`| 作者 | 方向 | 变化 | 核心观点 | 标的 |` 五列表 + 独立 Dorian 六步拆解章节
+- v2 demo 格式：`| 作者 | 核心观点 | 叙事变化 |` 三列表 + 覆盖/重要性判断/共识判断/是否为变量
+
+根因：之前的 LLM prompt 要求输出 stance/change_vs_yesterday/event_driver 等旧字段，render_topic 用的是旧格式。这次彻底重写。
+
+同时，用户点出了更底层的缺陷——日报每次重跑话题选择不一致，因为"重要性"没有结构化底层支撑（没有关系图谱）。
+
+### 变更清单
+
+| # | 变更 | 文件 | 类型 |
+|---|------|------|------|
+| 1 | **_render_topic() 重写**：从五列表(作者\|方向\|变化\|核心观点\|标的) → 三列表(作者\|核心观点\|叙事变化)，增加覆盖/重要性判断/共识判断/是否为变量 | `gen_daily_brief.py:_render_topic()` | 渲染格式 |
+| 2 | **LLM prompt 字段重构**：新增 variable_type / importance_reason / consensus_detail / is_variable / narrative_change，删除 stance / change_vs_yesterday / event_driver / key_stocks / related_sectors | `gen_daily_brief.py:build_llm_prompt()` | prompt 架构 |
+| 3 | **删除独立 Dorian 章节**：移除 generate_dorian_section() 函数 + generate_topic_analysis() 中的 Dorian 渲染逻辑。Dorian 技巧(核心变量/传导链/情景概率)现在嵌入到叙事变化列和共识判断中 | `gen_daily_brief.py` | 架构清理 |
+| 4 | **删除 dedup-file 输出**：generate_full_section() 不再输出 `<!--dedup-file: -->` HTML 注释。用户反复要求删除 | `gen_daily_brief.py:generate_full_section()` | 输出格式 |
+| 5 | **旧区块清理**：generate_full_section() 在重建前自动 strip 旧版话题分析/Dorian/文章清单区块，防止重复 | `gen_daily_brief.py:generate_full_section()` | 健壮性 |
+| 6 | **防御性处理**：importance_reason 去重"高 —"前缀、is_variable 自动从 variable_type 推断、连续 `---` 分隔线清理 | `gen_daily_brief.py` | 容错 |
+
+### 关系图谱 gap 分析
+
+在修复格式的过程中，用户追问了更本质的问题：为什么同样的素材，每次重跑出来的重点话题不一样？
+
+→ 写入 `experts/research_log.md` §八：**关系图谱 — 日报地基工程**
+- 当前散件齐备（node_map / macro_history / narrative_map / star_buy_bayes / annotate_node_events）但未拼装
+- 定义五维重要性打分框架：变量层级(30%) × 传导链位置(25%) × 定价状态(20%) × 节点亮度(15%) × 作者共识(10%)
+- 四阶段实施路径：变量分类器 → 节点亮度计算 → 五维打分引擎 → 接入日报
+
+### 完成：`_render_topic()` 集成
+
+实验 #28 标注为"未完成"的 `_render_topic()` 孤儿函数问题，本次实验已彻底解决。generate_full_section() 现在通过 parse_llm_topics() 解析 LLM JSON 输出后直接调用 _render_topic()，不再走 classify_articles() 降级分支。
+
+### 关键词
+
+#信源日报 #gen_daily_brief #格式回归 #Dorian嵌入 #关系图谱 #重要性框架 #变量层级 #实验#29
+
+---
+
+## 实验 #30: 变量分类器 Phase 1 — 事件→传导链→变量层级映射 (2026-06-17)
+
+### 背景
+
+关系图谱 gap 分析（实验 #29）确定了五维重要性打分框架，Phase 1 是建变量分类器。用户经过 brainstorming 确认了设计方向：不做主动扫描，做被动查询 JSON + 手工维护的候选队列。
+
+设计过程详见 `docs/superpowers/specs/2026-06-17-variable-taxonomy-design.md`。
+
+### 变量层级设计（四层）
+
+| 层级 | 含义 | 示例 | 节点 |
+|------|------|------|------|
+| 🔴 **核心变量** | 定价锚，直接影响资产价格 | 美伊协议、Fed利率、Brent油价、日本加息 | 有节点 |
+| 🟡 **结构性变量** | 产业/企业长期逻辑，3-12月传导 | 光刻胶、WF6、HALO、英伟达、铜箔 | 有节点 |
+| ⚪ **下游结果** | 已被定价的公开事实 | GDP数据、CPI数据、月度销量 | 无节点 |
+| ⚫ **情绪噪音** | 短期情绪驱动，无实质影响 | 名人发言、散户热议、段子 | 无节点 |
+
+### 与 S/A/B/C/D 叙事分级的关系
+
+**S/A/B/C/D 是叙事对行业的静态分级**（S=全球重构级、A=宏观映射级、B=产业链级等），**变量层级是事件对资产价格的动态冲击评估**，两个正交维度。
+
+### 产出清单
+
+| 产出 | 路径 | 状态 |
+|------|------|------|
+| **查询引擎** | `tools/variable_taxonomy.py` (242行) — lookup_variable / add_candidates / classify_candidate 等6函数 + CLI | ✅ |
+| **初始变量库** | `signals/tracking/_macro/variable_taxonomy.json` (28条，5核心+23结构性) | ✅ |
+| **候选队列** | `signals/tracking/_macro/variable_candidates.json` (空，等待新发现) | ✅ |
+| **gen_daily_brief 集成** | Step 5b — LLM 话题生成后自动 lookup + 候选收集 | ✅ |
+| **update_sources.bat 提示** | gen_daily_brief 跑完后检测候选 >0 → 提示 `/taxonomy-review` | ✅ |
+| **审查 Skill** | `C:\Users\Administrator\.claude\skills\taxonomy-review\skill.md` | ✅ 需重启生效 |
+| **设计文档** | `docs/superpowers/specs/2026-06-17-variable-taxonomy-design.md` | ✅ |
+| **实现计划** | `docs/superpowers/plans/2026-06-17-variable-taxonomy.md` | ✅ |
+
+### 关键实现细节
+
+- **关键词匹配**: 双向子串匹配（kw 在 var_kw 中 OR var_kw 在 kw 中），不区分大小写
+- **候选队列**: add_candidates 去重 + seen_count 递增，classify_candidate 从候选移至正式库
+- **层级排序**: 核心变量(0) > 结构性变量(1) > 下游结果(2) > 情绪噪音(3)，用于 lookup 结果排序
+
+### 与 gen_daily_brief 的集成接口
+
+gen_daily_brief.py 的 LLM 输出话题列表后，逐话题调用 `lookup_variable(topic_name)`，匹配到则注入 `_taxonomy` 元数据（含层级、链、点亮叙事、定价状态、验证条件），未匹配则 `add_candidates()`。输出行如：
+```
+变量分类器: 5/8 话题已匹配，⚠ 3 个新话题（待分类）→ /taxonomy-review
+```
+
+### 未完成
+
+- **taxonomy-review Skill 尚未实际测试** — 需要重启会话后验证
+- **update_sources.bat 完整运行** — 当时 API key 有争议，未跑通全流程
+
+### 关键词
+
+#变量分类器 #关系图谱Phase1 #variable_taxonomy #信源日报 #实验#30
+
+---
+
+## 实验 #31: gen_source_summary 输出格式合并 — 4区→1表+中文标注+删除冗余 (2026-06-17)
+
+### 背景
+
+用户反馈信源日报数据段太分散难以阅读：
+1. 全球流动性 / 中国宏观 / US宏观 / 日本宏观 四个独立区块 → 合并为一表
+2. US ETF/明星股数据纯英文无说明 → 加中文名映射+总结行
+3. 概念轮动 / 基本面因子 → 合并为一表
+4. 微信公众号最新观点 → 删除（与本期覆盖文章本质重合）
+
+### 变更清单
+
+| # | 变更 | 文件 | 行号 |
+|---|------|------|------|
+| 1 | **4宏观区→1表**：全球流动性+中国+US+日本合并为"🌍 全球宏观环境一览"，每行按region组织 | `gen_source_summary.py` | 202-260 |
+| 2 | **US ETF中文名**：建立 `ETF_CN` 字典（45只ETF），Top6+Bottom3表格，summary line | `gen_source_summary.py` | 262-320 |
+| 3 | **US明星股中文名**：建立 `STOCK_CN` 字典（65只），Top8+Bottom3双列表格含每日/周涨幅 | `gen_source_summary.py` | 322-350 |
+| 4 | **概念链+基本面合并**：双列表格，概念链按avg_x1排序，因子溢价成对展示 | `gen_source_summary.py` | 352-376 |
+| 5 | **删除微信公众号最新观点区块**：移除 `blocks.extend(_format_article_listing(...))`，保留函数定义 | `gen_source_summary.py` | 原~380行删除 |
+| 6 | **中国宏观数据源修正**：`macro_snapshot.json`（不存在）→ `macro_sensitivity.json` | `gen_source_summary.py` | 修复 |
+| 7 | **source_analysis_prompt 同步**：数据完整性清单从10项减至5项，对齐新结构 | `prompts/source_analysis_prompt.md` | 全局 |
+
+### 影响范围
+
+- 输出行数大幅缩减（约从200行→80行），阅读效率提升
+- ETF/股票中文名映射后续需维护（新增ETF或股票需加字典条目）
+- 删除的"公众号最新观点"已由 gen_daily_brief 的话题深度分析覆盖
+
+### 关键词
+
+#信源日报 #gen_source_summary #格式合并 #中文映射 #实验#31
+
+---
+
+## 实验 #32: source_analysis_prompt 数据段填充 + 变量分类候选审查 (2026-06-17)
+
+### 变更1：source_analysis_prompt 新增第0.75步
+
+**背景**: claude.exe 在填充数据段占位符时没有格式保护，导致ETF表两列都被翻成中文、个股英文名列丢失。
+
+**改动**:
+- `prompts/source_analysis_prompt.md` 在原有流程（第-2步→第0.5步）之后新增**第0.75步：数据段摘要填充**
+- 明确写死表格格式保护规则：ETF表第1列保持英文原名、第2列保持中文译名，不准替换
+- 定义4个占位符位置+填充素材规则表
+- `update_sources.bat` 的 claude.exe 指令同步更新，引用完整流程（第-2步→第0.75步）+ 表格格式约束
+
+**影响**: 下次跑 claude.exe 时，ETF表格式会正确保留，占位符自动填充
+
+### 变更2：变量分类候选队列首次审查
+
+**背景**: gen_daily_brief.py 自动提了4个未分类候选话题，用户首次交互审查
+
+**操作**:
+- 4个候选全部 dismiss：
+  - 科技小登 vs 传统老登 → 市场风格描述，非独立变量
+  - 超级IPO(SPCX/长鑫) → VAR-017(商业航天)+VAR-023(半导体扩产)已有覆盖
+  - 消费疲软 / 券商板块 → 数据波动/单行业事件，非结构性变量
+- 用户确认MPO/NPO已在VAR-014(光通信)中覆盖，不需新增
+
+**影响**: 候选队列清空，明天 gen_daily_brief 自动提新批次
+
+### 关键词
+
+#信源日报 #source_analysis_prompt #格式保护 #变量分类 #实验#32
+
+---
+
+_<!-- 最新实验到此为止 -->_
+
+---
+
+## 实验 #33: Kronos-mini 全面验证 + 缠论标注训练数据准备 (2026-06-18)
+
+**触发**: 时序模因图谱三层架构提出后，验证Kronos-mini能否作为底层K线预测模型
+
+### Phase 1: 模型验证
+
+**测试脚本8个，按执行顺序**:
+1. `test_kronos.py` — 滑动窗口测试 sz159740，10组预测
+2. `test_kronos_chanlun.py` — ★买/★卖信号点预测一致性
+3. `test_kronos_vs_chanlun.py` — 笔方向对比（曾误报80%一致率，后修正为采样偏误）
+4. `test_kronos_trend_bias.py` — 趋势偏误检测（发现-37%看空偏误）
+5. `test_kronos_params.py` — 6组参数调优（最佳 T=1.3, p=0.95, s=3）
+6. `test_kronos_batch.py` — 8标的×3参数 ×10采样 = 240次预测
+7. `test_kronos_structure.py` — 结构约束违反率 35.7%
+8. `test_kronos_bi_consistency.py` — 笔方向一致性 16%区分度
+
+**核心结论**: Kronos-mini (4.1M参数) 方向正确率 50±2% = 猜硬币水平
+
+### Phase 2: 标注训练数据准备
+
+- 创建 `tools/label_chanlun_training.py` — 缠论标注流水线
+- 14只跟踪标的 × CZSC缠论分析 → bi_direction / in_zhongshu / trend_regime
+- 输出: `training_data/kronos_training_data.csv` (24,851行归一化OHLCV)
+- 配置: `training_data/kronos_config.yaml` (lookback=256, predict=24, batch=16)
+- 家庭PC微调指南: `training_data/README_HOME_PC.md`
+
+**标注统计**:
+- 24,851总bar, 33%笔覆盖, 14.3%中枢覆盖
+- 350 ★买, 318 ★卖, 48%上涨笔占比
+- 趋势分布: 上升≈下降≈震荡, 平衡
+
+**关键决策**: 用户确认方案一 → 标注数据 → fine-tune → 家庭PC RTX 4060 运行
+
+### 关键词
+
+#Kronos #时序模因图谱 #缠论标注 #fine-tune #实验#33
+

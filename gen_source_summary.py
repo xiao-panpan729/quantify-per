@@ -20,8 +20,12 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 today = datetime.now().strftime("%Y%m%d")
+today_dt = datetime.now()
 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 output_path = OUTPUT_DIR / f"{today}_sources.md"
+
+# ─── 文章最大天数（超过此天数的旧文章不显示） ───
+MAX_ARTICLE_AGE_DAYS = 5
 
 
 def _data_source_status() -> list:
@@ -88,6 +92,62 @@ def _clean(s, maxlen=80):
     return s[:maxlen] + ("..." if len(s) > maxlen else "")
 
 
+def _format_article_listing(wechat_dir: Path, today_dt: datetime) -> list:
+    """生成微信公众号最新观点区块 — 排除样式参考号 + 日期过滤 + 只显示最近5天"""
+    lines = []
+    lines.append("---")
+    lines.append("")
+    lines.append("## 📰 微信公众号最新观点")
+    lines.append("")
+    if not wechat_dir.exists():
+        lines.append("（wechat_articles 目录不存在）")
+        lines.append("")
+        return lines
+
+    # 排除已从当前管道移除的信源（eg. 一思一记/盘前/盘前纪要/安静拆主线）
+    excluded = {'一思一记', '盘前', '盘前纪要', '安静拆主线', '中信建投证券研究'}
+    src_dirs = sorted(d for d in wechat_dir.iterdir() if d.is_dir() and d.name not in excluded)
+    any_article = False
+
+    def _format_one_dir(account_dirs: list):
+        nonlocal any_article
+        for src_dir in account_dirs:
+            files = sorted(src_dir.glob("*.txt"), reverse=True)
+            recent = []
+            for f in files:
+                stem = f.stem
+                if len(stem) >= 8:
+                    try:
+                        f_date = datetime.strptime(stem[:8], "%Y%m%d")
+                        if (today_dt - f_date).days <= MAX_ARTICLE_AGE_DAYS:
+                            recent.append(f)
+                    except ValueError:
+                        pass
+                if len(recent) >= 2:
+                    break
+            if not recent:
+                continue
+            any_article = True
+            latest = recent[0]
+            stem = latest.stem
+            date_part = stem[:8] if len(stem) >= 8 else ""
+            title = _clean(stem[9:].replace("_", " ") if len(stem) > 9 else stem, 60)
+            dt = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}" if date_part else "?"
+            name_display = src_dir.name
+            lines.append(f"- **{name_display}** ({dt}): {title}")
+            if len(recent) > 1:
+                s2 = recent[1].stem
+                t2 = _clean(s2[9:].replace("_", " ") if len(s2) > 9 else s2, 50)
+                lines.append(f"  └ {t2}")
+
+    _format_one_dir(src_dirs)
+
+    if not any_article:
+        lines.append("（最近5天无更新）")
+    lines.append("")
+    return lines
+
+
 # ═══════════════════════════════════════════
 # 摘要构建
 # ═══════════════════════════════════════════
@@ -96,37 +156,10 @@ blocks = []
 blocks.append(f"# 信源聚合报告 {now_str}")
 blocks.append("")
 
-# ─── 1. 公众号 ───
+# ─── 1. 消息面冲击 ───
 blocks.append("---")
 blocks.append("")
-blocks.append("## 📰 微信公众号最新观点")
-blocks.append("")
-if WECHAT_DIR.exists():
-    src_dirs = sorted(d for d in WECHAT_DIR.iterdir() if d.is_dir())
-    for src_dir in src_dirs:
-        files = sorted(src_dir.glob("*.txt"), reverse=True)
-        if not files:
-            blocks.append(f"- **{src_dir.name}**: （空）")
-            continue
-        latest = files[0]
-        stem = latest.stem
-        date_part = stem[:8] if len(stem) >= 8 else ""
-        title = _clean(stem[9:].replace("_", " ") if len(stem) > 9 else stem, 60)
-        dt = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}" if date_part else "?"
-        blocks.append(f"- **{src_dir.name}** ({dt}): {title}")
-        # 第二篇
-        if len(files) > 1:
-            s2 = files[1].stem
-            t2 = _clean(s2[9:].replace("_", " ") if len(s2) > 9 else s2, 50)
-            blocks.append(f"  └ {t2}")
-else:
-    blocks.append("（wechat_articles 目录不存在）")
-blocks.append("")
-
-# ─── 2. 消息面冲击 ───
-blocks.append("---")
-blocks.append("")
-blocks.append("## 🔴 消息面突发事件")
+blocks.append("## 🔴 消息面要点")
 blocks.append("")
 shock = _read_json(SIGNALS_DIR / "_macro/sentiment_shock.json")
 if shock:
@@ -138,7 +171,14 @@ if shock:
     if sources:
         src_str = " | ".join(f"{k}={v}" for k, v in sources.items())
         blocks.append(f"**信源**: {src_str}")
-    for s in shock.get("shocks", []):
+    # 排序列5条最重要的（按impact绝对值降序 → count降序）
+    shocks = shock.get("shocks", [])
+    shocks_sorted = sorted(
+        shocks,
+        key=lambda x: (abs(x.get("impact", 0)), x.get("count", 0)),
+        reverse=True,
+    )[:5]
+    for s in shocks_sorted:
         label = _clean(s.get("label", "?"), 30)
         cnt = s.get("count", 0)
         imp = s.get("impact", "?")
@@ -150,178 +190,248 @@ else:
     blocks.append("（无数据，请先运行 shock_detector.py）")
 blocks.append("")
 
-# ─── 3. 流动性 ───
+# ─── 3. 全球宏观环境一览（合并：流动性 + 中国 + US + 日本） ───
 blocks.append("---")
 blocks.append("")
-blocks.append("## 🌍 全球流动性")
+blocks.append("## 🌍 全球宏观环境一览")
 blocks.append("")
+blocks.append("| 地区 | 指标 | 当前值 | 信号/趋势 |")
+blocks.append("|------|------|--------|-----------|")
+
 liq = _read_json(SIGNALS_DIR / "_macro/liquidity_monitor.json")
 if liq:
     p = liq.get("pressure", "?")
     regime = liq.get("regime", "?")
-    blocks.append(f"**流动性压力**: {p} → {regime} ({_clean(liq.get('regime_label', ''), 20)})")
+    blocks.append(f"| 🌍 全球 | 流动性压力 | {p} | {regime} |")
     for k, v in liq.get("factors", {}).items():
         lbl = v.get("label", k)
-        score = v.get("score", "?")
         lat = v.get("latest", v.get("raw", "?"))
-        blocks.append(f"  - {lbl}: {lat} (score={score})")
+        score = v.get("score", "?")
+        if isinstance(lat, float):
+            blocks.append(f"| | {lbl} | {lat:.2f} | score={score} |")
+        else:
+            blocks.append(f"| | {lbl} | {lat} | score={score} |")
 else:
-    blocks.append("（无数据）")
-blocks.append("")
+    blocks.append("| 🌍 全球 | （无数据） | - | - |")
 
-# ─── 4. 中国宏观 ───
-blocks.append("---")
-blocks.append("")
-blocks.append("## 🇨🇳 中国宏观快照")
-blocks.append("")
-snap = _read_json(SIGNALS_DIR / "_macro/macro_snapshot.json")
-if snap:
-    env = snap.get("environment", "?")
-    score = snap.get("score", "?")
-    blocks.append(f"**宏观环境**: {env} (score={score:+d})")
-    macro = snap.get("macro", {})
-    if macro:
-        parts = []
-        for k, v in macro.items():
-            if isinstance(v, (int, float)):
-                parts.append(f"{k}={v}")
-        if parts:
-            blocks.append(f"**数据**: {' | '.join(parts)}")
-    bf = snap.get("bond_fx", {})
-    if bf:
-        bparts = [f"{k}={v}" for k, v in bf.items()]
-        blocks.append(f"**债券/汇率**: {' | '.join(bparts)}")
-    comm = snap.get("commodity", {})
-    if comm:
-        cparts = [f"{k}={v}" for k, v in comm.items()]
-        blocks.append(f"**商品**: {' | '.join(cparts)}")
-    liq = snap.get("liquidity", {})
-    if liq:
-        blocks.append(f"**流动性**: {liq.get('regime_label','?')} ({liq.get('pressure','?')})")
-    sent = snap.get("sentiment", {})
-    if sent:
-        blocks.append(f"**消息面**: {sent.get('impact_level','?')} (net={sent.get('net_impact','?')})")
+# 中国宏观 — 从 macro_sensitivity.json 读取
+cn_macro = _read_json(SIGNALS_DIR / "_macro/macro_sensitivity.json")
+if cn_macro:
+    env = cn_macro.get("environment", "?")
+    if isinstance(env, dict):
+        env_name = env.get("environment", env.get("regime", "?"))
+        env_score = env.get("score", "?")
+    else:
+        env_name = str(env)
+        env_score = cn_macro.get("score", "?")
+    blocks.append(f"| 🇨🇳 中国 | 宏观环境 | {_clean(env_name, 15)} | 评分={env_score} |")
+    # 关键宏观数据
+    macro_data = cn_macro.get("macro", {})
+    for k in ["M2", "CPI", "PMI", "SHIBOR"]:
+        if k in macro_data:
+            v = macro_data[k]
+            blocks.append(f"| | {k} | {v} | - |")
 else:
-    blocks.append("（无数据，请先运行 macro_sensitivity.py --classify）")
-blocks.append("")
+    blocks.append("| 🇨🇳 中国 | （无数据） | - | - |")
 
-# ─── 5. US宏观 ───
-blocks.append("---")
-blocks.append("")
-blocks.append("## 🇺🇸 US宏观环境")
-blocks.append("")
+# US宏观
 usm = _read_json(SIGNALS_DIR / "_macro/us_macro_sensitivity.json")
+US_FIELD_CN = {
+    "FEDFUNDS": "联邦基金利率(%)", "US_CPI": "CPI同比(%)",
+    "ISM_PMI": "ISM制造业PMI", "NONFARM": "非农就业(万)",
+    "US_GDP": "GDP增速(%)", "US_PCE": "核心PCE(%)"
+}
 if usm:
     env = usm.get("environment", {})
-    blocks.append(f"**分类**: {_clean(env.get('environment', '?'), 20)} (score={env.get('score', '?')})")
-    lat = env.get("latest", {})
+    env_name = env.get("environment", "?") if isinstance(env, dict) else "?"
+    blocks.append(f"| 🇺🇸 美国 | 宏观环境 | {_clean(env_name, 15)} | 评分={env.get('score', '?')} |")
+    lat = env.get("latest", {}) if isinstance(env, dict) else {}
     if lat:
-        blocks.append("**关键数据**:")
         for k, v in lat.items():
-            blocks.append(f"  - {k} = {v}")
+            cn_name = US_FIELD_CN.get(k, k)
+            blocks.append(f"| | {cn_name} | {v} | - |")
 else:
-    blocks.append("（无数据）")
-blocks.append("")
+    blocks.append("| 🇺🇸 美国 | （无数据） | - | - |")
 
-# ─── 6. 日本宏观 ───
-blocks.append("---")
-blocks.append("")
-blocks.append("## 🇯🇵 日本宏观 / 套息交易")
-blocks.append("")
+# 日本宏观
 jap = _read_json(SIGNALS_DIR / "_macro/japan_macro.json")
 if jap:
-    blocks.append(f"- **BOJ利率**: {jap.get('boj_rate', '?')} ({jap.get('boj_signal', '?')})")
-    blocks.append(f"- **日本CPI**: {jap.get('japan_cpi', '?')}")
-    blocks.append(f"- **套息压力**: {jap.get('carry_pressure', '?')} → {jap.get('carry_regime', '?')}")
-    blocks.append(f"- **日元信号**: {jap.get('yen_signal', '?')}")
-    advice = jap.get('a_share_impact', '')
-    if advice:
-        blocks.append(f"- **A股影响**: {_clean(advice, 60)}")
+    boj = jap.get("boj_rate", "?")
+    boj_sig = jap.get("boj_signal", "?")
+    blocks.append(f"| 🇯🇵 日本 | 央行政策利率 | {boj} | {boj_sig} |")
+    cpi = jap.get("japan_cpi", "?")
+    blocks.append(f"| | 核心CPI | {cpi} | - |")
+    cp = jap.get("carry_pressure", "?")
+    cr = jap.get("carry_regime", "?")
+    blocks.append(f"| | 套息压力 | {cp} | {cr} |")
+    yen_s = jap.get("yen_signal", "?")
+    blocks.append(f"| | 日元信号 | {yen_s} | - |")
 else:
-    blocks.append("（无数据）")
+    blocks.append("| 🇯🇵 日本 | （无数据） | - | - |")
+
+blocks.append("")
+# 宏观一句话总结（由 Claude Code 分析步骤写入）
+blocks.append("> 📝 **宏观总结**: 待 Claude Code 联网分析后追加")
 blocks.append("")
 
-# ─── 7. US ETF势能 ───
+# ─── 4. US ETF + 明星股动量（合并） ───
 blocks.append("---")
 blocks.append("")
-blocks.append("## 🇺🇸 US ETF动量 Top/Bottom")
+blocks.append("## 🇺🇸 美股板块 & 个股异动")
 blocks.append("")
+
+# ETF 中文名映射
+ETF_CN = {
+    "S&P 500": "标普500", "Nasdaq 100": "纳斯达克100", "Dow Jones": "道琼斯",
+    "Russell 2000": "罗素2000", "Technology": "科技板块", "Semiconductor": "半导体",
+    "Financial": "金融", "Healthcare": "医疗健康", "Energy": "能源",
+    "Consumer": "消费品", "Industrial": "工业", "Materials": "原材料",
+    "Utilities": "公用事业", "Real Estate": "房地产",
+    "Communication": "通信服务", "Biotech": "生物科技", "China Internet": "中概互联",
+    "Gold Miners": "金矿", "Silver": "白银", "Oil & Gas": "油气",
+    "Aerospace": "航空航天", "Cyber Security": "网络安全", "Cloud": "云计算",
+    "Robotics": "机器人", "Electric Vehicle": "电动车", "Clean Energy": "清洁能源",
+    "Homebuilder": "住宅建筑", "Transport": "交通运输", "Water": "水资源",
+}
+
 etf = _read_json(SIGNALS_DIR / "_macro/us_sector_momentum.json")
 if etf:
-    items = [(e.get("name", "?"), e.get("x1", 0), e.get("close", "?"))
-             for e in etf.get("etfs", [])]
-    items.sort(key=lambda x: x[1])
-    blocks.append("\n**最弱5只**:")
-    for n, x1, c in items[:5]:
-        blocks.append(f"  - {n}: x₁={x1:.2f} @{c}")
-    blocks.append("\n**最强5只**:")
-    for n, x1, c in reversed(items[-5:]):
-        blocks.append(f"  - {n}: x₁={x1:.2f} @{c}")
+    items = []
+    for e in etf.get("etfs", []):
+        name = e.get("name", "?")
+        items.append({
+            "name": name,
+            "cn": ETF_CN.get(name, name),
+            "x1": e.get("x1", 0),
+            "close": e.get("close", "?"),
+            "category": e.get("category", ""),
+        })
+    items.sort(key=lambda x: x["x1"], reverse=True)
+    # 只展示 Top 6 和 Bottom 3
+    blocks.append("**板块 ETF**（按 x₁ 势能排序，仅列强弱分明者）:\n")
+    blocks.append("| ETF | 中文 | 势能(x₁) | 方向 |")
+    blocks.append("|-----|------|---------|------|")
+    for it in items[:6]:
+        direction = "🔥 强势" if it["x1"] >= 4 else ("✅ 偏强" if it["x1"] >= 1 else "⚪ 中性")
+        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {direction} |")
+    blocks.append("| ... | | | |")
+    for it in items[-3:]:
+        direction = "❄️ 弱势" if it["x1"] <= -2 else "🔻 偏弱"
+        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {direction} |")
+    # 总结
+    top_names = "、".join(f"{i['cn']}" for i in items[:3])
+    bot_names = "、".join(f"{i['cn']}" for i in items[-3:])
+    blocks.append(f"\n> 📝 **板块总结**: 最强为 {top_names}；最弱为 {bot_names}。详细分析待 Claude Code 追加。")
 else:
-    blocks.append("（无数据）")
+    blocks.append("**板块 ETF**: （无数据）")
 blocks.append("")
 
-# ─── 8. US明星股 ───
-blocks.append("---")
-blocks.append("")
-blocks.append("## ⭐ US明星股动量 Top/Bottom")
-blocks.append("")
+# 明星股
+blocks.append("**明星股异动**:\n")
 star = _read_json(SIGNALS_DIR / "_macro/us_star_momentum.json")
+STOCK_CN = {
+    "Apple": "苹果", "Microsoft": "微软", "NVIDIA": "英伟达", "Alphabet": "谷歌",
+    "Amazon": "亚马逊", "Meta": "Meta", "Tesla": "特斯拉", "Broadcom": "博通",
+    "AMD": "AMD", "Intel": "英特尔", "Qualcomm": "高通", "TSMC": "台积电",
+    "ASML": "ASML", "Applied Materials": "应用材料", "Lam Research": "泛林",
+    "KLA Corp": "科磊", "Micron": "美光", "Analog Devices": "ADI",
+    "Texas Instruments": "德州仪器", "Marvell": "美满电子", "Arm": "Arm",
+    "Salesforce": "Salesforce", "Adobe": "Adobe", "Oracle": "甲骨文",
+    "Cisco": "思科", "Palantir": "Palantir", "CrowdStrike": "CrowdStrike",
+    "ServiceNow": "ServiceNow", "Uber": "Uber", "Airbnb": "爱彼迎",
+    "Netflix": "奈飞", "Disney": "迪士尼", "JPMorgan": "摩根大通",
+    "Bank of America": "美国银行", "Goldman Sachs": "高盛", "Morgan Stanley": "摩根士丹利",
+    "Visa": "Visa", "Mastercard": "万事达", "JNJ": "强生",
+    "Pfizer": "辉瑞", "Eli Lilly": "礼来", "Novo Nordisk": "诺和诺德",
+    "UnitedHealth": "联合健康", "Exxon": "埃克森美孚", "Chevron": "雪佛龙",
+    "Caterpillar": "卡特彼勒", "Boeing": "波音", "Lockheed": "洛克希德马丁",
+    "RTX": "雷神", "GE": "通用电气", "Honeywell": "霍尼韦尔",
+    "Coca-Cola": "可口可乐", "PepsiCo": "百事", "Walmart": "沃尔玛",
+    "Costco": "好市多", "Home Depot": "家得宝", "Nike": "耐克",
+    "Starbucks": "星巴克", "McDonald's": "麦当劳",
+}
 if star:
-    items = [(s.get("name", "?"), s.get("x1", 0), s.get("close", "?"))
-             for s in star.get("stocks", [])]
-    items.sort(key=lambda x: x[1])
-    blocks.append("\n**最弱5只**:")
-    for n, x1, c in items[:5]:
-        blocks.append(f"  - {n}: x₁={x1:.2f} @{c}")
-    blocks.append("\n**最强5只**:")
-    for n, x1, c in reversed(items[-5:]):
-        blocks.append(f"  - {n}: x₁={x1:.2f} @{c}")
+    items = []
+    for s in star.get("stocks", []):
+        name = s.get("name", "?")
+        items.append({
+            "name": name,
+            "cn": STOCK_CN.get(name, name),
+            "x1": s.get("x1", 0),
+            "daily_chg": s.get("daily_chg", 0),
+            "week_chg": s.get("week_chg", 0),
+            "category": s.get("category", ""),
+        })
+    items.sort(key=lambda x: x["x1"], reverse=True)
+    blocks.append("| 股票 | 中文 | 势能(x₁) | 日涨跌 | 周涨跌 |")
+    blocks.append("|------|------|---------|--------|--------|")
+    for it in items[:8]:
+        d = f"{it['daily_chg']:+.1f}%" if isinstance(it['daily_chg'], (int, float)) and it['daily_chg'] != 0 else "-"
+        w = f"{it['week_chg']:+.1f}%" if isinstance(it['week_chg'], (int, float)) and it['week_chg'] != 0 else "-"
+        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {d} | {w} |")
+    blocks.append("| ... | | | | |")
+    for it in items[-3:]:
+        d = f"{it['daily_chg']:+.1f}%" if isinstance(it['daily_chg'], (int, float)) and it['daily_chg'] != 0 else "-"
+        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {d} | - |")
+    # 总结
+    hot_stocks = "、".join(f"{i['cn']}(x₁={i['x1']:.0f})" for i in items[:3])
+    blocks.append(f"\n> 📝 **个股总结**: 势能最强 {hot_stocks}。弱势股简列，不展开。详细分析待 Claude Code 追加。")
 else:
-    blocks.append("（无数据）")
+    blocks.append("**明星股**: （无数据）")
 blocks.append("")
 
-# ─── 9. 概念链 ───
+# ─── 5. 概念链 + 基本面（合并） ───
 blocks.append("---")
 blocks.append("")
-blocks.append("## 🔗 概念链轮动")
+blocks.append("## 🔗 产业链轮动 & 基本面因子")
 blocks.append("")
+
+# 概念链
 cc = _read_json(SIGNALS_DIR / "_macro/us_concept_momentum.json")
 if cc:
-    items = [(c.get("chain", "?"), c.get("avg_x1", 0))
-             for c in cc.get("chains", [])]
-    items.sort(key=lambda x: x[1])
-    blocks.append("\n**最弱3链**:")
-    for n, x1 in items[:3]:
-        blocks.append(f"  - {n}: {x1:.2f}")
-    blocks.append("\n**最强3链**:")
-    for n, x1 in reversed(items[-3:]):
-        blocks.append(f"  - {n}: {x1:.2f}")
+    items = [(c.get("chain", "?"), c.get("avg_x1", 0)) for c in cc.get("chains", [])]
+    items.sort(key=lambda x: x[1], reverse=True)
+    blocks.append("**概念链**（按平均势能）:\n")
+    blocks.append("| 链名 | 势能 | 链名 | 势能 |")
+    blocks.append("|------|------|------|------|")
+    mid = (len(items) + 1) // 2
+    left = items[:mid]
+    right = items[mid:]
+    for i in range(max(len(left), len(right))):
+        l_text = f"| {left[i][0]} | {left[i][1]:.2f} " if i < len(left) else "| | "
+        r_text = f"| {right[i][0]} | {right[i][1]:.2f} |" if i < len(right) else "| | |"
+        blocks.append(l_text + r_text)
 else:
-    blocks.append("（无数据）")
+    blocks.append("**概念链**: （无数据）\n")
 blocks.append("")
 
-# ─── 10. 基本面 ───
-blocks.append("---")
-blocks.append("")
-blocks.append("## 📊 基本面因子溢价（最新窗口）")
-blocks.append("")
+# 基本面
 fund = _read_json(SIGNALS_DIR / "_funds/fundamental_profile.json")
 if fund:
     series = fund.get("factor_premium_series", [])
     if series:
         latest = series[-1]
-        blocks.append(f"**窗口**: {latest.get('window_end', '?')}")
-        for k, v in latest.items():
-            if k != "window_end" and isinstance(v, (int, float)):
-                blocks.append(f"  - {_clean(k, 15)}: {v:+.4f}")
+        factor_items = [(k, v) for k, v in latest.items() if k != "window_end" and isinstance(v, (int, float))]
+        blocks.append("**基本面因子溢价**:\n")
+        blocks.append("| 因子 | 溢价 | 因子 | 溢价 |")
+        blocks.append("|------|------|------|------|")
+        mid = (len(factor_items) + 1) // 2
+        left = factor_items[:mid]
+        right = factor_items[mid:]
+        for i in range(max(len(left), len(right))):
+            l_text = f"| {_clean(left[i][0], 10)} | {left[i][1]:+.2f} " if i < len(left) else "| | "
+            r_text = f"| {_clean(right[i][0], 10)} | {right[i][1]:+.2f} |" if i < len(right) else "| | |"
+            blocks.append(l_text + r_text)
     fm = fund.get("factor_momentum", {})
     hot = fm.get("hot_factors", "")
     if hot:
-        blocks.append(f"\n**热点因子**: {_clean(hot, 40)}")
+        blocks.append(f"\n> 📝 **因子解读**: 热点因子 {_clean(hot, 40)}。详细分析待 Claude Code 追加。")
 else:
-    blocks.append("（无数据）")
+    blocks.append("**基本面因子**: （无数据）")
 blocks.append("")
+
+# ─── 不再输出"微信公众号最新观点" ───
+# 该区块与"本期覆盖文章"（gen_daily_brief.py 输出）内容重合，已删除。
 
 # ─── 写入基础摘要 ───
 raw_summary = "\n".join(blocks)
