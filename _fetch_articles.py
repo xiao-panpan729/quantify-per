@@ -7,7 +7,7 @@ from config import PROJECT_ROOT
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-KEY = os.environ.get('MPTEXT_API_KEY', '09b9d3bb2dec4d6f8e18fcf55a4853de')
+KEY = os.environ['MPTEXT_API_KEY']  # 必须从 .env 或环境变量设置，不留硬编码默认值
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'wechat_articles')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -198,7 +198,7 @@ def extract_cls_links(html, base_url):
         if any(kw in title for kw in FOREIGN_BANK_KEYWORDS):
             articles.append({'title': title, 'link': link, 'source': 'cls'})
     if not articles:
-        for m in re.finditer(r'<a[^>]*href"(/[^"]*)"[^>]*>([^<]+)</a>', html):
+        for m in re.finditer(r'<a[^>]*href="(/[^"]*)"[^>]*>([^<]+)</a>', html):
             link = base_url.rstrip('/') + m.group(1)
             title = m.group(2).strip()
             if any(kw in title for kw in FOREIGN_BANK_KEYWORDS):

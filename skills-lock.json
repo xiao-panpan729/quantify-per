@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "wind-mcp-skill": {
+      "source": "wind-information-co-ltd/wind-skills",
+      "sourceType": "github",
+      "skillPath": "skills/wind-mcp-skill/SKILL.md",
+      "computedHash": "0538bd5857b59e7a7258966e125107bfe0c51689fc2405ff4bf2fb5413182f79"
+    }
+  }
+}

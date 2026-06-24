@@ -38,13 +38,21 @@ python operation_tracker.py --status    # 战役级操作追踪
 # ─── 信源管理（微信公众号） ───
 python _fetch_articles.py               # 批量拉取8个信源的最新文章全文 → wechat_articles/
 python _search_accounts.py              # 搜索公众号 fakeid（新增信源时用）
+python _fetch_full_history.py --all     # ★全量历史拉取（默认最近6个月，13个号全量）
+python _fetch_full_history.py --accounts 猫菲特 盘前     # 指定号拉取
+python _fetch_full_history.py --all --dry-run  # 仅统计不下载
 python gen_source_summary.py            # ★信源AI日报生成（纯数据摘要，无AI）
 python gen_source_summary.py --ai       # ★数据聚合完成后提示用户触发AI分析
-python gen_daily_brief.py               # ★观点聚合+宏观共振→追加到 sources.md（首次=完整区，再跑=午后更新）
+python gen_daily_brief.py               # ★观点聚合+宏观共振+海外映射检测→追加到 sources.md（首次=完整区，再跑=午后更新）
+python _publish_report.py               # ★发布当日日报到 GitHub Pages（复制→更新index→git push）
+python _publish_report.py --date 20260618 # 指定日期回填
 python tools/signal_extractor.py        # ★信号事件流提取（从数据源→KG映射→JSON事件流）
 python tools/signal_extractor.py --date 20260608  # 指定日期回填
 python tools/signal_extractor.py --no-cache       # 跳过去重缓存
 python tools/signal_extractor.py --full-history   # 回填所有历史日期
+python tools/kg_extract.py --save                 # ★知识图谱变量/传导/交易指向抽取（12公众号→事件流JSON，V3版）
+python tools/kg_extract.py --dry-run              # 预览统计
+python tools/kg_extract.py --accounts 猫菲特 --save  # 单号抽取
 python update_sources.bat               # ★全流程：抓取8信源→聚合→信号提取
 python -c "import json;d=json.load(open('signals/tracking/_signals/daily_signals/20260610_signals.json'));[print(f\"{s['source_label']:20} {s['direction']:8} -> {','.join(s['kg_chains'][:3])}\") for s in d['signals'][:10]]"  # ★信号事件流查询
 
@@ -205,6 +213,18 @@ for mkt,code in [('sz','159740'),('sh','000001')]:
     for ext,d in [('lc5','fzline'),('lc1','minline')]:
         p=f'C:/zd_cjzq/vipdoc/{mkt}/{d}/{mkt}{code}.{ext}'; df=r.get_df(p);
         print(f'{mkt}{code} {ext}:{str(df.index[-1])} ({len(df)}条)')"
+
+# ─── ★缠论Token研究实验（3K线原语→语料库→模型） ───
+python tools/three_bar_primitives.py               # 3-bar原语分类验证（理论版）
+python tools/build_token_corpus.py                 # 初版语料库(6指数日线)
+python tools/build_token_corpus_full.py            # 全量语料库(655板块指数+30分钟)
+python tools/train_token_model.py                  # Token预测LSTM训练(21K参数)
+python tools/token_bi_segmenter.py                 # Token→笔分词器+走势叙述
+python tools/label_chanlun_training.py            # 缠论训练数据标注工具
+python tools/train_chanlun_student.py             # 缠论学生模型训练(Teacher→Student知识蒸馏)
+python tools/chanlun_parser.py                    # 缠论层次化解析器(包含处理→笔→线段→走势类型)
+python tools/chanlun_parser.py --candidates       # 枚举线段候选断点(供Teacher判断)
+python tools/chanlun_parser.py --export-dataset   # 导出训练数据(Teacher标注→JSON)
 ```
 
 ## 二、环境依赖
@@ -319,10 +339,14 @@ update_tracking.py              ← 14只标的全周期信号计算
 | [tools/macro_screener.py](tools/macro_screener.py) | 189 | ★宏观分层过滤（板块动量 × 宏观环境 overlay） |
 | [tools/macro_sensitivity.py](tools/macro_sensitivity.py) | 712 | ★宏观敏感性 + 环境分类（15+因子 RollingOLS） |
 | [tools/liquidity_monitor.py](tools/liquidity_monitor.py) | 380 | ★全球流动性监控（5因子合成压力指数） |
-| [gen_source_summary.py](gen_source_summary.py) | 484 | ★信源AI日报生成器（8公众号聚合→分析→报告） |
-| [gen_daily_brief.py](gen_daily_brief.py) | NEW | ★观点聚合+宏观共振（公众号观点 vs 宏观数据 → sources.md 末尾） |
+| [gen_source_summary.py](gen_source_summary.py) | 623 | ★信源AI日报生成器（8公众号聚合→分析→报告） |
+| [gen_daily_brief.py](gen_daily_brief.py) | 1459 | ★观点聚合+宏观共振+海外映射检测（公众号观点 vs 宏观数据 → sources.md 末尾，含 US→A 股 uncoupled signal detection → 🪝 海外映射区块） |
+| [_publish_report.py](_publish_report.py) | NEW | ★日报自动发布→GitHub Pages（复制→更新 index.md → git push → 触发 Actions 部署） |
 | [tools/signal_extractor.py](tools/signal_extractor.py) | NEW | ★信号事件流提取（9源+微信→KG映射→JSON事件流） |
-| [tools/sentiment/shock_detector.py](tools/sentiment/shock_detector.py) | 650 | ★消息面突发事件检测 (三源冗余: WSC/东财/AI股评) |
+| [tools/kg_extract.py](tools/kg_extract.py) | 322 | ★知识图谱V3→V4抽取：变量变化/传导/交易指向（12公众号→JSON，格式规格见 `signals/tracking/_kg/KG_FORMAT_SPEC.md`） |
+| [signals/tracking/_kg/KG_FORMAT_SPEC.md](signals/tracking/_kg/KG_FORMAT_SPEC.md) | — | ★知识图谱 V4 格式规格：核心原则/三种类型/排除规则/二维标注体系 |
+| [signals/tracking/_kg/v4_formatted.json](signals/tracking/_kg/v4_formatted.json) | — | ★知识图谱 V4 全量输出：6217 条格式修正后条目 |
+| [tools/sentiment/shock_detector.py](tools/sentiment/shock_detector.py) | 557 | ★消息面突发事件检测 (三源冗余: WSC/东财/AI股评) |
 | [tools/japan_macro.py](tools/japan_macro.py) | 381 | ★日本宏观+套息交易压力 (BOJ/FXY/CPI → carry pressure) |
 | [tools/fundamental_screener.py](tools/fundamental_screener.py) | 425 | ★基本面因子溢价筛选（Rolling FM + ROE/营收增长率） |
 | [tools/fundamental/data_layer.py](tools/fundamental/data_layer.py) | 293 | ★基本面数据层（季频→日频转换 + 因子矩阵） |
@@ -362,6 +386,13 @@ update_tracking.py              ← 14只标的全周期信号计算
 | [experts/signal_adapter/adapter_chanlun.py](experts/signal_adapter/adapter_chanlun.py) | 248 | ★缠论→StandardSignal适配器（S/Pow/C/G纯净映射） |
 | [experts/signal_adapter/adapter_volume_leader.py](experts/signal_adapter/adapter_volume_leader.py) | 283 | ★量领→StandardSignal适配器（ABCD级别+量能确认） |
 | [experts/signal_adapter/adapter_macro_sector.py](experts/signal_adapter/adapter_macro_sector.py) | 216 | ★宏观板块→StandardSignal适配器（环境分类+板块势能） |
+| [tools/three_bar_primitives.py](tools/three_bar_primitives.py) | 246 | ★缠论3K线原语分类验证（12种单根→7类语义） |
+| [tools/build_token_corpus.py](tools/build_token_corpus.py) | 113 | 初版语料库：6主要指数日线Token序列 |
+| [tools/build_token_corpus_full.py](tools/build_token_corpus_full.py) | 156 | 全量语料库：655板块指数日线+上证/创业板30分钟 |
+| [tools/build_token_corpus_ashare.py](tools/build_token_corpus_ashare.py) | 256 | A股全量个股日线语料库 |
+| [tools/train_token_model.py](tools/train_token_model.py) | 163 | Token预测LSTM模型（21K参数，36.28%准确率） |
+| [tools/token_bi_segmenter.py](tools/token_bi_segmenter.py) | 228 | Token→笔分词器 + 走势叙述引擎 |
+| [tools/label_chanlun_training.py](tools/label_chanlun_training.py) | 300 | 缠论训练数据标注工具 |
 
 ### 数据目录
 
@@ -405,8 +436,8 @@ D:\quantify-per\
 ├── reports/sources/     ← ★信源聚合日报 (YYYYMMDD_sources.md)
 ├── narratives/          ← ★产业链叙事体系（时间线/模板/外资观点）
 │   ├── narrative_judgment_layer.md  ← S/A/B/C/D 叙事分级
-│   ├── foreign_views/   ← ★外资行观点时间线（高盛/大摩/小摩/瑞银/花旗）
-│   │   ├── _index.md    ← 索引 + 内外资分歧监控
+│   ├── foreign_views/   ← ★外资板块轮动观点（高盛/大摩/小摩/瑞银/花旗，话题桥自动触发搜索）
+│   │   ├── _index.md    ← ★板块级轮动观点索引（按板块分类，非战略大方向）
 │   │   ├── gs_goldman_sachs.md
 │   │   ├── ms_morgan_stanley.md
 │   │   └── ...

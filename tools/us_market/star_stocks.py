@@ -158,11 +158,15 @@ def calc_all_us_stock_scores() -> list[dict]:
             daily_chg = round((close[-1] / close[-2] - 1) * 100, 2) if len(close) >= 2 else 0
             # 周涨跌幅（5个交易日）
             week_chg = round((close[-1] / close[-6] - 1) * 100, 2) if len(close) >= 6 else 0
+            # 月涨跌幅（21个交易日）
+            month_chg = round((close[-1] / close[-22] - 1) * 100, 2) if len(close) >= 22 else week_chg
+            # 季涨跌幅（63个交易日）
+            quarter_chg = round((close[-1] / close[-64] - 1) * 100, 2) if len(close) >= 64 else month_chg
             vol_ratio = 0
             if len(volume) >= 21:
                 avg_vol = float(np.mean(volume[-21:-1]))
                 vol_ratio = round(volume[-1] / avg_vol, 2) if avg_vol > 0 else 0
-            print(f"X_1={x1:.2f}  日涨跌={daily_chg:+.2f}%  收盘={latest_close:.2f}")
+            print(f"X_1={x1:.2f}  日涨跌={daily_chg:+.2f}%  周={week_chg:+.2f}%  月={month_chg:+.2f}%  收盘={latest_close:.2f}")
             results.append({
                 "symbol": symbol,
                 "name": name,
@@ -171,6 +175,8 @@ def calc_all_us_stock_scores() -> list[dict]:
                 "close": latest_close,
                 "daily_chg": daily_chg,
                 "week_chg": week_chg,
+                "month_chg": month_chg,
+                "quarter_chg": quarter_chg,
                 "vol_ratio": vol_ratio,
                 "n_days": len(close),
             })
@@ -241,12 +247,41 @@ def report_top_movers(results: list[dict], n: int = 10):
         print(f"  {r['symbol']:<8} {r['name']:<15} {r['category']:<22} {r['daily_chg']:>+7.2f}% {r['x1']:>6.1f} {r.get('vol_ratio',0):>6.2f}")
 
 
+def _load_prev_stock_x1() -> dict:
+    """加载前一天个股 x1 值用于趋势对比"""
+    path = TRACKING_DIR / "_macro" / "us_star_momentum.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return {e["symbol"]: e.get("x1") for e in data.get("stocks", []) if e.get("x1") is not None}
+    except Exception:
+        return {}
+
+
 def save_stock_results(results: list[dict], date_str: str = None):
-    """保存 JSON + Markdown + 概念链动量"""
+    """保存 JSON (含 x1_trend) + 三层 Markdown + 概念链动量"""
     if date_str is None:
         date_str = datetime.now().strftime("%Y%m%d")
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    valid = [r for r in results if r.get("x1") is not None]
+
+    # ── x1 趋势对比 ──
+    prev_x1 = _load_prev_stock_x1()
+    for r in valid:
+        symbol = r["symbol"]
+        prev = prev_x1.get(symbol)
+        if prev is not None and r["x1"] is not None:
+            diff = r["x1"] - prev
+            if diff > 0.5:
+                r["x1_trend"] = "up"
+            elif diff < -0.5:
+                r["x1_trend"] = "down"
+            else:
+                r["x1_trend"] = "flat"
+        else:
+            r["x1_trend"] = "new"
 
     # JSON
     json_path = TRACKING_DIR / "_macro" / "us_star_momentum.json"
@@ -283,40 +318,52 @@ def save_stock_results(results: list[dict], date_str: str = None):
         print(f"[JSON] {chain_json_path}")
         print_concept_ranking(chain_scores)
 
-    # Markdown
+    # ── Markdown 三层报告 ──
     md_path = REPORT_DIR / f"{date_str}_us_stars.md"
-    valid = [r for r in results if r.get("x1") is not None]
-    valid.sort(key=lambda r: r["x1"], reverse=True)
+
+    trend_arrow = {"up": "↑", "down": "↓", "flat": "→", "new": "☆"}
 
     lines = [
-        f"# US 明星股动量日报 ({date_str})",
+        f"# US 明星股日报 ({date_str})",
         "",
         f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        f"**公式**: 通达信 RSI势能2 (X_1)",
         f"**标的**: {len(results)} 只 (有效: {len(valid)})",
         "",
-        "## 动量排名 Top 30",
-        "",
-        "| 排名 | 代码 | 名称 | 类别 | X_1 | 收盘价 |",
-        "|------|------|------|------|-----|--------|",
     ]
-    for i, r in enumerate(valid[:30], 1):
-        lines.append(f"| {i} | {r['symbol']} | {r['name']} | {r['category']} | {r['x1']:.2f} | {r['close']:.2f} |")
 
+    # ── ① 当日异动 Top 3 ──
+    movers = sorted(valid, key=lambda r: r.get("daily_chg", 0) or 0, reverse=True)[:3]
+    lines.append("## 🚀 当日异动 Top 3\n")
+    lines.append("| 排名 | 代码 | 名称 | 类别 | 日涨跌 | 周涨跌 | 月涨跌 |")
+    lines.append("|------|------|------|------|--------|--------|--------|")
+    for i, r in enumerate(movers, 1):
+        dc = f"{r.get('daily_chg', 0):+.2f}%" if r.get("daily_chg") is not None else "?"
+        wc = f"{r.get('week_chg', 0):+.2f}%" if r.get("week_chg") is not None else "?"
+        mc = f"{r.get('month_chg', 0):+.2f}%" if r.get("month_chg") is not None else "?"
+        lines.append(f"| {i} | {r['symbol']} | {r['name']} | {r['category']} | {dc} | {wc} | {mc} |")
     lines.append("")
-    lines.append("## 类别轮动")
+
+    # ── ② 周涨幅 Top 3 ──
+    weekly = sorted(valid, key=lambda r: r.get("week_chg", 0) or 0, reverse=True)[:3]
+    lines.append("## 📈 周涨幅 Top 3\n")
+    lines.append("| 排名 | 代码 | 名称 | 类别 | 周涨跌 | 月涨跌 | x₁ |")
+    lines.append("|------|------|------|------|--------|--------|-----|")
+    for i, r in enumerate(weekly, 1):
+        wc = f"{r.get('week_chg', 0):+.2f}%" if r.get("week_chg") is not None else "?"
+        mc = f"{r.get('month_chg', 0):+.2f}%" if r.get("month_chg") is not None else "?"
+        x1 = f"{r['x1']:.1f}" if r.get("x1") is not None else "?"
+        lines.append(f"| {i} | {r['symbol']} | {r['name']} | {r['category']} | {wc} | {mc} | {x1} |")
     lines.append("")
-    cat_scores = defaultdict(list)
-    for r in valid:
-        cat_scores[r["category"]].append(r["x1"])
-    lines.append("| 类别 | 只数 | 平均X_1 | 最强 | 最弱 |")
-    lines.append("|------|------|---------|------|------|")
-    for cat in cat_scores:
-        scores = cat_scores[cat]
-        cat_stocks = [r for r in valid if r["category"] == cat]
-        best = max(cat_stocks, key=lambda r: r["x1"])
-        worst = min(cat_stocks, key=lambda r: r["x1"])
-        lines.append(f"| {cat} | {len(scores)} | {sum(scores)/len(scores):.2f} | {best['symbol']}({best['x1']:.1f}) | {worst['symbol']}({worst['x1']:.1f}) |")
+
+    # ── ③ x1 势能强度 Top 3 ──
+    x1_top = sorted(valid, key=lambda r: r["x1"], reverse=True)[:3]
+    lines.append("## 📊 x₁ 势能强度 Top 3\n")
+    lines.append("| 排名 | 代码 | 名称 | 类别 | x₁ | 趋势 |")
+    lines.append("|------|------|------|------|-----|------|")
+    for i, r in enumerate(x1_top, 1):
+        arrow = trend_arrow.get(r.get("x1_trend", "new"), "☆")
+        lines.append(f"| {i} | {r['symbol']} | {r['name']} | {r['category']} | {r['x1']:.1f} | {arrow} |")
+    lines.append("")
 
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")

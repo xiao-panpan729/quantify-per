@@ -18,7 +18,7 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'wechat_articles', '中信建投证券研究')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-KEY = os.environ.get('MPTEXT_API_KEY', '931355aec9274ea7aa25dd11f9042414')
+KEY = os.environ['MPTEXT_API_KEY']  # 必须从 .env 或环境变量设置
 FAKEID = 'MzI3ODAyODI0Ng=='
 API_BASE = 'https://down.mptext.top/api/public/v1/article'
 DOWNLOAD_API = 'https://down.mptext.top/api/public/v1/download'

@@ -383,7 +383,7 @@ class DataSourceReader:
         return _read_json(SIGNALS_DIR / "_macro/liquidity_monitor.json")
 
     def _read_macro_snapshot(self):
-        return _read_json(SIGNALS_DIR / "macro_snapshot.json")
+        return _read_json(SIGNALS_DIR / "_macro" / "macro_snapshot.json")
 
     def _read_us_macro(self):
         return _read_json(SIGNALS_DIR / "_macro/us_macro_sensitivity.json")

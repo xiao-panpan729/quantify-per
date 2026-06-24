@@ -1,0 +1,67 @@
+{
+  "0": {
+    "break": false,
+    "reason": "笔破坏有效，但特征序列不足3元素无法形成分型，后续仅1/3笔同向延续，未确认新段。",
+    "confidence": "low"
+  },
+  "1": {
+    "break": false,
+    "reason": "笔破坏有效，但特征序列不足3元素无法形成分型，后续仅1/3笔同向延续，未确认新段。",
+    "confidence": "low"
+  },
+  "2": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续3/3笔同向延续，确认新段。",
+    "confidence": "high"
+  },
+  "3": {
+    "break": false,
+    "reason": "笔破坏未触及前低，特征序列不足3元素，虽后续2/3笔同向但笔破坏未成立。",
+    "confidence": "low"
+  },
+  "4": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/3笔同向延续，确认新段。",
+    "confidence": "high"
+  },
+  "5": {
+    "break": false,
+    "reason": "笔破坏有效，但特征序列不足3元素无法形成分型，后续0/3笔同向延续，未确认新段。",
+    "confidence": "low"
+  },
+  "6": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/3笔同向延续，确认新段。",
+    "confidence": "high"
+  },
+  "7": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续3/3笔同向延续，确认新段。",
+    "confidence": "high"
+  },
+  "8": {
+    "break": false,
+    "reason": "笔破坏有效，但特征序列不足3元素无法形成分型，后续仅1/3笔同向延续，未确认新段。",
+    "confidence": "low"
+  },
+  "9": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/3笔同向延续，确认新段。",
+    "confidence": "high"
+  },
+  "10": {
+    "break": false,
+    "reason": "笔破坏未触及前高，特征序列不足3元素，虽后续1/3笔同向但笔破坏未成立。",
+    "confidence": "low"
+  },
+  "11": {
+    "break": false,
+    "reason": "笔破坏有效，但特征序列不足3元素无法形成分型，后续仅1/3笔同向延续，未确认新段。",
+    "confidence": "low"
+  },
+  "12": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续1/1笔同向延续，确认新段。",
+    "confidence": "high"
+  }
+}

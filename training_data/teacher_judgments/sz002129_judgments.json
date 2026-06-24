@@ -1,0 +1,87 @@
+{
+  "0": {
+    "break": false,
+    "reason": "笔破坏有效，但特征序列不足3元素无法形成分型，后续0/3笔延续新方向，待确认",
+    "confidence": "low"
+  },
+  "1": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续3/3笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  },
+  "2": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/3笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  },
+  "3": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/3笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  },
+  "4": {
+    "break": false,
+    "reason": "笔破坏有效，特征序列不足3元素无法形成分型，后续0/3笔延续新方向，待确认",
+    "confidence": "low"
+  },
+  "5": {
+    "break": false,
+    "reason": "笔破坏未触及前低，特征序列不足3元素，后续3/3笔延续新方向但笔破坏不成立",
+    "confidence": "low"
+  },
+  "6": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/3笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  },
+  "7": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/3笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  },
+  "8": {
+    "break": false,
+    "reason": "笔破坏有效，特征序列不足3元素无法形成分型，后续0/3笔延续新方向，待确认",
+    "confidence": "low"
+  },
+  "9": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续3/3笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  },
+  "10": {
+    "break": false,
+    "reason": "笔破坏有效，特征序列不足3元素无法形成分型，后续1/3笔延续新方向，待确认",
+    "confidence": "low"
+  },
+  "11": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/3笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  },
+  "12": {
+    "break": false,
+    "reason": "笔破坏有效，特征序列不足3元素无法形成分型，后续1/3笔延续新方向，待确认",
+    "confidence": "low"
+  },
+  "13": {
+    "break": false,
+    "reason": "笔破坏有效，特征序列不足3元素无法形成分型，后续1/3笔延续新方向，待确认",
+    "confidence": "low"
+  },
+  "14": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/3笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  },
+  "15": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续3/3笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  },
+  "16": {
+    "break": true,
+    "reason": "笔破坏有效，特征序列不足3元素但后续2/2笔延续新方向，确认线段破坏",
+    "confidence": "high"
+  }
+}

@@ -1,11 +1,10 @@
 """
-B类突发事件检测器 — 每日盘后从多个消息源抓取标题，关键词匹配，
+B类突发事件检测器 — 多信源 API/MCP 接入，关键词匹配，
 输出 sentiment_shock.json 供 macro_sensitivity.py 读取作为 overlay。
 
-数据源: 鼓掌财经WebSocket(同花顺+选股宝+见闻) / 华尔街见闻REST / 东财全球快讯
+数据源: 华尔街见闻REST / 东财全球快讯 / 财联社akshare / 金十数据MCP
 设计参考: aion-taxonomy (YAML关键词匹配) + Tech-Pulse (多源归一+降级)
 """
-import asyncio
 import json
 import re
 import time
@@ -14,8 +13,10 @@ from datetime import datetime, date
 from pathlib import Path
 from collections import defaultdict
 
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 import requests
-import websockets
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 TRACKING_DIR = PROJECT_ROOT / "signals" / "tracking"
@@ -62,85 +63,7 @@ def _with_timeout(fn, timeout_sec=45):
             return []
 
 
-# ─── 消息源0: 鼓掌财经 WebSocket (同花顺+选股宝+华尔街见闻聚合) ───
-GUZHANG_PAGE_URL = "https://724.guzhang.com/"
-GUZHANG_WS_HOST = "wss://swoole2.guzhang.com/"
-
-
-def _get_guzhang_token():
-    """从鼓掌财经页面HTML中动态提取WebSocket token（每次访问页面都生成新JWT）"""
-    try:
-        resp = requests.get(GUZHANG_PAGE_URL, timeout=15)
-        html = resp.text
-        # 服务端将token渲染为: var encryptedToken = "xxx";
-        m = re.search(r'var\s+encryptedToken\s*=\s*"([^"]+)"', html)
-        if m:
-            return m.group(1)
-    except Exception:
-        pass
-    return None
-
-
-def _build_guzhang_ws_url(token):
-    """用动态token构建WebSocket URL"""
-    if not token:
-        return None
-    return f"{GUZHANG_WS_HOST}?token={token}"
-
-
-def fetch_guzhang():
-    """通过WebSocket连接鼓掌财经，耐心等待最多30条消息（最长20秒）"""
-    headlines = []
-
-    # 动态获取新token（每次运行都重新从页面拉取）
-    token = _get_guzhang_token()
-    if not token:
-        print("[shock]     ⚠ 无法获取鼓掌财经token，跳过")
-        return headlines
-
-    ws_url = _build_guzhang_ws_url(token)
-
-    async def _collect():
-        empty_windows = 0
-        try:
-            async with websockets.connect(
-                ws_url, ping_interval=None, close_timeout=3, max_size=2**20
-            ) as ws:
-                for _ in range(60):
-                    try:
-                        msg = await asyncio.wait_for(ws.recv(), timeout=2.0)
-                    except asyncio.TimeoutError:
-                        empty_windows += 1
-                        if empty_windows >= 3:  # 连续3个空窗=6秒没消息，退出
-                            break
-                        continue
-                    empty_windows = 0
-                    if msg == "ping":
-                        continue
-                    try:
-                        data = json.loads(msg)
-                        title = data.get("title", "")
-                        if title:
-                            headlines.append({
-                                "title": title,
-                                "source": f"guzhang({data.get('comefrom', '?')})",
-                                "time": data.get("ptime", "")
-                            })
-                        if len(headlines) >= 30:
-                            break
-                    except json.JSONDecodeError:
-                        continue
-        except Exception:
-            pass
-
-    try:
-        asyncio.run(_collect())
-    except Exception:
-        pass
-    return headlines
-
-
-# ─── 消息源1: 东方财富全球快讯 (akshare) ───
+# ─── 消息源0: 东方财富全球快讯 (akshare) ───
 def _fetch_eastmoney_global_worker():
     import akshare as ak
     from datetime import datetime as _dt
@@ -226,7 +149,40 @@ def fetch_cls():
         return []
 
 
-# ─── 消息源3: 华尔街见闻 REST API ───
+# ─── 消息源3: 金十数据 MCP ───
+def fetch_jin10():
+    """金十数据 MCP 快讯 → 与统一格式对齐"""
+    try:
+        from tools.sentiment.jin10_client import Jin10MCPClient
+        client = Jin10MCPClient()
+        if not client.initialize():
+            return []
+        items = client.get_all_flash(max_pages=2)
+        headlines = []
+        for item in items:
+            content = item.get("content", "").strip()
+            if not content:
+                continue
+            # 去掉前缀 【xxx】 作为标题
+            title = content
+            if content.startswith("【"):
+                idx = content.find("】")
+                if idx != -1:
+                    title = content[idx + 1:].strip()
+            headlines.append({
+                "source": "jin10",
+                "title": title[:200],
+                "raw_title": content[:200],
+                "time": item.get("time", ""),
+                "url": item.get("url", ""),
+            })
+        return headlines
+    except Exception as e:
+        print(f"  [shock] 金十获取失败: {e}")
+        return []
+
+
+# ─── 消息源4: 华尔街见闻 REST API ───
 def fetch_wallstreetcn(since: float = 0, max_pages: int = 20):
     """华尔街见闻 global-channel 快讯，游标翻页，回补到 since 时间戳为止"""
     headlines = []
@@ -280,48 +236,6 @@ def fetch_wallstreetcn(since: float = 0, max_pages: int = 20):
         return headlines
     except Exception as e:
         print(f"  [shock] 华尔街见闻获取失败: {e}")
-        return headlines
-
-
-# ─── 消息源4: 爱股票快讯 (纯JSON, 零认证) ───
-AIGUPIAO_API = "https://apis.aigupiao.com/Express/express_list/"
-AIGUPIAO_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Referer": "https://news.aigupiao.com/",
-}
-
-
-def fetch_aigupiao(pages=3):
-    """爱股票快讯，按页拉取（每页~10条，最多3页）"""
-    headlines = []
-    try:
-        for page in range(1, pages + 1):
-            params = {"page": page, "source": "pc", "web_data": "yes", "is_with_stock_link": "1"}
-            resp = requests.get(AIGUPIAO_API, headers=AIGUPIAO_HEADERS, params=params, timeout=15)
-            if resp.status_code != 200:
-                break
-            data = resp.json()
-            if data.get("rslt") != "succ":
-                break
-            for date_key, date_group in data.get("data", {}).items():
-                for item in date_group.get("data", []):
-                    content = (item.get("content") or "")[:200]
-                    if not content.strip():
-                        continue
-                    # 去除HTML标签
-                    content_clean = re.sub(r"<[^>]+>", "", content)
-                    headlines.append({
-                        "title": content_clean,
-                        "source": "aigupiao",
-                        "time": item.get("update_time", str(item.get("rec_time", "")))
-                    })
-            # 判断是否还有下一页（返回<10条说明到底了）
-            items_in_page = sum(len(v.get("data", [])) for v in data.get("data", {}).values())
-            if items_in_page < 10:
-                break
-        return headlines
-    except Exception as e:
-        print(f"  [shock] 爱股票获取失败: {e}")
         return headlines
 
 
@@ -499,7 +413,7 @@ def aggregate_shocks(hits_by_category, keyword_db):
         # 正文方向与预定义方向比较
         auto_dir = round(sum(text_dirs) / len(text_dirs), 1) if text_dirs else 0
         # 同向确认（正文方向×影响方向>0）→ 强度++
-        impact = cat_cfg["impact_sign"] * cat_cfg["impact_magnitude"]
+        impact = cat_cfg.get("impact_sign", -1) * cat_cfg.get("impact_magnitude", 1)
         if auto_dir != 0 and (auto_dir * impact) > 0:
             confirmed = True
         else:
@@ -563,28 +477,21 @@ def run_detection(save=True):
     if existing_headlines:
         print(f"[shock]   当天已有 {len(existing_headlines)} 条累计标题，增量追加...")
 
-    # 多源拉取（串行，各源独立失败，传入 since 时间戳回补）
-    print("[shock]   拉取 鼓掌财经 WebSocket (同花顺+选股宝+见闻)...")
+    # 多源并行拉取（4源独立，传入 since 时间戳回补）
+    print("[shock]   并行拉取 华尔街见闻/东方财富/财联社/金十 ...")
     t0 = time.time()
-    guzhang = fetch_guzhang()  # WebSocket 不支持回查，只能拿当前实时
-    print(f"[shock]     → {len(guzhang)} 条 ({time.time()-t0:.1f}s)")
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        fut_wscn = executor.submit(fetch_wallstreetcn, since=last_run)
+        fut_em = executor.submit(fetch_eastmoney_global, since=last_run)
+        fut_cls = executor.submit(fetch_cls)
+        fut_jin10 = executor.submit(fetch_jin10)
+        wscn = fut_wscn.result()
+        em_global = fut_em.result()
+        cls_data = fut_cls.result()
+        jin10_data = fut_jin10.result()
+    print(f"[shock]     → 华尔街见闻 {len(wscn)}条 / 东财全球 {len(em_global)}条 / 财联社 {len(cls_data)}条 / 金十 {len(jin10_data)}条 ({time.time()-t0:.1f}s)")
 
-    print("[shock]   拉取 华尔街见闻 REST (回补中)...")
-    t0 = time.time()
-    wscn = fetch_wallstreetcn(since=last_run)
-    print(f"[shock]     → {len(wscn)} 条 ({time.time()-t0:.1f}s)")
-
-    print("[shock]   拉取 东方财富全球快讯 (回补中)...")
-    t0 = time.time()
-    em_global = fetch_eastmoney_global(since=last_run)
-    print(f"[shock]     → {len(em_global)} 条 ({time.time()-t0:.1f}s)")
-
-    print("[shock]   拉取 爱股票快讯...")
-    t0 = time.time()
-    aigupiao = fetch_aigupiao()  # 页数浅，可能丢历史但不影响主流程
-    print(f"[shock]     → {len(aigupiao)} 条 ({time.time()-t0:.1f}s)")
-
-    all_headlines = guzhang + wscn + em_global + aigupiao
+    all_headlines = wscn + em_global + cls_data + jin10_data
 
     # 与已有累计合并（去重新增）
     new_count = 0
@@ -610,10 +517,10 @@ def run_detection(save=True):
         "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "total_headlines": len(existing_headlines),
         "sources": {
-            "guzhang_ws": len([h for h in existing_headlines if h["source"].startswith("guzhang")]),
             "wallstreetcn": len([h for h in existing_headlines if h["source"] == "wallstreetcn"]),
             "eastmoney_global": len([h for h in existing_headlines if h["source"] == "eastmoney_global"]),
-            "aigupiao": len([h for h in existing_headlines if h["source"] == "aigupiao"]),
+            "cls": len([h for h in existing_headlines if h["source"] == "cls"]),
+            "jin10": len([h for h in existing_headlines if h["source"] == "jin10"]),
         },
         "net_impact": net_impact,
         "impact_level": "negative" if net_impact < -1 else "positive" if net_impact > 1 else "neutral",

@@ -1,0 +1,46 @@
+{
+  "0": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "1": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "4": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "5": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "10": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "11": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "13": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "14": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "15": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "17": {
+    "break": true,
+    "reason": "bi_break_effective"
+  },
+  "18": {
+    "break": true,
+    "reason": "bi_break_effective"
+  }
+}

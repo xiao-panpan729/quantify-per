@@ -1,0 +1,23 @@
+{
+  "date": "2026-06-24",
+  "scope": "project",
+  "lockFile": "D:\\quantify-per\\skills-lock.json",
+  "lockFound": true,
+  "command": "npx skills add https://github.com/wind-information-co-ltd/wind-skills.git --skill wind-mcp-skill -y",
+  "method": "add",
+  "sourceType": "github",
+  "updatedAt": "2026-06-24T07:33:22.294Z",
+  "status": "success",
+  "finishedAt": "2026-06-24T07:33:22.293Z",
+  "exitCode": 0,
+  "usedFallback": true,
+  "fallbackReason": "remote changed but update did not change local files",
+  "error": null,
+  "remoteHead": "a4eb92569a739fa2eb3a144944a801240e57792d",
+  "remoteChanged": true,
+  "lastAppliedRemoteHead": "a4eb92569a739fa2eb3a144944a801240e57792d",
+  "changed": false,
+  "beforeHash": "bb043faaf585f51917483811f930200c1584290fb7c236783b7e88804c9294a3",
+  "afterHash": "bb043faaf585f51917483811f930200c1584290fb7c236783b7e88804c9294a3",
+  "output": "ecurity Risk Assessments\u001b[0m \u001b[90m──────────────────────────────────────╮\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m\u001b[22m                                                                \u001b[90m│\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m                \u001b[2mGen\u001b[22m\u001b[2m               \u001b[2mSocket\u001b[22m\u001b[2m            \u001b[2mSnyk\u001b[22m\u001b[2m\u001b[22m        \u001b[90m│\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m\u001b[36mwind-mcp-skill\u001b[39m  \u001b[32mSafe\u001b[39m              \u001b[32m0 alerts\u001b[39m          \u001b[33mMed Risk\u001b[39m\u001b[22m    \u001b[90m│\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m\u001b[22m                                                                \u001b[90m│\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m\u001b[2mDetails:\u001b[22m\u001b[2m \u001b[2mhttps://skills.sh/wind-information-co-ltd/wind-skills\u001b[22m\u001b[2m\u001b[22m  \u001b[90m│\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m\u001b[22m                                                                \u001b[90m│\u001b[39m\n\u001b[90m├──────────────────────────────────────────────────────────────────╯\u001b[39m\n\u001b[?25l\u001b[90m│\u001b[39m\n\u001b[999D\u001b[J\u001b[35m◒\u001b[39m  Installing skills\u001b[999D\u001b[J\u001b[35m◐\u001b[39m  Installing skills\u001b[999D\u001b[J\u001b[35m◓\u001b[39m  Installing skills\u001b[999D\u001b[J\u001b[35m◑\u001b[39m  Installing skills\u001b[999D\u001b[J\u001b[35m◒\u001b[39m  Installing skills\u001b[999D\u001b[J\u001b[32m◇\u001b[39m  Installation complete\n\u001b[?25h\n\u001b[90m│\u001b[39m\n\u001b[32m◇\u001b[39m  \u001b[0m\u001b[32mInstalled 1 skill\u001b[39m\u001b[0m \u001b[90m─────────────────────────────────────────────────────╮\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m\u001b[22m                                                                       \u001b[90m│\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m\u001b[32m✓\u001b[39m .\\.agents\\skills\\wind-mcp-skill\u001b[22m                                      \u001b[90m│\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m  \u001b[32muniversal:\u001b[39m Amp, Antigravity, Antigravity CLI, Cline, Codex +12 more\u001b[22m  \u001b[90m│\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m  \u001b[2msymlinked:\u001b[22m\u001b[2m Claude Code, OpenClaw\u001b[22m                                     \u001b[90m│\u001b[39m\n\u001b[90m│\u001b[39m  \u001b[2m\u001b[22m                                                                       \u001b[90m│\u001b[39m\n\u001b[90m├─────────────────────────────────────────────────────────────────────────╯\u001b[39m\n\n\u001b[90m│\u001b[39m\n\u001b[90m└\u001b[39m  \u001b[32mDone!\u001b[39m\u001b[2m  Review skills before use; they run with full agent permissions.\u001b[22m"
+}
