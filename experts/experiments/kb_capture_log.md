@@ -156,3 +156,52 @@ start mitmdump -s tools/ima_capture.py -p 8888   # 开启
 taskkill /f /im mitmdump.exe                       # 关闭
 ```
 代理设置需手动到 Windows 设置中开关。
+
+---
+
+## 实验 #4 — 公众号 + 快讯 入库 Obsidian 扩展 (2026-06-26)
+
+### 背景
+用户要求将所有信源数据统一保存到 Obsidian 知识库。此前只有知识星球通过 `convert_zsxq_to_md.py` 入库，公众号文章（txt 散落在 `wechat_articles/`）和每日快讯（华尔街见闻/东财/金十/财联社，用完即弃）都不在知识库中。
+
+### 新增管道
+
+```mermaid
+graph LR
+    A[公众号文章] --> C[convert_wechat_to_md.py]
+    B[华尔街见闻/东财/金十/财联社] --> D[cache_flash_news_to_hub.py]
+    C --> E[D:\\knowledge-hub\\wechat\\]
+    D --> F[D:\\knowledge-hub\\flash-news\\]
+    E --> G[Obsidian Vault]
+    F --> G
+    H[知识星球] --> I[convert_zsxq_to_md.py] --> G
+```
+
+### 新建文件
+
+| 文件 | 功能 | 设计 |
+|------|------|------|
+| `tools/convert_wechat_to_md.py` | 公众号 txt → Obsidian markdown | YAML frontmatter (source/account/category/title/url/article_time/captured_at) + 正文。按 `账号/日期/` 组织目录。幂等。 |
+| `tools/cache_flash_news_to_hub.py` | 快讯 _headlines → markdown | 每天一个文件，按来源分组。时间戳统一为 HH:MM。 |
+
+### 管道集成
+
+- `_fetch_articles.py`：每次成功保存 txt → 同步写 markdown 到 knowledge-hub
+- `shock_detector.py`：每次运行保存结果 → 调用 cache_flash_news_md()
+
+### 输出规模
+
+| 数据源 | 文件数 | 位置 |
+|--------|--------|------|
+| 公众号 | 10,769 篇 | `D:\knowledge-hub\wechat\14个号\` |
+| 快讯 | 每日 ~600 条 | `D:\knowledge-hub\flash-news\YYYY-MM-DD.md` |
+
+### 设计决策
+
+- 快讯采用每日单文件（非每条一文件），因为每条仅 1-2 句，散文件在 Obsidian 中不可浏览
+- 时间戳归一化：兼容华尔街见闻 Unix 时间戳和东财 datetime 字符串
+- 图片引用路径沿用知识星球惯例：`../_images/{filename}`
+- 幂等守卫：目标文件已存在则跳过，支持增量重复运行
+
+### 关键词
+#知识库 #Obsidian #数据管道 #公众号 #快讯 #capture-pipeline #实验#4

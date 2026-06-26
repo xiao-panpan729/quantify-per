@@ -3565,3 +3565,40 @@ mode = "full" if args.force else ("incremental" if has_sections else "full")
 ### 关键词
 
 #信源日报 #gen_daily_brief #_publish_report #模式检测 #发布去重 #bug修复 #实验#42
+
+---
+
+## 实验 #43: 信源全量数据入库 Obsidian 知识库 (2026-06-26)
+
+### 背景
+用户要求将全部信源数据统一保存到 Obsidian 知识库，而不是散落在各处或用完即弃。此前只有知识星球数据入库了 Obsidian（通过 `convert_zsxq_to_md.py`），而公众号文章（10,823篇 txt）和每日快讯（华尔街见闻/东财/金十/财联社）都没有结构化保存。
+
+### 变更
+
+#### 新建工具
+
+| 文件 | 功能 | 说明 |
+|------|------|------|
+| `tools/convert_wechat_to_md.py` | 公众号 txt → Obsidian markdown | 支持 `--all`/`--incremental`/`--account`，幂等 |
+| `tools/cache_flash_news_to_hub.py` | 快讯 JSON → markdown | 从 sentiment_shock.json._headlines 提取，按来源分组 |
+
+#### 现有文件变更（自动同步钩子）
+
+**`_fetch_articles.py`**: 每次成功保存公众号文章 txt 后，调用 `convert_article()` 同步写入 `D:\knowledge-hub\wechat\{账号}\{日期}\` 的 markdown
+
+**`shock_detector.py`**: `run_detection()` 保存结果后，调用 `cache_flash_news_md()` 将全部头条缓存到 `D:\knowledge-hub\flash-news\{YYYY-MM-DD}.md`
+
+### 输出目录
+
+| 数据源 | 位置 | 量 |
+|-------|------|---|
+| 知识星球 | `zsxq/28888114545551/` | ~90,000 篇 |
+| 公众号 | `wechat/14个号/` | 10,769 篇 |
+| 快讯 | `flash-news/*.md` | 每日 ~600 条 |
+
+### 快讯格式设计决策
+
+每天一个文件（非每条一条），按来源分组（华尔街见闻/东财/金十/财联社），方便 Obsidian 浏览。时间戳统一为 HH:MM 格式（兼容 Unix 时间戳和 datetime 字符串）。
+
+### 关键词
+#知识库 #Obsidian #数据管道 #公众号 #快讯 #shock_detector #_fetch_articles #实验#43
