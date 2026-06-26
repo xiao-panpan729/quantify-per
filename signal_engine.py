@@ -168,7 +168,8 @@ def _calc_hht_daily(rows):
         signal = np.array(trend_vals, dtype=np.float64)
         emd = EMD()
         imfs = emd.emd(signal, max_imf=6)
-    except Exception:
+    except (ValueError, np.linalg.LinAlgError) as e:
+        print(f"  ⚠ EMD 分解失败 (数据长度={len(trend_vals)}): {e}")
         for r in rows:
             r['hht_freq'] = ''
             r['hht_amp'] = ''
@@ -192,7 +193,8 @@ def _calc_hht_daily(rows):
         for i in range(1, n):
             freq[i] = float(phase[i] - phase[i - 1]) / (2.0 * np.pi)
         freq[0] = freq[1]
-    except Exception:
+    except (ValueError, np.linalg.LinAlgError) as e:
+        print(f"  ⚠ Hilbert 变换失败: {e}")
         for r in rows:
             r['hht_freq'] = ''
             r['hht_amp'] = ''

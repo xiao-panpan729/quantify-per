@@ -35,7 +35,22 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.stdout.reconfigure(encoding='utf-8')
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-KEY = os.environ['MPTEXT_API_KEY']  # 必须从 .env 或环境变量设置
+KEY = os.environ.get('MPTEXT_API_KEY') or ''
+if not KEY:
+    env_path = os.path.join(PROJECT_ROOT, '.env')
+    if os.path.exists(env_path):
+        with open(env_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                k, v = line.split('=', 1)
+                if k.strip() == 'MPTEXT_API_KEY':
+                    KEY = v.strip()
+                    break
+if not KEY:
+    print('❌ MPTEXT_API_KEY 未设置。请设置环境变量或在 .env 文件中配置。')
+    sys.exit(1)
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'wechat_articles')
 
 # ─── 全部公众号清单（与 _fetch_articles.py 保持一致） ───
@@ -45,9 +60,9 @@ ALL_ACCOUNTS = {
     'MzIwOTcyMzA3OA==': '海里的小龙龙',
     'Mzg4MDk2NDE2Nw==': '亨特研究笔记',
     'Mzk0MzY0OTU5Ng==': '卓哥投研笔记',
-    'MzIzODg2NDQyMA==': '灰岩金融科技',
     'MzE5ODk2NjUwOA==': '猫笔刀',
     'Mzg3NjYyNzAzNQ==': '滚雪球的猫菲特闲唠嗑',
+    'MzU0NDcyMzU4OA==': '滚雪球的猫菲特',
     # ─── 情绪热点（已从日报排除，但图谱需要全量历史） ───
     'MzkyNDUyOTA3MQ==': '盘前纪要',
     'MzkxMjUyOTI5MQ==': '盘前',

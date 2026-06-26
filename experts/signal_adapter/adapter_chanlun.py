@@ -76,7 +76,7 @@ def adapter_chanlun(codes: Optional[List[str]] = None) -> List[StandardSignal]:
         try:
             df_daily = pd.read_csv(daily_path)
             df_30min = pd.read_csv(min30_path)
-        except Exception:
+        except (FileNotFoundError, pd.errors.EmptyDataError):
             continue
 
         if len(df_daily) < 60 or len(df_30min) < 50:
@@ -84,7 +84,7 @@ def adapter_chanlun(codes: Optional[List[str]] = None) -> List[StandardSignal]:
 
         try:
             result = get_position(df_daily, df_30min, code)
-        except Exception:
+        except (ValueError, KeyError):
             continue
 
         sig = _to_standard_signal(result, code)

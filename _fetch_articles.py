@@ -7,7 +7,23 @@ from config import PROJECT_ROOT
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-KEY = os.environ['MPTEXT_API_KEY']  # 必须从 .env 或环境变量设置，不留硬编码默认值
+KEY = os.environ.get('MPTEXT_API_KEY') or ''  # 必须从 .env 或环境变量设置
+# 尝试从 .env 加载（如果环境变量未设置）
+if not KEY:
+    env_path = os.path.join(PROJECT_ROOT, '.env')
+    if os.path.exists(env_path):
+        with open(env_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                k, v = line.split('=', 1)
+                if k.strip() == 'MPTEXT_API_KEY':
+                    KEY = v.strip()
+                    break
+if not KEY:
+    print('❌ MPTEXT_API_KEY 未设置。请设置环境变量或在 .env 文件中配置。')
+    sys.exit(1)
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'wechat_articles')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -19,9 +35,14 @@ ACCOUNTS = {
     'MzIwOTcyMzA3OA==': '海里的小龙龙',
     'Mzg4MDk2NDE2Nw==': '亨特研究笔记',
     'Mzk0MzY0OTU5Ng==': '卓哥投研笔记',
-    'MzIzODg2NDQyMA==': '灰岩金融科技',
     'MzE5ODk2NjUwOA==': '猫笔刀',
     'Mzg3NjYyNzAzNQ==': '滚雪球的猫菲特闲唠嗑',
+    'MzU0NDcyMzU4OA==': '滚雪球的猫菲特',
+    # ── 你指定的5个号 ──
+    'MzkxMjUyOTI5MQ==': '盘前',
+    'MzkyNDUyOTA3MQ==': '盘前纪要',
+    'MzU4Mjg3MzIyNQ==': '一思一记',
+    'MzAwNjY4MjQwMA==': '安静拆主线',
 }
 
 # ── 公众号分类映射（下游据此区分处理） ──
@@ -31,9 +52,13 @@ ACCOUNT_CATEGORIES = {
     '海里的小龙龙':    '宏观/观点',
     '亨特研究笔记':    '宏观/观点',
     '卓哥投研笔记':    '宏观/观点',
-    '灰岩金融科技':    '宏观/观点',
     '猫笔刀':                 '宏观/观点',
-    '滚雪球的猫菲特闲唠嗑':   '宏观/观点',
+    '滚雪球的猫菲特闲唠嗑':   '行业新闻',
+    '滚雪球的猫菲特':         '宏观/观点',
+    '盘前':            '情绪热点',
+    '盘前纪要':        '情绪热点',
+    '一思一记':        '情绪热点',
+    '安静拆主线':      '情绪热点',
 }
 
 
@@ -138,6 +163,12 @@ def process_account(fakeid, name):
                 f.write(f"链接: {art['link']}\n")
                 f.write("="*50 + "\n")
                 f.write(content)
+            # 同步写入 Obsidian 知识库
+            try:
+                from tools.convert_wechat_to_md import convert_article as _convert
+                _convert(filepath, name)
+            except Exception:
+                pass
             saved += 1
             results.append(f'  [{dt.strftime("%m-%d %H:%M")}] OK {art["title"][:25]}')
         else:
@@ -276,6 +307,16 @@ with ThreadPoolExecutor(max_workers=5) as pool:
 
 print(f'\n全部完成！新增:{total_saved} 跳过:{total_skipped} 失败:{total_failed}')
 print(f'文件保存在: {OUTPUT_DIR}')
+
+# ─── API失败检测：全灭=API过期 ───
+if total_saved == 0 and total_failed > 0:
+    print(f'\n❌ 公众号API全部失败（{total_failed}篇失败，0篇成功）')
+    print(f'   请检查 MPTEXT_API_KEY 是否过期')
+    sys.exit(1)
+elif total_failed > total_saved * 2 and total_saved > 0:
+    print(f'\n⚠️  公众号API大量失败（成功{total_saved}篇，失败{total_failed}篇）')
+    print(f'   请检查 MPTEXT_API_KEY 是否即将过期')
+    sys.exit(1)
 
 # ─── 网页信源 ───
 print(f'\n--- 网页信源（外资观点） ---')

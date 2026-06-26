@@ -58,7 +58,7 @@ def fetch_boj_rate() -> pd.Series:
             val = pd.to_numeric(row.iloc[2], errors='coerce')
             if pd.notna(ts) and pd.notna(val):
                 series[ts] = val
-        except Exception:
+        except (ValueError, TypeError):
             continue
     series = series.sort_index()
     # Fill: BOJ rate doesn't change every month, ffill gaps
@@ -77,7 +77,7 @@ def fetch_japan_cpi() -> pd.Series:
             val = pd.to_numeric(row.iloc[2], errors='coerce')
             if pd.notna(ts) and pd.notna(val):
                 series[ts] = val
-        except Exception:
+        except (ValueError, TypeError):
             continue
     return series.sort_index()
 

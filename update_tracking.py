@@ -346,7 +346,8 @@ def main():
             try:
                 from tracking_db import TrackingDB
                 db = TrackingDB()
-            except Exception:
+            except (ImportError, OSError) as e:
+                print(f"    ⚠ TrackingDB 不可用，跳过抽验: {e}")
                 db = None
             for period, rows in periods_data.items():
                 vresult = verify_with_api(code, market, period, rows)
@@ -370,8 +371,8 @@ def main():
             old_stocks = old.get('stocks', {})
             old_stocks.update(all_snapshots)
             all_snapshots = old_stocks
-        except Exception:
-            pass
+        except (json.JSONDecodeError, FileNotFoundError, OSError) as e:
+            print(f"  ⚠ 合并旧快照失败（将用当前数据覆盖）: {e}")
     se.save_snapshot(snapshot_path, all_snapshots)
     print(f"\n快照已保存: {snapshot_path}")
 

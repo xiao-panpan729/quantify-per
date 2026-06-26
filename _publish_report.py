@@ -82,11 +82,20 @@ def publish(yyyymmdd: str) -> bool:
         new_entry = f"{link_line}\n"
 
         if MARKER in index_content:
-            # 在 MARKER 后插入新链接（去掉占位符如果存在）
             after_marker = index_content.split(MARKER, 1)[1]
-            # 去掉占位行
             lines = after_marker.split("\n")
-            filtered = [l for l in lines if PLACEHOLDER_LINE not in l]
+            # 去掉占位行 + 已有同名链接（去重）
+            existing_links = set()
+            filtered = []
+            for l in lines:
+                if PLACEHOLDER_LINE in l:
+                    continue
+                stripped = l.strip()
+                if stripped.startswith("- [") and blog_date in stripped:
+                    if stripped in existing_links:
+                        continue
+                    existing_links.add(stripped)
+                filtered.append(l)
             rest = "\n".join(filtered).lstrip("\n")
             new_index = index_content.split(MARKER, 1)[0] + MARKER + "\n" + new_entry + rest
         else:

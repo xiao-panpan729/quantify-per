@@ -131,7 +131,7 @@ def fetch_m2() -> dict:
             # 格式: "2008年01月份" 或 "200801"
             mstr = str(m).replace('年', '-').replace('月份', '').replace('月', '')
             dates.append(pd.Timestamp(mstr))
-        except Exception:
+        except (ValueError, pd.errors.OutOfBoundsDatetime):
             dates.append(None)
     s.index = dates
     s = s.dropna()
@@ -165,7 +165,7 @@ def fetch_credit_impulse() -> dict:
                 dates.append(pd.Timestamp(f"{mstr[:4]}-{mstr[4:]}-01"))
             else:
                 dates.append(pd.Timestamp(mstr))
-        except Exception:
+        except (ValueError, pd.errors.OutOfBoundsDatetime):
             dates.append(None)
     s.index = dates
     s = s.dropna()

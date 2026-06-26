@@ -3520,3 +3520,48 @@ x1_trend 为 -（空）时显示 "-" 而非误导性的 "☆ 新增"。
 ### 关键词
 
 #信源日报 #外资观点 #午后合并 #去重 #US区块 #三层Top3 #势能趋势 #gen_daily_brief #gen_source_summary #实验#41
+
+---
+
+## 实验 #42: 信源日报管道双重 bug 修复 — 模式检测 + 发布去重 (2026-06-26)
+
+### 背景
+用户 6/26 第一次跑 `update_sources.bat`，`gen_daily_brief.py` 错误地以"午后增量"模式运行，跳过了完整的话题深度分析。同时 `_publish_report.py` 重复发布导致 GitHub Pages index.md 出现3条相同链接。
+
+### Bug #1: gen_daily_brief.py 模式检测 (line 1558)
+
+**症状**: 6/26 第一次跑 → 输出的却是"午后更新"格式，消息面要点只有原始数据堆砌，无话题深度分析。
+
+**根因**:
+```python
+processed = load_processed_articles()
+mode = "full" if args.force else ("incremental" if processed else "full")
+```
+`load_processed_articles()` 返回所有日期的已处理文件集合。昨天(6/25)的文章仍在其中，集合非空 → 永远判定为"增量"。
+
+**修复**: 改为检测 sources.md 是否已有话题分析区 section 标记：
+```python
+has_sections = ("## 📰 热点事件分类" in report_content or
+                "## 🔴" in report_content or
+                "## 📰 公众号观点聚合" in report_content)
+mode = "full" if args.force else ("incremental" if has_sections else "full")
+```
+
+### Bug #2: _publish_report.py 发布去重
+
+**症状**: 同一份 6/26 报告被发布了3次，index.md 出现3条相同链接。
+
+**根因**: `publish()` 只检查目标文件是否存在，用户手动删文件重跑 → 每次重新写入 + 追加链接，无去重。
+
+**修复**: index.md 更新逻辑加 `existing_links` 去重集合，同一 blog_date 只保留一条。
+
+### 文件变更
+
+| 文件 | 变更 | 行数 |
+|------|------|------|
+| `gen_daily_brief.py` | 模式检测逻辑修复 | 1448→1735 |
+| `_publish_report.py` | index.md 链接去重 | ~190 |
+
+### 关键词
+
+#信源日报 #gen_daily_brief #_publish_report #模式检测 #发布去重 #bug修复 #实验#42

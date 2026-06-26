@@ -224,7 +224,7 @@ def fetch_commodity_prices() -> dict:
                         val = pd.to_numeric(row['价格'].iloc[-1], errors='coerce') if '价格' in row.columns else None
                         if pd.notna(val):
                             result[key] = round(val, 2)
-        except Exception:
+        except (ValueError, KeyError):
             pass
 
     return result
@@ -255,7 +255,7 @@ def load_sentiment_shock() -> dict | None:
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except (json.JSONDecodeError, FileNotFoundError):
         return None
 
 
@@ -267,7 +267,7 @@ def load_liquidity() -> dict | None:
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except (json.JSONDecodeError, FileNotFoundError):
         return None
 
 
@@ -430,7 +430,7 @@ def sector_monthly_return(code: str) -> pd.Series:
         monthly.index = monthly.index.to_timestamp() + pd.offsets.MonthEnd(0)
         ret = monthly.pct_change().dropna()
         return ret
-    except Exception:
+    except (FileNotFoundError, ValueError):
         return None
 
 

@@ -6,55 +6,7 @@ import math
 from .utils import safe_float, read_csv, SNAPSHOT_DIR
 from .constants import Direction, RhythmVerdict
 
-# 排列熵归一化常量: math.log(factorial(3))，m=3 时恒为 log(6)
-_PE_NORM = math.log(6.0)
-
-def _permutation_entropy(values, m=3, delay=1):
-    """
-    排列熵：度量时间序列的有序/无序程度
-
-    参数:
-        values: list[float]，趋势线序列（0-100）
-        m: 嵌入维度，3 即每3个点一组看排列图案
-        delay: 延迟步长，默认1
-
-    返回:
-        pe: 归一化排列熵 (0~1)
-            1 = 完全随机/无序（震荡无序）
-            0 = 完全有序/有方向（趋势明确）
-    """
-    n = len(values)
-    if n < m * 2:
-        return 0.5  # 数据不足，返回中性值
-
-    # 切分子序列
-    sub_seqs = []
-    for i in range(n - (m - 1) * delay):
-        seq = tuple(values[i + j * delay] for j in range(m))
-        sub_seqs.append(seq)
-
-    # 对每个子序列按大小排序，得到排列图案
-    patterns = []
-    for seq in sub_seqs:
-        sorted_idx = tuple(sorted(range(m), key=lambda x: seq[x]))
-        patterns.append(sorted_idx)
-
-    # 统计每种图案的频率
-    total = len(patterns)
-    freq = {}
-    for p in patterns:
-        freq[p] = freq.get(p, 0) + 1
-
-    # 香农熵
-    pe = 0.0
-    for count in freq.values():
-        f = count / total
-        pe -= f * math.log(f) if f > 0 else 0
-
-    # 归一化到 [0,1]
-    pe /= _PE_NORM
-
-    return pe
+from signal_engine import _permutation_entropy
 
 
 def analyze_trend_pe(raw_rows, lookback=60):

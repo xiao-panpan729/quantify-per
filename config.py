@@ -48,7 +48,7 @@ def find_tdx_path():
                 tdx_dir = os.path.dirname(line)
                 if os.path.exists(os.path.join(tdx_dir, 'vipdoc')):
                     return tdx_dir
-    except Exception:
+    except (OSError, subprocess.TimeoutExpired):
         pass
 
     # ─── 策略3: 全盘扫描（只查各驱动器根目录下一级子目录） ───

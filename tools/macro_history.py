@@ -54,7 +54,7 @@ def _get_china_macro() -> pd.DataFrame | None:
         df = fetch_macro()
         _macro_cache["china"] = df
         return df
-    except Exception:
+    except (ImportError, AttributeError):
         return None
 
 
@@ -67,7 +67,7 @@ def _get_us_macro() -> pd.DataFrame | None:
         df = fetch_us_macro()
         _macro_cache["us"] = df
         return df
-    except Exception:
+    except (ImportError, AttributeError):
         return None
 
 
@@ -81,7 +81,7 @@ def _get_japan_macro() -> pd.DataFrame | None:
         df = compute_carry_pressure(df)
         _macro_cache["japan"] = df
         return df
-    except Exception:
+    except (ImportError, AttributeError):
         return None
 
 
@@ -260,7 +260,7 @@ def _detect_events_for_window(node_start: str, node_end: str) -> list[dict]:
     try:
         start_dt = pd.Timestamp(node_start) - pd.Timedelta(days=15)
         end_dt = pd.Timestamp(node_end) + pd.Timedelta(days=15)
-    except Exception:
+    except (ValueError, pd.errors.OutOfBoundsDatetime):
         return []
 
     # 尝试用 shock_detector 的舆情抓取 (只抓有 since 支持的两个源)
@@ -296,9 +296,9 @@ def _detect_events_for_window(node_start: str, node_end: str) -> list[dict]:
                     events.append({"source": "eastmoney", "event_type": m,
                                    "title": title[:80],
                                    "date": a.get("published_at", "")[:10]})
-        except Exception:
+        except (ImportError, AttributeError):
             pass
-    except Exception:
+    except (ImportError, AttributeError):
         pass
 
     return events

@@ -233,7 +233,7 @@ def dd_bar(dd_val, max_dd=35):
         elif dd_val <= -5: ch = '▒'
         else: ch = '░'
         return '%s%.1f%%' % (ch * width, abs(dd_val))
-    except Exception:
+    except (ValueError, ZeroDivisionError):
         return ''
 
 def _fmt_dominant_note(dominant_info, trend_dir):
@@ -853,8 +853,8 @@ def build_report_lines():
     
                 lines.append('---')
                 lines.append('')
-        except Exception:
-            pass  # 安静失败，不阻塞报告生成
+        except (KeyError, TypeError, ValueError) as e:
+            print(f"  ⚠ 战役报告段生成失败: {e}")
     
     # ════════════════ 五、回测统计 + 回撤风险分析 ════════════════
     lines.append('## 五、回测统计与回撤风险')

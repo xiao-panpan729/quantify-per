@@ -89,11 +89,11 @@ def _connect_api():
         try:
             if api.connect(_last_ok_server[0], _last_ok_server[1]):
                 return api, _last_ok_server
-        except Exception:
+        except OSError:
             pass
         try:
             api.disconnect()
-        except Exception:
+        except OSError:
             pass
         api = TdxHq_API()
 
@@ -103,11 +103,11 @@ def _connect_api():
             if api.connect(svr[0], svr[1]):
                 _last_ok_server = svr
                 return api, svr
-        except Exception:
+        except OSError:
             continue
         try:
             api.disconnect()
-        except Exception:
+        except OSError:
             pass
         api = TdxHq_API()
 
@@ -198,7 +198,7 @@ def fetch_bars(code, period='day', market='sz', count=800):
         print('[ERROR] 获取数据失败: %s' % e)
         try:
             api.disconnect()
-        except Exception:
+        except OSError:
             pass
         return []
 
@@ -228,7 +228,7 @@ def test_connection():
         except Exception as e:
             try:
                 api.disconnect()
-            except Exception:
+            except OSError:
                 pass
         status = '✓ OK' if ok else '✗ FAIL'
         results.append((ip, port, status, latency_ms))

@@ -24,8 +24,14 @@ today_dt = datetime.now()
 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 output_path = OUTPUT_DIR / f"{today}_sources.md"
 
+# ─── 同日幂等守卫：自然日内不覆盖已有报告 ───
+if output_path.exists() and "--force" not in sys.argv:
+    print(f"[SKIP] 今日报告已存在: {output_path}")
+    print(f"       同日重复运行不覆盖。使用 --force 强制重写。")
+    sys.exit(0)
+
 # ─── 文章最大天数（超过此天数的旧文章不显示） ───
-MAX_ARTICLE_AGE_DAYS = 5
+MAX_ARTICLE_AGE_DAYS = 2
 
 
 def _data_source_status() -> list:
@@ -148,7 +154,7 @@ def _clean(s, maxlen=80):
 
 
 def _format_article_listing(wechat_dir: Path, today_dt: datetime) -> list:
-    """生成微信公众号最新观点区块 — 排除样式参考号 + 日期过滤 + 只显示最近5天"""
+    """生成微信公众号最新观点区块 — 排除样式参考号 + 日期过滤 + 只显示最近2天"""
     lines = []
     lines.append("---")
     lines.append("")
@@ -159,8 +165,8 @@ def _format_article_listing(wechat_dir: Path, today_dt: datetime) -> list:
         lines.append("")
         return lines
 
-    # 排除已从当前管道移除的信源（eg. 一思一记/盘前/盘前纪要/安静拆主线）
-    excluded = {'一思一记', '盘前', '盘前纪要', '安静拆主线', '中信建投证券研究'}
+    # 排除已从当前管道移除的信源
+    excluded = {'一思一记', '盘前', '盘前纪要', '安静拆主线', '中信建投证券研究', '灰岩金融科技'}
     src_dirs = sorted(d for d in wechat_dir.iterdir() if d.is_dir() and d.name not in excluded)
     any_article = False
 
@@ -244,6 +250,86 @@ if shock:
 else:
     blocks.append("（无数据，请先运行 shock_detector.py）")
 blocks.append("")
+
+# ─── 2. US ETF 异动 Top 3 + x₁ 势能趋势 ───
+blocks.append("---")
+blocks.append("")
+blocks.append("## 🇺🇸 美股板块 & 个股异动")
+blocks.append("")
+
+etf_data = _read_json(SIGNALS_DIR / "_macro/us_sector_momentum.json")
+star_data = _read_json(SIGNALS_DIR / "_macro/us_star_momentum.json")
+
+if etf_data:
+    etfs = []
+    for e in etf_data.get("etfs", []):
+        name = e.get("name", "?")
+        etfs.append({
+            "name": name, "symbol": e.get("symbol", ""),
+            "cn": _US_ETF_CN.get(name, name),
+            "x1": e.get("x1", 0), "x1_trend": e.get("x1_trend", ""),
+            "daily_chg": e.get("daily_chg", 0), "week_chg": e.get("week_chg", 0),
+            "month_chg": e.get("month_chg", 0), "category": e.get("category", ""),
+        })
+    # —— ① 日内异动 Top 3（附带势能趋势） ——
+    daily_movers = sorted(etfs, key=lambda r: r.get("daily_chg", 0) or 0, reverse=True)[:3]
+    blocks.append("**🚀 日内异动 Top 3**\n")
+    blocks.append("| 排名 | ETF | 日涨跌 | 势能趋势 |")
+    blocks.append("|------|-----|--------|----------|")
+    for i, it in enumerate(daily_movers, 1):
+        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
+        blocks.append(f"| {i} | {it['cn']} | {_pct_str(it['daily_chg'])} | {tl} |")
+    blocks.append("")
+
+    # —— ② 周涨幅 Top 3（附带势能趋势） ——
+    weekly_movers = sorted(etfs, key=lambda r: r.get("week_chg", 0) or 0, reverse=True)[:3]
+    blocks.append("**📈 周涨幅 Top 3**\n")
+    blocks.append("| 排名 | ETF | 周涨跌 | 月涨跌 | 势能趋势 |")
+    blocks.append("|------|-----|--------|--------|----------|")
+    for i, it in enumerate(weekly_movers, 1):
+        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
+        blocks.append(f"| {i} | {it['cn']} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} | {tl} |")
+    blocks.append("")
+
+    # —— ③ 月涨幅 Top 3（附带势能趋势） ——
+    monthly_movers = sorted(etfs, key=lambda r: r.get("month_chg", 0) or 0, reverse=True)[:3]
+    blocks.append("**📊 月涨幅 Top 3**\n")
+    blocks.append("| 排名 | ETF | 月涨跌 | 势能趋势 |")
+    blocks.append("|------|-----|--------|----------|")
+    for i, it in enumerate(monthly_movers, 1):
+        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
+        blocks.append(f"| {i} | {it['cn']} | {_pct_str(it['month_chg'])} | {tl} |")
+    blocks.append("")
+else:
+    blocks.append("**板块 ETF**: （无数据）")
+    blocks.append("")
+
+# 明星股简表（附带势能趋势）
+blocks.append("**明星股异动**（按 x₁ 势能 + 趋势）:\n")
+if star_data:
+    stars = []
+    for s in star_data.get("stocks", []):
+        name = s.get("name", "?")
+        stars.append({
+            "name": name, "cn": _US_STOCK_CN.get(name, name),
+            "x1": s.get("x1", 0), "x1_trend": s.get("x1_trend", ""),
+            "daily_chg": s.get("daily_chg", 0), "week_chg": s.get("week_chg", 0),
+            "month_chg": s.get("month_chg", 0),
+        })
+    stars.sort(key=lambda x: x["x1"], reverse=True)
+    blocks.append("| 股票 | 中文 | x₁ | 趋势 | 日涨跌 | 周涨跌 | 月涨跌 |")
+    blocks.append("|------|------|-----|------|--------|--------|--------|")
+    for it in stars[:8]:
+        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
+        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {tl} | {_pct_str(it['daily_chg'])} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} |")
+    blocks.append("| ... | | | | | | |")
+    for it in stars[-3:]:
+        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
+        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {tl} | {_pct_str(it['daily_chg'])} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} |")
+    blocks.append("")
+else:
+    blocks.append("**明星股**: （无数据）")
+    blocks.append("")
 
 # ─── 3. 全球宏观环境一览（双列：左=全球+中国，右=美国+日本） ───
 blocks.append("---")
@@ -336,87 +422,7 @@ blocks.append("")
 blocks.append("> 📝 **宏观总结**: 待 Claude Code 联网分析后追加")
 blocks.append("")
 
-# ─── 4. US ETF 异动 Top 3 + x₁ 势能趋势 ───
-blocks.append("---")
-blocks.append("")
-blocks.append("## 🇺🇸 美股板块 & 个股异动")
-blocks.append("")
-
-etf_data = _read_json(SIGNALS_DIR / "_macro/us_sector_momentum.json")
-star_data = _read_json(SIGNALS_DIR / "_macro/us_star_momentum.json")
-
-if etf_data:
-    etfs = []
-    for e in etf_data.get("etfs", []):
-        name = e.get("name", "?")
-        etfs.append({
-            "name": name, "symbol": e.get("symbol", ""),
-            "cn": _US_ETF_CN.get(name, name),
-            "x1": e.get("x1", 0), "x1_trend": e.get("x1_trend", ""),
-            "daily_chg": e.get("daily_chg", 0), "week_chg": e.get("week_chg", 0),
-            "month_chg": e.get("month_chg", 0), "category": e.get("category", ""),
-        })
-    # —— ① 日内异动 Top 3（附带势能趋势） ——
-    daily_movers = sorted(etfs, key=lambda r: r.get("daily_chg", 0) or 0, reverse=True)[:3]
-    blocks.append("**🚀 日内异动 Top 3**\n")
-    blocks.append("| 排名 | ETF | 日涨跌 | 势能趋势 |")
-    blocks.append("|------|-----|--------|----------|")
-    for i, it in enumerate(daily_movers, 1):
-        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
-        blocks.append(f"| {i} | {it['cn']} | {_pct_str(it['daily_chg'])} | {tl} |")
-    blocks.append("")
-
-    # —— ② 周涨幅 Top 3（附带势能趋势） ——
-    weekly_movers = sorted(etfs, key=lambda r: r.get("week_chg", 0) or 0, reverse=True)[:3]
-    blocks.append("**📈 周涨幅 Top 3**\n")
-    blocks.append("| 排名 | ETF | 周涨跌 | 月涨跌 | 势能趋势 |")
-    blocks.append("|------|-----|--------|--------|----------|")
-    for i, it in enumerate(weekly_movers, 1):
-        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
-        blocks.append(f"| {i} | {it['cn']} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} | {tl} |")
-    blocks.append("")
-
-    # —— ③ 月涨幅 Top 3（附带势能趋势） ——
-    monthly_movers = sorted(etfs, key=lambda r: r.get("month_chg", 0) or 0, reverse=True)[:3]
-    blocks.append("**📊 月涨幅 Top 3**\n")
-    blocks.append("| 排名 | ETF | 月涨跌 | 势能趋势 |")
-    blocks.append("|------|-----|--------|----------|")
-    for i, it in enumerate(monthly_movers, 1):
-        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
-        blocks.append(f"| {i} | {it['cn']} | {_pct_str(it['month_chg'])} | {tl} |")
-    blocks.append("")
-else:
-    blocks.append("**板块 ETF**: （无数据）")
-    blocks.append("")
-
-# 明星股简表（附带势能趋势）
-blocks.append("**明星股异动**（按 x₁ 势能 + 趋势）:\n")
-if star_data:
-    stars = []
-    for s in star_data.get("stocks", []):
-        name = s.get("name", "?")
-        stars.append({
-            "name": name, "cn": _US_STOCK_CN.get(name, name),
-            "x1": s.get("x1", 0), "x1_trend": s.get("x1_trend", ""),
-            "daily_chg": s.get("daily_chg", 0), "week_chg": s.get("week_chg", 0),
-            "month_chg": s.get("month_chg", 0),
-        })
-    stars.sort(key=lambda x: x["x1"], reverse=True)
-    blocks.append("| 股票 | 中文 | x₁ | 趋势 | 日涨跌 | 周涨跌 | 月涨跌 |")
-    blocks.append("|------|------|-----|------|--------|--------|--------|")
-    for it in stars[:8]:
-        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
-        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {tl} | {_pct_str(it['daily_chg'])} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} |")
-    blocks.append("| ... | | | | | | |")
-    for it in stars[-3:]:
-        tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
-        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {tl} | {_pct_str(it['daily_chg'])} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} |")
-    blocks.append("")
-else:
-    blocks.append("**明星股**: （无数据）")
-    blocks.append("")
-
-# ─── 5. 概念链 + 基本面（合并） ───
+# ─── 4. 概念链 + 基本面（合并） ───
 blocks.append("---")
 blocks.append("")
 blocks.append("## 🔗 产业链轮动 & 基本面因子")
@@ -500,7 +506,7 @@ if "--ai" in sys.argv:
         if HISTORY_FILE.exists():
             try:
                 return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
-            except: pass
+            except (json.JSONDecodeError, FileNotFoundError): pass
         return {}
 
     def _save_history(etf_map, stock_map, chain_map, fund_latest):

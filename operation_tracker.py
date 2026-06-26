@@ -317,7 +317,7 @@ def load_hht_data():
         try:
             raw = json.load(open(hht_path, 'r', encoding='utf-8'))
             return {r['code']: r for r in raw}
-        except:
+        except (json.JSONDecodeError, FileNotFoundError):
             pass
     return {}
 
@@ -447,7 +447,7 @@ def campaign_duration(campaign):
         return 0
     try:
         open_dt = datetime.strptime(open_date_str, '%Y%m%d')
-    except:
+    except ValueError:
         return 0
 
     close = campaign.get('close')
@@ -455,7 +455,7 @@ def campaign_duration(campaign):
         try:
             close_dt = datetime.strptime(close['date'], '%Y%m%d')
             return (close_dt - open_dt).days
-        except:
+        except ValueError:
             pass
     return (datetime.now() - open_dt).days
 
@@ -836,7 +836,7 @@ def close_campaign(campaign_id):
         open_dt = datetime.strptime(open_date_str, '%Y%m%d')
         close_dt = datetime.strptime(today, '%Y%m%d')
         duration_days = (close_dt - open_dt).days
-    except:
+    except ValueError:
         duration_days = 0
 
     # 简单回撤估算（基于事件中的建仓/减仓价）

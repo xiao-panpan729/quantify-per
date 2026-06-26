@@ -205,8 +205,8 @@ def _load_names():
                     names[c] = n
                     if 'ST' in n or '*ST' in n or '退市' in n:
                         st_codes.add(c)
-        except Exception:
-            pass
+        except (FileNotFoundError, KeyError) as e:
+            print(f"  ⚠ 加载 stock_names.csv 失败（ST过滤将失效）: {e}")
     return names, st_codes
 
 

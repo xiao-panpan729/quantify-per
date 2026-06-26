@@ -122,7 +122,8 @@ companies = {}
 try:
     for c in load_jsonl(str(CKGRAPH / "company.json")):
         companies[c["code"]] = c
-except: pass
+except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+    print(f"  ⚠ 加载 company.json 失败: {e}")
 
 # 公司-行业映射
 company_industry = {}
@@ -133,7 +134,8 @@ try:
             "industry_name": ci.get("industry_name",""),
             "company_name": ci.get("company_name","")
         }
-except: pass
+except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+    print(f"  ⚠ 加载 company_industry.json 失败: {e}")
 
 # 构建 company_industry 所有行业代码集合（用于最佳前缀匹配）
 all_industry_codes = set(ci["industry_code"] for ci in company_industry.values())

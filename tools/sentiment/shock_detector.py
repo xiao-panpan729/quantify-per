@@ -5,6 +5,7 @@ B类突发事件检测器 — 多信源 API/MCP 接入，关键词匹配，
 数据源: 华尔街见闻REST / 东财全球快讯 / 财联社akshare / 金十数据MCP
 设计参考: aion-taxonomy (YAML关键词匹配) + Tech-Pulse (多源归一+降级)
 """
+import sys
 import json
 import re
 import time
@@ -538,6 +539,13 @@ def run_detection(save=True):
             json.dump(result, f, ensure_ascii=False, indent=2)
         _save_last_run()  # 保存本次运行时间戳，供下次回补
         print(f"[shock]   输出 → {OUTPUT_FILE}")
+
+        # 缓存快讯到 Obsidian 知识库
+        try:
+            from tools.cache_flash_news_to_hub import cache_flash_news_md
+            cache_flash_news_md(result)
+        except Exception as e:
+            print(f"[shock]   ⚠️ 快讯缓存失败: {e}")
         print(f"[shock]   净影响: {net_impact} ({result['impact_level']})")
         if shocks:
             for s in shocks:

@@ -23,7 +23,7 @@ from tools.variable_taxonomy import lookup_variable, add_candidates
 # 同步于 _fetch_articles.py 的 ACCOUNT_CATEGORIES
 MACRO_ACCOUNTS = {
     '表舅是养基大户', 'laoduo', '海里的小龙龙', '亨特研究笔记',
-    '卓哥投研笔记', '灰岩金融科技', '猫笔刀', '中信建投证券研究',
+    '卓哥投研笔记', '猫笔刀', '滚雪球的猫菲特闲唠嗑', '滚雪球的猫菲特',
 }
 
 PROJECT_ROOT = Path(__file__).parent.resolve()
@@ -46,9 +46,21 @@ US_SECTOR_TO_A_SHARE = {
     "Real Estate & Infrastructure": ["地产", "基建"],
     "China & Emerging Markets": ["中概", "港股", "恒生"],
 }
-US_SECTOR_X1_THRESHOLD = 3.0  # 美国偏强但A股无人讨论的信号检测阈值 (deprecated, 保留兼容)
-US_DAILY_CHG_THRESHOLD = 2.0   # 日异动阈值 (%): US ETF 日涨跌超过此值触发话题桥
-US_WEEK_CHG_THRESHOLD = 5.0   # 周涨幅阈值 (%): US ETF 周涨跌超过此值触发话题桥
+
+# 概念链名称 → A股板块关键词映射（与 US_SECTOR_TO_A_SHARE 互补，用于明星股映射）
+CONCEPT_CHAIN_TO_A_SHARE = {
+    "半导体产业链": ["半导体", "芯片", "集成电路"],
+    "AI算力链": ["AI算力", "光模块", "服务器", "PCB", "液冷"],
+    "AI应用层": ["AI应用", "软件", "SaaS"],
+    "英伟达链": ["英伟达链", "光模块", "PCB", "铜缆连接", "服务器"],
+    "苹果链": ["苹果链", "消费电子", "果链"],
+    "特斯拉/EV链": ["特斯拉", "新能源汽车", "锂电"],
+    "生物科技": ["生物医药", "创新药", "CXO"],
+    "清洁能源": ["光伏", "风电", "储能"],
+    "金矿/贵金属": ["黄金", "贵金属"],
+    "国防军工": ["军工", "航天"],
+    "中国互联网": ["中概", "港股", "互联网"],
+}
 
 # ─── 聚合新闻关键词 → 话题映射（华尔街见闻/东财头条聚类用） ───
 HEADLINE_TOPIC_PATTERNS = {
@@ -115,7 +127,8 @@ def load_processed_articles() -> set:
     try:
         data = json.loads(PROCESSED_FILE.read_text(encoding="utf-8"))
         return set(data.get("processed", {}).keys())
-    except Exception:
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        print(f"  ⚠ 读取已处理文章列表失败: {e}")
         return set()
 
 def save_processed_articles(articles: list):
@@ -124,7 +137,7 @@ def save_processed_articles(articles: list):
     if PROCESSED_FILE.exists():
         try:
             proc = json.loads(PROCESSED_FILE.read_text(encoding="utf-8")).get("processed", {})
-        except Exception:
+        except (json.JSONDecodeError, FileNotFoundError):
             proc = {}
     today = datetime.now().strftime("%Y-%m-%d")
     for art in articles:
@@ -159,15 +172,52 @@ def load_json(path):
     try:
         if path.exists():
             return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, FileNotFoundError):
         pass
-    return {}
+
+
+def _get_covered_from_previous_reports(today_str: str) -> set:
+    """
+    扫描之前日报的"本期覆盖文章"表格，建立已覆盖文章的 (author, title_prefix) 集合。
+    用于 get_unread_articles() 的二次去重，防止同一篇文章出现在多日报中。
+    """
+    covered = set()
+    today = datetime.strptime(today_str, "%Y%m%d")
+
+    # 只看昨天和前天的报告
+    for i in range(1, 3):
+        date = today - timedelta(days=i)
+        report_path = OUTPUT_DIR / f"{date.strftime('%Y%m%d')}_sources.md"
+        if not report_path.exists():
+            continue
+
+        content = report_path.read_text(encoding="utf-8", errors="replace")
+        in_table = False
+        for line in content.split("\n"):
+            if "本期覆盖文章" in line:
+                in_table = True
+                continue
+            if in_table:
+                if line.startswith("| ---"):
+                    continue
+                if line.startswith("|") and line.count("|") >= 3:
+                    parts = [p.strip() for p in line.split("|")]
+                    if len(parts) >= 4:
+                        author = parts[1]
+                        title = parts[3] if len(parts) >= 4 else ""
+                        if author and title and author not in ("作者", "------"):
+                            covered.add((author, title[:40]))
+                elif not line.startswith("|"):
+                    break
+    return covered
 
 
 def get_unread_articles(today_str: str, force: bool = False) -> list:
     """
     取 wechat_articles/ 下未处理过的文章。
-    去重依据：processed_articles.json（文件名精确匹配）。
+    去重依据：
+      1. processed_articles.json（文件名精确匹配）
+      2. 前日报的"本期覆盖文章"表格（作者+标题前缀匹配）
     force=True 时忽略已读标记，全量返回。
     """
     if not WECHAT_DIR.exists():
@@ -175,6 +225,9 @@ def get_unread_articles(today_str: str, force: bool = False) -> list:
 
     processed = load_processed_articles() if not force else set()
     today_date = datetime.strptime(today_str, "%Y%m%d")
+
+    # ── 二次去重：扫描前日报表的"本期覆盖文章" ──
+    prev_covered = set() if force else _get_covered_from_previous_reports(today_str)
 
     # ── 收集文章 ──
     all_files = []
@@ -190,17 +243,17 @@ def get_unread_articles(today_str: str, force: bool = False) -> list:
 
     result = []
     for f, author in all_files:
-        # 只看最近5天
+        # 只看最近2天（昨天+今天）
         fname = f.name
         if len(fname) >= 8:
             try:
                 f_date = datetime.strptime(fname[:8], "%Y%m%d")
-                if f_date < today_date - timedelta(days=5):
+                if f_date < today_date - timedelta(days=2):
                     continue
             except ValueError:
                 pass
 
-        # 去重：文件名精确匹配 processed_articles.json
+        # 去重1：文件名精确匹配 processed_articles.json
         rel_path = str(f.relative_to(PROJECT_ROOT))
         if rel_path in processed:
             continue
@@ -220,6 +273,13 @@ def get_unread_articles(today_str: str, force: bool = False) -> list:
             "file": rel_path,
             "content": content,
         })
+
+    # 去重2：前日报已覆盖的按 (作者+标题前缀) 过滤
+    if prev_covered:
+        before = len(result)
+        result = [a for a in result if (a["author"], a["title"][:40]) not in prev_covered]
+        if len(result) < before:
+            print(f"  前报道去重: 过滤 {before - len(result)} 篇已覆盖")
 
     return result
 
@@ -257,7 +317,7 @@ def _load_us_names() -> dict:
         return {}
     try:
         return json.loads(US_NAMES_PATH.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, FileNotFoundError):
         return {}
 
 _US_TICKER_INFO = None
@@ -397,97 +457,187 @@ def _load_cross_mapping() -> dict:
             if etf and sector:
                 result.setdefault(etf, []).append((sector, corr))
         return result
-    except Exception:
+    except (json.JSONDecodeError, FileNotFoundError, KeyError):
         return {}
 
 
-def detect_uncoupled_signals(us_momentum: dict, covered_topics: set,
-                              threshold=US_SECTOR_X1_THRESHOLD) -> list:
-    """
-    检测 US 异动且公众号未覆盖的板块信号。
+def _load_concept_chains() -> dict:
+    """加载概念链并构建 reverse index: 美股→概念链 查找表"""
+    path = PROJECT_ROOT / "tools" / "us_market" / "concept_chains.json"
+    if not path.exists():
+        return {"stock_to_chains": {}, "chain_to_etfs": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        concepts = data.get("concepts", {})
+        stock_to_chains = {}
+        chain_to_etfs = {}
+        for name, chain in concepts.items():
+            chain_to_etfs[name] = chain.get("source_etfs", [])
+            for sym in chain.get("stocks", []):
+                stock_to_chains.setdefault(sym.upper(), []).append(name)
+        return {"stock_to_chains": stock_to_chains, "chain_to_etfs": chain_to_etfs}
+    except Exception:
+        return {"stock_to_chains": {}, "chain_to_etfs": {}}
 
-    逻辑:
-      1. 按 category 分组
-      2. 检查组内是否有 ETF 日涨跌 > 2% 或 周涨跌 > 5%
-      3. 有 → 查 cross_mapping 找关联 A 股板块 (回退硬编码映射)
-      4. 查公众号覆盖 → 未覆盖则生成信号
-      5. 最多返回 2 条, 没有异动就跳过
 
-    us_momentum: us_sector_momentum.json 的 dict (含 etfs 列表, 每项有 x1/daily_chg/week_chg/category)
-    covered_topics: 当日公众号文章已覆盖的话题集合
+def build_overseas_mapping(covered_topics: set) -> list:
     """
-    etfs = us_momentum.get("etfs", []) if us_momentum else []
-    if not etfs:
+    增强型海外映射引擎 — 聚合 ETF + 明星股 + 概念链 + cross_mapping.
+
+    流程:
+      1. 加载 us_sector_momentum.json (52 ETFs)、us_star_momentum.json (64 stocks)、
+         us_concept_momentum.json、us_cn_mapping.json、概念链索引
+      2. ETF → A股方向: 先查 cross_mapping (correlation)，回退 US_SECTOR_TO_A_SHARE
+      3. 明星股 → 概念链 → A股方向: 通过 stock_to_chains 找链，回退 CONCEPT_CHAIN_TO_A_SHARE
+      4. 按 A股方向聚合评分 (ETF贡献 capped 10 + 明星股贡献 capped 10 + cross_mapping bonus)
+      5. 筛选评分 > 1.0，最多返回 8 个方向
+      6. 检查公众号覆盖情况
+
+    Returns: list of dicts:
+        {
+            "a_share_direction": str,
+            "composite_score": float,
+            "us_etf_signals": list,
+            "us_star_signals": list,
+            "concept_chains": list[str],
+            "covered": bool,
+        }
+    """
+    etf_data = load_json(SIGNALS_DIR / "_macro" / "us_sector_momentum.json")
+    star_data = load_json(SIGNALS_DIR / "_macro" / "us_star_momentum.json")
+    concept_data = load_json(SIGNALS_DIR / "_macro" / "us_concept_momentum.json")
+    cross_map = _load_cross_mapping()
+    chain_index = _load_concept_chains()
+
+    etfs = etf_data.get("etfs", []) if etf_data else []
+    stars = star_data.get("stocks", []) if star_data else []
+    chains = concept_data.get("chains", []) if concept_data else []
+
+    if not etfs and not stars:
         return []
 
-    # 预加载 cross_mapping
-    cross_map = _load_cross_mapping()
+    # Build chain avg_x1 lookup
+    chain_avg_x1 = {c.get("chain", ""): c.get("avg_x1", 0) for c in chains}
 
-    # 按 category 分组
-    cat_groups = {}
+    direction_signals = {}
+
+    def _ensure_dir(dir_name):
+        if dir_name not in direction_signals:
+            direction_signals[dir_name] = {
+                "a_share_direction": dir_name,
+                "us_etf_signals": [],
+                "us_star_signals": [],
+                "concept_chains": [],
+                "composite_score": 0.0,
+                "covered": False,
+            }
+        return direction_signals[dir_name]
+
+    # 2a. Process ETFs → A-share directions
     for e in etfs:
-        cat = e.get("category", "Other")
-        cat_groups.setdefault(cat, []).append(e)
+        sym = e.get("symbol", "")
+        cat = e.get("category", "")
 
-    signals = []
-    for cat, items in cat_groups.items():
-        # 检查该 category 是否有异动
-        has_daily = any(
-            (e.get("daily_chg") or 0) > US_DAILY_CHG_THRESHOLD
-            for e in items if e.get("daily_chg") is not None
+        # Find A-share directions via cross_mapping
+        mapped_directions = set()
+        if sym in cross_map:
+            for sector, corr in cross_map[sym][:3]:
+                if abs(corr) >= 0.25:
+                    for dir_name, keywords in US_SECTOR_TO_A_SHARE.items():
+                        if any(kw in sector for kw in keywords):
+                            mapped_directions.add(dir_name)
+
+        # Fallback: static category mapping
+        if not mapped_directions and cat in US_SECTOR_TO_A_SHARE:
+            mapped_directions.add(cat)
+
+        for d in mapped_directions:
+            entry = _ensure_dir(d)
+            # Avoid duplicate ETF
+            if not any(es["symbol"] == sym for es in entry["us_etf_signals"]):
+                entry["us_etf_signals"].append({
+                    "symbol": sym,
+                    "name": e.get("name", ""),
+                    "x1": e.get("x1", 0),
+                    "daily_chg": e.get("daily_chg", 0),
+                    "week_chg": e.get("week_chg", 0),
+                    "x1_trend": e.get("x1_trend", ""),
+                })
+
+    # 2b. Process star stocks → concept chains → A-share directions
+    for s in stars:
+        sym = s.get("symbol", "")
+
+        # Find chains this stock belongs to
+        stock_chains = chain_index["stock_to_chains"].get(sym.upper(), [])
+
+        for chain_name in stock_chains:
+            # Map chain name → A-share direction(s)
+            dir_name = chain_name
+            if dir_name not in US_SECTOR_TO_A_SHARE and dir_name not in CONCEPT_CHAIN_TO_A_SHARE:
+                # Try partial match
+                for known_dir in CONCEPT_CHAIN_TO_A_SHARE:
+                    if known_dir in dir_name or dir_name in known_dir:
+                        dir_name = known_dir
+                        break
+                else:
+                    continue  # skip chains we can't map
+
+            entry = _ensure_dir(dir_name)
+            if not any(ss["symbol"] == sym for ss in entry["us_star_signals"]):
+                entry["us_star_signals"].append({
+                    "symbol": sym,
+                    "name": s.get("name", ""),
+                    "x1": s.get("x1", 0),
+                    "daily_chg": s.get("daily_chg", 0),
+                    "week_chg": s.get("week_chg", 0),
+                    "x1_trend": s.get("x1_trend", ""),
+                })
+                if chain_name not in entry["concept_chains"]:
+                    entry["concept_chains"].append(chain_name)
+
+    # 2c. Add concept chain momentum data
+    for c in chains:
+        chain_name = c.get("chain", "")
+        if chain_name in direction_signals:
+            direction_signals[chain_name]["concept_avg_x1"] = c.get("avg_x1", 0)
+
+    # 3. Compute composite scores
+    for name, entry in direction_signals.items():
+        etf_score = sum(abs(s.get("x1", 0) or 0) for s in entry["us_etf_signals"])
+        etf_score = min(etf_score, 10)
+        # Bonus for strong daily movers
+        strong_movers = sum(1 for s in entry["us_etf_signals"]
+                            if abs(s.get("daily_chg", 0) or 0) > 2)
+        etf_score += strong_movers * 1.5
+
+        star_score = sum(abs(s.get("x1", 0) or 0) for s in entry["us_star_signals"])
+        star_score = min(star_score, 10)
+
+        chain_score = entry.get("concept_avg_x1", 0) or 0
+
+        entry["composite_score"] = round(etf_score + star_score + max(chain_score, 0), 1)
+
+        # Check coverage against Chinese articles
+        dir_keywords = (
+            US_SECTOR_TO_A_SHARE.get(name, [])
+            + CONCEPT_CHAIN_TO_A_SHARE.get(name, [])
         )
-        has_weekly = any(
-            (e.get("week_chg") or 0) > US_WEEK_CHG_THRESHOLD
-            for e in items if e.get("week_chg") is not None
+        entry["covered"] = (
+            any(any(kw in topic for kw in dir_keywords) for topic in covered_topics)
+            if covered_topics and dir_keywords else False
         )
-        if not has_daily and not has_weekly:
-            continue
 
-        # 找该 category 下异动最强的 ETF
-        best = max(items, key=lambda e: max(
-            abs(e.get("daily_chg", 0) or 0),
-            abs(e.get("week_chg", 0) or 0),
-        ))
-        best_sym = best["symbol"]
+    # 4. Sort by composite score descending
+    sorted_dirs = sorted(
+        direction_signals.values(),
+        key=lambda x: -x["composite_score"]
+    )
 
-        # 查 cross_mapping 找关联 A 股板块
-        a_share_sectors = []
-        if best_sym in cross_map:
-            # 取相关系数最高的前 3 个板块
-            mapped = sorted(cross_map[best_sym], key=lambda x: -abs(x[1]))[:3]
-            a_share_sectors = [s for s, _ in mapped]
+    # 5. Filter: only show directions with meaningful score
+    filtered = [d for d in sorted_dirs if d["composite_score"] > 1.0]
 
-        # 回退硬编码映射
-        if not a_share_sectors:
-            a_share_sectors = US_SECTOR_TO_A_SHARE.get(cat, [])
-
-        if not a_share_sectors:
-            continue
-
-        # 检查公众号是否已覆盖
-        covered = any(
-            any(kw in topic for kw in a_share_sectors)
-            for topic in covered_topics
-        )
-        if covered:
-            continue
-
-        signals.append({
-            "us_category": cat,
-            "trigger_etf": best_sym,
-            "trigger_etf_name": best.get("name", ""),
-            "daily_chg": best.get("daily_chg", 0),
-            "week_chg": best.get("week_chg", 0),
-            "month_chg": best.get("month_chg", 0),
-            "a_share_sectors": a_share_sectors[:3],
-            "from_cross_mapping": best_sym in cross_map,
-        })
-
-        # 最多 2 条
-        if len(signals) >= 2:
-            break
-
-    return signals
+    return filtered[:8]  # max 8 directions
 
 
 def load_headlines() -> list:
@@ -852,20 +1002,35 @@ def build_llm_prompt(articles: list, macro_text: str, is_incremental: bool,
     blocks.append("\n===== 宏观/流动性快照 =====")
     blocks.append(macro_text if macro_text else "（数据暂缺）")
 
-    # ── 海外量化信号（公众号未覆盖的 US→A 映射） ──
+    # ── 海外量化信号（US→A 映射全量） ──
     if uncoupled_signals:
-        blocks.append("\n===== 海外量化信号（公众号未覆盖）=====")
+        blocks.append("\n===== 海外量化信号（US→A 映射）=====")
         sig_lines = []
         for s in uncoupled_signals:
-            a_share = "、".join(s["a_share_sectors"])
-            sig_lines.append(
-                f"- {s['us_category']} ({s.get('trigger_etf_name', s.get('trigger_etf', ''))} "
-                f"日涨跌={s['daily_chg']:+.1f}%, 周涨跌={s['week_chg']:+.1f}%) "
-                f"→ A股映射: {a_share}"
-            )
+            # New format: a_share_direction + us_etf_signals/us_star_signals
+            if "a_share_direction" in s:
+                dir_name = s["a_share_direction"]
+                score = s.get("composite_score", 0)
+                n_etf = len(s.get("us_etf_signals", []))
+                n_star = len(s.get("us_star_signals", []))
+                # Pick strongest ETF for detail
+                etf_detail = ""
+                if s["us_etf_signals"]:
+                    best = max(s["us_etf_signals"], key=lambda x: abs(x.get("x1", 0) or 0))
+                    etf_detail = f" ({best.get('symbol','')} x₁={best['x1']:.1f})"
+                sig_lines.append(
+                    f"- {dir_name} (评分{score:.1f}, {n_etf}ETF{n_star}星){etf_detail}"
+                    f" → A股关注"
+                )
+            else:
+                # Old format fallback (for safety)
+                a_share = "、".join(s.get("a_share_sectors", []))
+                sig_lines.append(
+                    f"- {s.get('us_category', '?')} ({s.get('trigger_etf_name', '')} "
+                    f"日涨跌={s.get('daily_chg', 0):+.1f}%) → {a_share}"
+                )
         blocks.append("\n".join(sig_lines))
-        blocks.append("\n注：以上板块在 US 市场势能强（x₁≥3），但今日8个公众号未讨论。"
-                       "如涉及A股映射板块，可在话题分析中适当关注。")
+        blocks.append("\n注：以上为 US→A 股量化映射信号，可在话题分析中适当关注。")
 
     if prev_views_text:
         blocks.append(f"\n===== 历史观点对比 =====")
@@ -1034,25 +1199,69 @@ def _render_topic(topic: dict) -> list:
     return lines
 
 
-OVERSEAS_MAPPING_HEADER = "## 🪝 海外映射"
+ENHANCED_MAPPING_HEADER = "## 🪝 海外映射"
 
-def render_overseas_mapping(signals: list) -> str:
-    """生成海外映射区块 — US 异动但公众号未覆盖的板块信号"""
-    if not signals:
+def render_enhanced_overseas_mapping(mapping_signals: list) -> str:
+    """生成增强版海外映射区块 — 综合评分表 + Top方向钻取"""
+    if not mapping_signals:
         return ""
-    lines = ["\n---\n", f"{OVERSEAS_MAPPING_HEADER}\n"]
-    lines.append("以下 US 板块出现异动但公众号未充分覆盖，可能存在映射信号：\n")
-    lines.append("| US板块 | 触发标的 | 日涨跌 | 周涨跌 | 月涨跌 | A股映射 |")
-    lines.append("|--------|---------|--------|--------|--------|--------|")
-    for s in signals:
-        cat = s["us_category"]
-        etf = s.get("trigger_etf_name", s.get("trigger_etf", ""))
-        dc = f"{s['daily_chg']:+.2f}%" if isinstance(s.get('daily_chg'), (int, float)) else "-"
-        wc = f"{s['week_chg']:+.2f}%" if isinstance(s.get('week_chg'), (int, float)) else "-"
-        mc = f"{s['month_chg']:+.2f}%" if isinstance(s.get('month_chg'), (int, float)) else "-"
-        a_s = "、".join(s["a_share_sectors"])
-        lines.append(f"| {cat} | {etf} | {dc} | {wc} | {mc} | {a_s} |")
+    lines = ["\n---\n", f"{ENHANCED_MAPPING_HEADER}\n"]
+    lines.append(
+        "以下将 US 市场板块异动 & 明星股动量通过概念链映射到 A 股方向，\n"
+    )
+
+    # ── 综合评分表 ──
+    lines.append("### 📊 US→A 股映射综合评分\n")
+    lines.append("| A股方向 | 评分 | US驱动 | 覆盖状态 |")
+    lines.append("|---------|------|--------|----------|")
+    for s in mapping_signals[:6]:
+        dir_name = s["a_share_direction"]
+        score = s["composite_score"]
+        n_etf = len(s["us_etf_signals"])
+        n_star = len(s["us_star_signals"])
+        trigger_parts = []
+        if n_etf > 0:
+            trigger_parts.append(f"{n_etf}ETF")
+        if n_star > 0:
+            trigger_parts.append(f"{n_star}星")
+        trigger_str = "+".join(trigger_parts) if trigger_parts else "-"
+        covered_str = "✅ 已覆盖" if s.get("covered") else "⚠️ 未覆盖"
+        lines.append(f"| {dir_name} | {score:.1f} | {trigger_str} | {covered_str} |")
     lines.append("")
+
+    # ── Top 方向钻取 ──
+    for s in mapping_signals[:4]:
+        dir_name = s["a_share_direction"]
+        lines.append(f"**{dir_name}** (评分 {s['composite_score']:.1f})")
+
+        # US ETF signals
+        if s["us_etf_signals"]:
+            sorted_etfs = sorted(s["us_etf_signals"], key=lambda x: -abs(x.get("x1", 0) or 0))
+            etf_detail = "  ".join(
+                f"{e['name']}({e['symbol']}) x₁={e['x1']:.1f} 日{e.get('daily_chg',0):+.1f}%"
+                for e in sorted_etfs[:4]
+            )
+            lines.append(f"  · US ETF: {etf_detail}")
+
+        # Star stock signals
+        if s["us_star_signals"]:
+            sorted_stars = sorted(s["us_star_signals"], key=lambda x: -abs(x.get("x1", 0) or 0))
+            star_detail = "  ".join(
+                f"{e['symbol']} x₁={e['x1']:.1f}"
+                for e in sorted_stars[:4]
+            )
+            lines.append(f"  · 明星股: {star_detail}")
+
+        # Concept chains
+        if s.get("concept_chains"):
+            lines.append(f"  · 概念链: {'→'.join(s['concept_chains'][:3])}")
+
+        # Coverage note
+        if not s.get("covered"):
+            lines.append(f"  · ⚠️ 公众号未覆盖此方向，存在预期差")
+
+        lines.append("")
+
     lines.append("> 🔍 **外资观点**: 待 Claude Code 联网搜索后追加\n")
     return "\n".join(lines)
 
@@ -1144,53 +1353,119 @@ def _strip_msg_block(llm_text: str) -> str:
     return re.sub(r'```msg\s*.*?\s*```\s*', '', llm_text, flags=re.DOTALL).strip()
 
 
+def _parse_sections(content: str) -> dict:
+    """按 ## 标题切分 markdown 为 named sections"""
+    sections = {}
+    current_header = "_preamble"
+    current_lines = []
+    for line in content.split("\n"):
+        if line.startswith("## "):
+            if current_lines:
+                sections[current_header] = "\n".join(current_lines)
+            current_header = line.strip()
+            current_lines = [line]
+        else:
+            current_lines.append(line)
+    if current_lines:
+        sections[current_header] = "\n".join(current_lines)
+    return sections
+
+
+def _find_header(sections: dict, keywords: list) -> str | None:
+    """找到第一个含有任一关键词的 section header"""
+    for h in sections:
+        if any(kw in h for kw in keywords):
+            return h
+    return None
+
+
 def generate_full_section(parsed: dict, articles: list, llm_text: str,
                           existing_content: str = "",
-                          uncoupled_signals: list = None,
                           headline_heat: list = None,
                           covered_topics: set = None,
-                          groups: dict = None) -> str:
-    """生成完整报告 — 消息面要点(LLM精炼) → 聚合新闻热点 → 话题深度分析 → 海外映射 → 其余数据 → 文章清单"""
+                          groups: dict = None,
+                          enhanced_mapping_signals: list = None) -> str:
+    """
+    生成完整报告 — section-aware 多区块拼装。
+
+    目标顺序:
+      消息面要点(LLM替换) → 聚合新闻热点 → 话题深度分析
+      → 🇺🇸美国板块(来自existing) → 🪝海外映射(新生成)
+      → 🌍全球宏观(来自existing) → 🔗产业链(来自existing)
+      → 📋本期覆盖文章
+    """
     msg_refined = _extract_msg_block(llm_text)
     cleaned_llm_text = _strip_msg_block(llm_text)
     topic_section = generate_topic_analysis(articles, cleaned_llm_text, groups=groups)
     headline_section = render_headline_heat_section(headline_heat or [], covered_topics)
-    overseas_section = render_overseas_mapping(uncoupled_signals or [])
+    overseas_section = render_enhanced_overseas_mapping(enhanced_mapping_signals or [])
     article_table = format_article_table(articles)
 
-    if existing_content:
-        msg_match = re.search(
-            r'(## 🔴 消息面要点.*?)(?=\n## )',
-            existing_content, re.DOTALL
-        )
-        if msg_match and msg_refined:
-            refined_section = "## 🔴 消息面要点\n\n" + msg_refined + "\n"
-            rest = existing_content[msg_match.end():]
-            # 去掉旧 LLM 生成的区块（话题分析/Dorian/文章清单），避免重复
-            for header in ['## 🧠 话题深度分析', '## 🔗 Dorian 六步拆解', '## 🔗 Dorian', '## 📋 本期覆盖文章']:
-                rest = re.sub(
-                    rf'\n{re.escape(header)}.*?(?=\n## +|\Z)',
-                    '', rest, flags=re.DOTALL
-                )
-            result = refined_section + "\n\n" + headline_section.strip() + "\n\n" + topic_section.strip() + "\n\n" + overseas_section.strip() + "\n\n" + rest.strip()
-        elif msg_match:
-            msg_part = msg_match.group(1)
-            rest = existing_content[msg_match.end():]
-            for header in ['## 🧠 话题深度分析', '## 🔗 Dorian 六步拆解', '## 🔗 Dorian', '## 📋 本期覆盖文章', '## 🪝 海外映射']:
-                rest = re.sub(
-                    rf'\n{re.escape(header)}.*?(?=\n## +|\Z)',
-                    '', rest, flags=re.DOTALL
-                )
-            result = msg_part + "\n\n" + headline_section.strip() + "\n\n" + topic_section.strip() + "\n\n" + overseas_section.strip() + "\n\n" + rest.strip()
+    if not existing_content:
+        result = (msg_refined + "\n\n" if msg_refined else "")
+        result += headline_section + "\n\n" + topic_section + "\n\n"
+        result += overseas_section + "\n\n" + article_table
+        return result
+
+    # ── Parse existing content into sections ──
+    sections = _parse_sections(existing_content)
+
+    # ── Find sections by header keywords ──
+    macro_header = _find_header(sections, ["全球宏观", "宏观环境"])
+    us_header = _find_header(sections, ["美股板块", "个股异动", "美股"])
+    chain_header = _find_header(sections, ["产业链轮动", "基本面因子", "概念链"])
+
+    # ── Assemble in target order ──
+    result_parts = []
+
+    # 1. 消息面要点 (refined by LLM or keep original)
+    msg_header = _find_header(sections, ["消息面要点"])
+    if msg_header:
+        if msg_refined:
+            result_parts.append(f"{msg_header}\n\n{msg_refined}\n")
         else:
-            result = existing_content + "\n" + headline_section + "\n" + topic_section + "\n" + overseas_section
-        result += article_table
-        result = re.sub(r'\n(---\n){2,}', '\n---\n', result)
-        return result
-    else:
-        result = topic_section + "\n" + overseas_section
-        result += article_table
-        return result
+            result_parts.append(sections.get(msg_header, "").strip())
+
+    # 2. 聚合新闻热点 (new)
+    if headline_section.strip():
+        result_parts.append(headline_section.strip())
+
+    # 3. 话题深度分析 (new)
+    if topic_section.strip():
+        result_parts.append(topic_section.strip())
+
+    # 4. 🇺🇸 US market section (from existing_content)
+    if us_header and us_header in sections:
+        result_parts.append(sections[us_header].strip())
+
+    # 5. 🪝 海外映射 (new, enhanced)
+    if overseas_section.strip():
+        result_parts.append(overseas_section.strip())
+
+    # 6. 🌍 全球宏观 (from existing, moved AFTER mapping)
+    if macro_header and macro_header in sections:
+        result_parts.append(sections[macro_header].strip())
+
+    # 7. 🔗 产业链 / 基本面 (from existing)
+    if chain_header and chain_header in sections:
+        result_parts.append(sections[chain_header].strip())
+
+    # 8. Any remaining sections not already placed
+    placed = {us_header, macro_header, chain_header, msg_header}
+    # Also exclude the old article table to avoid duplicates
+    old_article_header = _find_header(sections, ["本期覆盖文章"])
+    if old_article_header:
+        placed.add(old_article_header)
+    for h, content in sections.items():
+        if h not in placed and h != "_preamble" and content.strip():
+            result_parts.append(content.strip())
+
+    # 9. 📋 本期覆盖文章
+    result_parts.append(article_table.strip())
+
+    result = "\n\n".join(result_parts)
+    result = re.sub(r'\n(---\n){2,}', '\n---\n', result)
+    return result
 
 
 def generate_incremental_section(parsed: dict, old_titles: set,
@@ -1280,9 +1555,12 @@ def main():
 
     # ── 2. 检测模式 ──
     processed = load_processed_articles()
-    mode = "full" if args.force else ("incremental" if processed else "full")
-    has_sections = "## 📰 热点事件分类" in report_content or "## 📰 公众号观点聚合" in report_content
-    print(f"  模式: {'增量更新' if mode == 'incremental' else '完整追加'}（已处理 {len(processed)} 篇，今日 {len(articles)} 篇）")
+    # 判断 sources.md 是否已有话题分析区——有则午后增量，无则首次完整追加
+    has_sections = ("## 📰 热点事件分类" in report_content or
+                    "## 🔴" in report_content or
+                    "## 📰 公众号观点聚合" in report_content)
+    mode = "full" if args.force else ("incremental" if has_sections else "full")
+    print(f"  模式: {'增量更新' if mode == 'incremental' else '完整追加'}（今日 {len(articles)} 篇）")
 
     if not articles:
         print("[gen_daily_brief] ⚠ 今日无文章，跳过 LLM 分析")
@@ -1305,16 +1583,14 @@ def main():
         authors_str = "、".join(sorted(info["authors"]))
         print(f"    {topic}: {len(info['articles'])}篇, {len(info['authors'])}位作者({authors_str})")
 
-    # ── 海外映射检测：US 强势但公众号未覆盖的板块 ──
-    us_momentum = load_json(SIGNALS_DIR / "_macro" / "us_sector_momentum.json")
+    # ── 海外映射检测：US→A股全量映射（ETF + 明星股 + 概念链） ──
     covered_topics = set(groups.keys()) if groups else set()
-    uncoupled_signals = detect_uncoupled_signals(us_momentum, covered_topics)
-    if uncoupled_signals:
-        print(f"  🪝 US→A股映射信号: {len(uncoupled_signals)} 个板块未覆盖")
-        for s in uncoupled_signals:
-            a_share = "、".join(s["a_share_sectors"])
-            etf = s.get("trigger_etf_name", s.get("trigger_etf", ""))
-            print(f"    {s['us_category']} ({etf} 日{s['daily_chg']:+.1f}% 周{s['week_chg']:+.1f}%) → {a_share}")
+    enhanced_mapping_signals = build_overseas_mapping(covered_topics)
+    if enhanced_mapping_signals:
+        print(f"  🪝 US→A股映射增强: {len(enhanced_mapping_signals)} 个方向")
+        for s in enhanced_mapping_signals[:5]:
+            print(f"    {s['a_share_direction']} (评分{s['composite_score']:.1f}, "
+                  f"{len(s['us_etf_signals'])}ETF + {len(s['us_star_signals'])}星)")
 
     # ── 聚合新闻头条热度（话题发现源） ──
     headlines = load_headlines()
@@ -1374,7 +1650,7 @@ def main():
                               prev_article_titles=processed,
                               prev_views_text=prev_views_text,
                               date_str=date,
-                              uncoupled_signals=uncoupled_signals,
+                              uncoupled_signals=enhanced_mapping_signals,
                               headline_heat=headline_heat,
                               groups=groups)
 
@@ -1430,10 +1706,10 @@ def main():
         parsed = {"_llm_text": llm_text} if llm_text else {}
         section = generate_full_section(parsed, articles, llm_text,
                                         existing_content=report_content,
-                                        uncoupled_signals=uncoupled_signals,
                                         headline_heat=headline_heat,
                                         covered_topics=covered_topics,
-                                        groups=groups)
+                                        groups=groups,
+                                        enhanced_mapping_signals=enhanced_mapping_signals)
         section += us_md
         sources_md.write_text(section, encoding="utf-8")
     else:

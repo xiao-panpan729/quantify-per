@@ -92,7 +92,7 @@ def _get_tracked_stocks() -> dict:
     try:
         from config import NAME_MAP
         return dict(NAME_MAP)
-    except Exception:
+    except ImportError:
         # 备用硬编码（和 config.py 同步）
         return {
             "sh000001": "上证指数",

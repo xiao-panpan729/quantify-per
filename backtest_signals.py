@@ -902,7 +902,7 @@ def _load_volume_leader_universe():
     try:
         data = json.load(open(f, 'r', encoding='utf-8'))
         return data.get('universe', [])
-    except:
+    except (json.JSONDecodeError, FileNotFoundError):
         return None
 
 def get_all_codes():
@@ -925,7 +925,7 @@ def trend_dir(code):
         for item in data:
             if item['code'] == code:
                 return item.get('trend', {}).get('direction', 'neutral')
-    except:
+    except (json.JSONDecodeError, FileNotFoundError):
         pass
     return 'neutral'
 

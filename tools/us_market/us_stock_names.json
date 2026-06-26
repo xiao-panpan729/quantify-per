@@ -1,122 +1,924 @@
 {
-  "version": 1,
-  "updated": "2026-06-23",
+  "version": 2,
+  "updated": "2026-06-25",
   "stocks": {
-    "AAPL": {"en": "Apple", "cn": "苹果", "category": "Magnificent 7"},
-    "MSFT": {"en": "Microsoft", "cn": "微软", "category": "Magnificent 7"},
-    "NVDA": {"en": "NVIDIA", "cn": "英伟达", "category": "Magnificent 7"},
-    "GOOGL": {"en": "Alphabet", "cn": "谷歌", "category": "Magnificent 7"},
-    "AMZN": {"en": "Amazon", "cn": "亚马逊", "category": "Magnificent 7"},
-    "META": {"en": "Meta Platforms", "cn": "Meta", "category": "Magnificent 7"},
-    "TSLA": {"en": "Tesla", "cn": "特斯拉", "category": "Magnificent 7"},
-    "AMD": {"en": "AMD", "cn": "AMD", "category": "Semiconductor Chain"},
-    "AVGO": {"en": "Broadcom", "cn": "博通", "category": "Semiconductor Chain"},
-    "QCOM": {"en": "Qualcomm", "cn": "高通", "category": "Semiconductor Chain"},
-    "MU": {"en": "Micron", "cn": "美光", "category": "Semiconductor Chain"},
-    "ASML": {"en": "ASML", "cn": "ASML", "category": "Semiconductor Chain"},
-    "TSM": {"en": "TSMC", "cn": "台积电", "category": "Semiconductor Chain"},
-    "INTC": {"en": "Intel", "cn": "英特尔", "category": "Semiconductor Chain"},
-    "AMAT": {"en": "Applied Materials", "cn": "应用材料", "category": "Semiconductor Chain"},
-    "LRCX": {"en": "Lam Research", "cn": "泛林半导体", "category": "Semiconductor Chain"},
-    "KLAC": {"en": "KLA Corp", "cn": "科磊", "category": "Semiconductor Chain"},
-    "MRVL": {"en": "Marvell Technology", "cn": "美满电子", "category": "Semiconductor Chain"},
-    "PLTR": {"en": "Palantir", "cn": "Palantir", "category": "AI & Software"},
-    "CRWD": {"en": "CrowdStrike", "cn": "CrowdStrike", "category": "AI & Software"},
-    "SNOW": {"en": "Snowflake", "cn": "Snowflake", "category": "AI & Software"},
-    "NET": {"en": "Cloudflare", "cn": "Cloudflare", "category": "AI & Software"},
-    "DDOG": {"en": "Datadog", "cn": "Datadog", "category": "AI & Software"},
-    "MDB": {"en": "MongoDB", "cn": "MongoDB", "category": "AI & Software"},
-    "NOW": {"en": "ServiceNow", "cn": "ServiceNow", "category": "AI & Software"},
-    "ADBE": {"en": "Adobe", "cn": "Adobe", "category": "AI & Software"},
-    "CRM": {"en": "Salesforce", "cn": "Salesforce", "category": "AI & Software"},
-    "ORCL": {"en": "Oracle", "cn": "甲骨文", "category": "AI & Software"},
-    "JPM": {"en": "JPMorgan", "cn": "摩根大通", "category": "Finance"},
-    "GS": {"en": "Goldman Sachs", "cn": "高盛", "category": "Finance"},
-    "BAC": {"en": "Bank of America", "cn": "美国银行", "category": "Finance"},
-    "MS": {"en": "Morgan Stanley", "cn": "摩根士丹利", "category": "Finance"},
-    "V": {"en": "Visa", "cn": "Visa", "category": "Finance"},
-    "MA": {"en": "Mastercard", "cn": "万事达", "category": "Finance"},
-    "AXP": {"en": "AmEx", "cn": "美国运通", "category": "Finance"},
-    "BLK": {"en": "BlackRock", "cn": "贝莱德", "category": "Finance"},
-    "LLY": {"en": "Eli Lilly", "cn": "礼来", "category": "Healthcare"},
-    "UNH": {"en": "UnitedHealth", "cn": "联合健康", "category": "Healthcare"},
-    "JNJ": {"en": "J&J", "cn": "强生", "category": "Healthcare"},
-    "ABBV": {"en": "AbbVie", "cn": "艾伯维", "category": "Healthcare"},
-    "PFE": {"en": "Pfizer", "cn": "辉瑞", "category": "Healthcare"},
-    "MRK": {"en": "Merck", "cn": "默克", "category": "Healthcare"},
-    "XOM": {"en": "Exxon Mobil", "cn": "埃克森美孚", "category": "Energy"},
-    "CVX": {"en": "Chevron", "cn": "雪佛龙", "category": "Energy"},
-    "COP": {"en": "ConocoPhillips", "cn": "康菲", "category": "Energy"},
-    "SLB": {"en": "Schlumberger", "cn": "斯伦贝谢", "category": "Energy"},
-    "EOG": {"en": "EOG Resources", "cn": "EOG能源", "category": "Energy"},
-    "HD": {"en": "Home Depot", "cn": "家得宝", "category": "Consumer & Retail"},
-    "NKE": {"en": "Nike", "cn": "耐克", "category": "Consumer & Retail"},
-    "SBUX": {"en": "Starbucks", "cn": "星巴克", "category": "Consumer & Retail"},
-    "COST": {"en": "Costco", "cn": "好市多", "category": "Consumer & Retail"},
-    "WMT": {"en": "Walmart", "cn": "沃尔玛", "category": "Consumer & Retail"},
-    "MCD": {"en": "McDonald's", "cn": "麦当劳", "category": "Consumer & Retail"},
-    "DIS": {"en": "Disney", "cn": "迪士尼", "category": "Consumer & Retail"},
-    "CAT": {"en": "Caterpillar", "cn": "卡特彼勒", "category": "Industrial & Defense"},
-    "GE": {"en": "GE Aerospace", "cn": "通用电气", "category": "Industrial & Defense"},
-    "BA": {"en": "Boeing", "cn": "波音", "category": "Industrial & Defense"},
-    "RTX": {"en": "RTX Corp", "cn": "雷神", "category": "Industrial & Defense"},
-    "HON": {"en": "Honeywell", "cn": "霍尼韦尔", "category": "Industrial & Defense"},
-    "DE": {"en": "Deere & Co", "cn": "迪尔公司", "category": "Industrial & Defense"},
-    "COIN": {"en": "Coinbase", "cn": "Coinbase", "category": "Crypto & Alts"},
-    "MSTR": {"en": "MicroStrategy", "cn": "微策略", "category": "Crypto & Alts"},
-    "MARA": {"en": "Marathon Digital", "cn": "马拉松数字", "category": "Crypto & Alts"},
-    "RIOT": {"en": "Riot Platforms", "cn": "Riot平台", "category": "Crypto & Alts"}
+    "AAPL": {
+      "en": "Apple",
+      "cn": "苹果",
+      "category": "Magnificent 7",
+      "description": "消费电子全球第一 / 智能手机+PC+可穿戴",
+      "industry": "消费电子",
+      "sub_sector": "智能手机",
+      "sub_rank": 1
+    },
+    "MSFT": {
+      "en": "Microsoft",
+      "cn": "微软",
+      "category": "Magnificent 7",
+      "description": "云计算+操作系统全球第一 / Azure+Office+AI",
+      "industry": "软件",
+      "sub_sector": "云计算平台",
+      "sub_rank": 1
+    },
+    "NVDA": {
+      "en": "NVIDIA",
+      "cn": "英伟达",
+      "category": "Magnificent 7",
+      "description": "AI芯片全球第一 / GPU+数据中心+自动驾驶",
+      "industry": "半导体链",
+      "sub_sector": "AI芯片",
+      "sub_rank": 1
+    },
+    "GOOGL": {
+      "en": "Alphabet",
+      "cn": "谷歌",
+      "category": "Magnificent 7",
+      "description": "全球搜索引擎第一 / 广告+云+AI",
+      "industry": "互联网",
+      "sub_sector": "搜索引擎",
+      "sub_rank": 1
+    },
+    "AMZN": {
+      "en": "Amazon",
+      "cn": "亚马逊",
+      "category": "Magnificent 7",
+      "description": "全球云计算第一(AWS)+电商龙头",
+      "industry": "互联网",
+      "sub_sector": "云计算+电商",
+      "sub_rank": 1
+    },
+    "META": {
+      "en": "Meta Platforms",
+      "cn": "Meta",
+      "category": "Magnificent 7",
+      "description": "全球社交平台第一 / Facebook+Instagram+AI",
+      "industry": "互联网",
+      "sub_sector": "社交平台",
+      "sub_rank": 1
+    },
+    "TSLA": {
+      "en": "Tesla",
+      "cn": "特斯拉",
+      "category": "Magnificent 7",
+      "description": "全球电动车龙头 / FSD+储能+机器人",
+      "industry": "新能源车",
+      "sub_sector": "电动车",
+      "sub_rank": 1
+    },
+    "AMD": {
+      "en": "AMD",
+      "cn": "AMD",
+      "category": "Semiconductor Chain",
+      "description": "CPU/GPU全球第二 / 数据中心+PC",
+      "industry": "半导体链",
+      "sub_sector": "CPU/GPU",
+      "sub_rank": 2
+    },
+    "AVGO": {
+      "en": "Broadcom",
+      "cn": "博通",
+      "category": "Semiconductor Chain",
+      "description": "定制AI芯片+网络芯片全球第一",
+      "industry": "半导体链",
+      "sub_sector": "网络/AI芯片",
+      "sub_rank": 1
+    },
+    "QCOM": {
+      "en": "Qualcomm",
+      "cn": "高通",
+      "category": "Semiconductor Chain",
+      "description": "通信芯片全球第一 / 手机SoC+物联网",
+      "industry": "半导体链",
+      "sub_sector": "通信芯片",
+      "sub_rank": 1
+    },
+    "MU": {
+      "en": "Micron",
+      "cn": "美光",
+      "category": "Semiconductor Chain",
+      "description": "存储芯片全球第一 / DRAM+NAND",
+      "industry": "半导体链",
+      "sub_sector": "存储芯片",
+      "sub_rank": 1
+    },
+    "ASML": {
+      "en": "ASML",
+      "cn": "ASML",
+      "category": "Semiconductor Chain",
+      "description": "光刻机全球第一 / EUV垄断",
+      "industry": "半导体链",
+      "sub_sector": "光刻设备",
+      "sub_rank": 1
+    },
+    "TSM": {
+      "en": "TSMC",
+      "cn": "台积电",
+      "category": "Semiconductor Chain",
+      "description": "晶圆代工全球第一 / 先进制程",
+      "industry": "半导体链",
+      "sub_sector": "晶圆代工",
+      "sub_rank": 1
+    },
+    "INTC": {
+      "en": "Intel",
+      "cn": "英特尔",
+      "category": "Semiconductor Chain",
+      "description": "IDM芯片巨头 / CPU+代工转型",
+      "industry": "半导体链",
+      "sub_sector": "CPU/IDM",
+      "sub_rank": 1
+    },
+    "AMAT": {
+      "en": "Applied Materials",
+      "cn": "应用材料",
+      "category": "Semiconductor Chain",
+      "description": "半导体设备全球第一 / 薄膜沉积+刻蚀",
+      "industry": "半导体链",
+      "sub_sector": "半导体设备",
+      "sub_rank": 1
+    },
+    "LRCX": {
+      "en": "Lam Research",
+      "cn": "泛林半导体",
+      "category": "Semiconductor Chain",
+      "description": "刻蚀设备全球第一 / 3D NAND关键设备",
+      "industry": "半导体链",
+      "sub_sector": "半导体设备",
+      "sub_rank": 2
+    },
+    "KLAC": {
+      "en": "KLA Corp",
+      "cn": "科磊",
+      "category": "Semiconductor Chain",
+      "description": "半导体检测设备全球第一 / 良率控制",
+      "industry": "半导体链",
+      "sub_sector": "半导体检测",
+      "sub_rank": 1
+    },
+    "MRVL": {
+      "en": "Marvell Technology",
+      "cn": "美满电子",
+      "category": "Semiconductor Chain",
+      "description": "数据中心芯片新贵 / DPU+以太网",
+      "industry": "半导体链",
+      "sub_sector": "数据中心芯片",
+      "sub_rank": 1
+    },
+    "PLTR": {
+      "en": "Palantir",
+      "cn": "Palantir",
+      "category": "AI & Software",
+      "description": "大数据分析平台 / 政府+企业AI",
+      "industry": "软件",
+      "sub_sector": "数据分析",
+      "sub_rank": 1
+    },
+    "CRWD": {
+      "en": "CrowdStrike",
+      "cn": "CrowdStrike",
+      "category": "AI & Software",
+      "description": "端点安全全球领先 / 云原生EDR",
+      "industry": "软件",
+      "sub_sector": "网络安全",
+      "sub_rank": 1
+    },
+    "SNOW": {
+      "en": "Snowflake",
+      "cn": "Snowflake",
+      "category": "AI & Software",
+      "description": "云数据仓库领军 / Data Cloud",
+      "industry": "软件",
+      "sub_sector": "云数据平台",
+      "sub_rank": 1
+    },
+    "NET": {
+      "en": "Cloudflare",
+      "cn": "Cloudflare",
+      "category": "AI & Software",
+      "description": "CDN+安全全球领先 / Edge Computing",
+      "industry": "软件",
+      "sub_sector": "CDN/边缘计算",
+      "sub_rank": 1
+    },
+    "DDOG": {
+      "en": "Datadog",
+      "cn": "Datadog",
+      "category": "AI & Software",
+      "description": "云监控可观测性全球领先",
+      "industry": "软件",
+      "sub_sector": "云监控",
+      "sub_rank": 1
+    },
+    "MDB": {
+      "en": "MongoDB",
+      "cn": "MongoDB",
+      "category": "AI & Software",
+      "description": "文档数据库全球领先 / NoSQL领军",
+      "industry": "软件",
+      "sub_sector": "数据库",
+      "sub_rank": 1
+    },
+    "NOW": {
+      "en": "ServiceNow",
+      "cn": "ServiceNow",
+      "category": "AI & Software",
+      "description": "ITSM全球第一 / 企业工作流自动化",
+      "industry": "软件",
+      "sub_sector": "企业管理SaaS",
+      "sub_rank": 1
+    },
+    "ADBE": {
+      "en": "Adobe",
+      "cn": "Adobe",
+      "category": "AI & Software",
+      "description": "创意软件全球第一 / PS+AI+文档云",
+      "industry": "软件",
+      "sub_sector": "创意软件",
+      "sub_rank": 1
+    },
+    "CRM": {
+      "en": "Salesforce",
+      "cn": "Salesforce",
+      "category": "AI & Software",
+      "description": "CRM全球第一 / 企业级SaaS平台",
+      "industry": "软件",
+      "sub_sector": "客户管理SaaS",
+      "sub_rank": 1
+    },
+    "ORCL": {
+      "en": "Oracle",
+      "cn": "甲骨文",
+      "category": "AI & Software",
+      "description": "数据库全球第一 / 云计算转型",
+      "industry": "软件",
+      "sub_sector": "数据库",
+      "sub_rank": 1
+    },
+    "JPM": {
+      "en": "JPMorgan",
+      "cn": "摩根大通",
+      "category": "Finance",
+      "description": "全球资产最大银行 / 投行+商行双龙头",
+      "industry": "金融",
+      "sub_sector": "全能银行",
+      "sub_rank": 1
+    },
+    "GS": {
+      "en": "Goldman Sachs",
+      "cn": "高盛",
+      "category": "Finance",
+      "description": "全球顶级投行 / M&A+交易做市",
+      "industry": "金融",
+      "sub_sector": "投资银行",
+      "sub_rank": 1
+    },
+    "BAC": {
+      "en": "Bank of America",
+      "cn": "美国银行",
+      "category": "Finance",
+      "description": "美国第二大银行 / 零售+投行",
+      "industry": "金融",
+      "sub_sector": "全能银行",
+      "sub_rank": 2
+    },
+    "MS": {
+      "en": "Morgan Stanley",
+      "cn": "摩根士丹利",
+      "category": "Finance",
+      "description": "全球顶级投行 / 财富管理+资管",
+      "industry": "金融",
+      "sub_sector": "投资银行",
+      "sub_rank": 2
+    },
+    "V": {
+      "en": "Visa",
+      "cn": "Visa",
+      "category": "Finance",
+      "description": "全球支付网络第一 / 卡组织",
+      "industry": "金融",
+      "sub_sector": "支付网络",
+      "sub_rank": 1
+    },
+    "MA": {
+      "en": "Mastercard",
+      "cn": "万事达",
+      "category": "Finance",
+      "description": "全球支付网络第二 / 卡组织",
+      "industry": "金融",
+      "sub_sector": "支付网络",
+      "sub_rank": 2
+    },
+    "AXP": {
+      "en": "AmEx",
+      "cn": "美国运通",
+      "category": "Finance",
+      "description": "高端信用卡龙头 / 签账卡+商户网络",
+      "industry": "金融",
+      "sub_sector": "信用卡",
+      "sub_rank": 1
+    },
+    "BLK": {
+      "en": "BlackRock",
+      "cn": "贝莱德",
+      "category": "Finance",
+      "description": "全球最大资管 / iShares ETF+iShares",
+      "industry": "金融",
+      "sub_sector": "资产管理",
+      "sub_rank": 1
+    },
+    "LLY": {
+      "en": "Eli Lilly",
+      "cn": "礼来",
+      "category": "Healthcare",
+      "description": "全球市值最大药企 / 减肥药GLP-1龙头",
+      "industry": "医药",
+      "sub_sector": "创新药",
+      "sub_rank": 1
+    },
+    "UNH": {
+      "en": "UnitedHealth",
+      "cn": "联合健康",
+      "category": "Healthcare",
+      "description": "美国最大医保商 / 健康险+医疗服务",
+      "industry": "医药",
+      "sub_sector": "医保服务",
+      "sub_rank": 1
+    },
+    "JNJ": {
+      "en": "J&J",
+      "cn": "强生",
+      "category": "Healthcare",
+      "description": "综合医疗巨头 / 制药+器械+消费健康",
+      "industry": "医药",
+      "sub_sector": "综合医疗",
+      "sub_rank": 1
+    },
+    "ABBV": {
+      "en": "AbbVie",
+      "cn": "艾伯维",
+      "category": "Healthcare",
+      "description": "免疫+肿瘤药龙头 / 修美乐+Imbruvica",
+      "industry": "医药",
+      "sub_sector": "创新药",
+      "sub_rank": 2
+    },
+    "PFE": {
+      "en": "Pfizer",
+      "cn": "辉瑞",
+      "category": "Healthcare",
+      "description": "全球最大制药之一 / 新冠疫苗+肿瘤",
+      "industry": "医药",
+      "sub_sector": "综合制药",
+      "sub_rank": 1
+    },
+    "MRK": {
+      "en": "Merck",
+      "cn": "默克",
+      "category": "Healthcare",
+      "description": "肿瘤免疫龙头 / Keytruda(GLP-1)",
+      "industry": "医药",
+      "sub_sector": "创新药",
+      "sub_rank": 3
+    },
+    "XOM": {
+      "en": "Exxon Mobil",
+      "cn": "埃克森美孚",
+      "category": "Energy",
+      "description": "全球最大油气公司 / 上下游一体化",
+      "industry": "能源",
+      "sub_sector": "综合油气",
+      "sub_rank": 1
+    },
+    "CVX": {
+      "en": "Chevron",
+      "cn": "雪佛龙",
+      "category": "Energy",
+      "description": "美国第二大油气 / 上游+炼化",
+      "industry": "能源",
+      "sub_sector": "综合油气",
+      "sub_rank": 2
+    },
+    "COP": {
+      "en": "ConocoPhillips",
+      "cn": "康菲",
+      "category": "Energy",
+      "description": "美国最大独立油气生产 / 上游勘探",
+      "industry": "能源",
+      "sub_sector": "油气勘探生产",
+      "sub_rank": 1
+    },
+    "SLB": {
+      "en": "Schlumberger",
+      "cn": "斯伦贝谢",
+      "category": "Energy",
+      "description": "全球最大油服 / 油田技术+数字",
+      "industry": "能源",
+      "sub_sector": "油服",
+      "sub_rank": 1
+    },
+    "EOG": {
+      "en": "EOG Resources",
+      "cn": "EOG能源",
+      "category": "Energy",
+      "description": "美国低成本页岩油龙头 / 上游",
+      "industry": "能源",
+      "sub_sector": "页岩油",
+      "sub_rank": 1
+    },
+    "HD": {
+      "en": "Home Depot",
+      "cn": "家得宝",
+      "category": "Consumer & Retail",
+      "description": "全球最大家居建材零售商 / 家装",
+      "industry": "零售",
+      "sub_sector": "家居建材零售",
+      "sub_rank": 1
+    },
+    "NKE": {
+      "en": "Nike",
+      "cn": "耐克",
+      "category": "Consumer & Retail",
+      "description": "全球最大运动品牌 / 鞋服+球鞋文化",
+      "industry": "消费",
+      "sub_sector": "运动鞋服",
+      "sub_rank": 1
+    },
+    "SBUX": {
+      "en": "Starbucks",
+      "cn": "星巴克",
+      "category": "Consumer & Retail",
+      "description": "全球最大咖啡连锁 / 门店+零售",
+      "industry": "消费",
+      "sub_sector": "咖啡连锁",
+      "sub_rank": 1
+    },
+    "COST": {
+      "en": "Costco",
+      "cn": "好市多",
+      "category": "Consumer & Retail",
+      "description": "全球会员制仓储零售龙头",
+      "industry": "零售",
+      "sub_sector": "仓储会员店",
+      "sub_rank": 1
+    },
+    "WMT": {
+      "en": "Walmart",
+      "cn": "沃尔玛",
+      "category": "Consumer & Retail",
+      "description": "全球最大零售商 / 超市+电商",
+      "industry": "零售",
+      "sub_sector": "综合零售",
+      "sub_rank": 1
+    },
+    "MCD": {
+      "en": "McDonald's",
+      "cn": "麦当劳",
+      "category": "Consumer & Retail",
+      "description": "全球最大快餐连锁 / 汉堡+特许经营",
+      "industry": "消费",
+      "sub_sector": "快餐连锁",
+      "sub_rank": 1
+    },
+    "DIS": {
+      "en": "Disney",
+      "cn": "迪士尼",
+      "category": "Consumer & Retail",
+      "description": "全球最大娱乐集团 / IP+乐园+流媒体",
+      "industry": "传媒娱乐",
+      "sub_sector": "综合娱乐",
+      "sub_rank": 1
+    },
+    "CAT": {
+      "en": "Caterpillar",
+      "cn": "卡特彼勒",
+      "category": "Industrial & Defense",
+      "description": "全球最大工程机械 / 矿山+基建",
+      "industry": "工业",
+      "sub_sector": "工程机械",
+      "sub_rank": 1
+    },
+    "GE": {
+      "en": "GE Aerospace",
+      "cn": "通用电气",
+      "category": "Industrial & Defense",
+      "description": "全球航空发动机第一 / 航天+能源",
+      "industry": "工业",
+      "sub_sector": "航空发动机",
+      "sub_rank": 1
+    },
+    "BA": {
+      "en": "Boeing",
+      "cn": "波音",
+      "category": "Industrial & Defense",
+      "description": "全球商用飞机双寡头之一 / 飞机制造",
+      "industry": "工业",
+      "sub_sector": "飞机制造",
+      "sub_rank": 1
+    },
+    "RTX": {
+      "en": "RTX Corp",
+      "cn": "雷神",
+      "category": "Industrial & Defense",
+      "description": "全球防务+航空巨头 / 导弹+发动机",
+      "industry": "工业",
+      "sub_sector": "防务航空",
+      "sub_rank": 1
+    },
+    "HON": {
+      "en": "Honeywell",
+      "cn": "霍尼韦尔",
+      "category": "Industrial & Defense",
+      "description": "多元化工业巨头 / 自动化+航空+化工",
+      "industry": "工业",
+      "sub_sector": "多元化工业",
+      "sub_rank": 1
+    },
+    "DE": {
+      "en": "Deere & Co",
+      "cn": "迪尔公司",
+      "category": "Industrial & Defense",
+      "description": "全球最大农用机械 / 拖拉机+精准农业",
+      "industry": "工业",
+      "sub_sector": "农用机械",
+      "sub_rank": 1
+    },
+    "COIN": {
+      "en": "Coinbase",
+      "cn": "Coinbase",
+      "category": "Crypto & Alts",
+      "description": "美国最大加密货币交易所 / 合规+托管",
+      "industry": "金融",
+      "sub_sector": "加密交易所",
+      "sub_rank": 1
+    },
+    "MSTR": {
+      "en": "MicroStrategy",
+      "cn": "微策略",
+      "category": "Crypto & Alts",
+      "description": "最大企业BTC持有者 / 商业智能+比特币",
+      "industry": "金融",
+      "sub_sector": "比特币持仓",
+      "sub_rank": 1
+    },
+    "MARA": {
+      "en": "Marathon Digital",
+      "cn": "马拉松数字",
+      "category": "Crypto & Alts",
+      "description": "最大上市比特币矿企 / 挖矿+托管",
+      "industry": "金融",
+      "sub_sector": "比特币挖矿",
+      "sub_rank": 1
+    },
+    "RIOT": {
+      "en": "Riot Platforms",
+      "cn": "Riot平台",
+      "category": "Crypto & Alts",
+      "description": "头部比特币矿企 / 挖矿+基础设施",
+      "industry": "金融",
+      "sub_sector": "比特币挖矿",
+      "sub_rank": 2
+    },
+    "NFLX": {
+      "en": "Netflix",
+      "cn": "奈飞",
+      "category": "Magnificent 7",
+      "description": "流媒体平台全球第一 / 原创内容+订阅",
+      "industry": "传媒娱乐",
+      "sub_sector": "流媒体",
+      "sub_rank": 1
+    },
+    "WDC": {
+      "en": "Western Digital",
+      "cn": "闪迪",
+      "category": "Semiconductor Chain",
+      "description": "存储芯片全球第二 / HDD+NAND闪存",
+      "industry": "半导体链",
+      "sub_sector": "存储芯片",
+      "sub_rank": 2
+    },
+    "STX": {
+      "en": "Seagate",
+      "cn": "希捷科技",
+      "category": "Semiconductor Chain",
+      "description": "存储芯片全球第三 / HDD+SSD",
+      "industry": "半导体链",
+      "sub_sector": "存储芯片",
+      "sub_rank": 3
+    },
+    "APH": {
+      "en": "Amphenol",
+      "cn": "安费诺",
+      "category": "Semiconductor Chain",
+      "description": "连接器全球第一 / 军工+数据中心+汽车",
+      "industry": "硬件链",
+      "sub_sector": "连接器",
+      "sub_rank": 1
+    },
+    "TXN": {
+      "en": "Texas Instruments",
+      "cn": "德州仪器",
+      "category": "Semiconductor Chain",
+      "description": "模拟芯片全球第一 / 工业+汽车",
+      "industry": "半导体链",
+      "sub_sector": "模拟芯片",
+      "sub_rank": 1
+    },
+    "ADI": {
+      "en": "Analog Devices",
+      "cn": "亚德诺",
+      "category": "Semiconductor Chain",
+      "description": "模拟芯片全球第二 / 通信+工业",
+      "industry": "半导体链",
+      "sub_sector": "模拟芯片",
+      "sub_rank": 2
+    },
+    "ON": {
+      "en": "ON Semiconductor",
+      "cn": "安森美",
+      "category": "Semiconductor Chain",
+      "description": "功率半导体全球领先 / 汽车+工业",
+      "industry": "半导体链",
+      "sub_sector": "功率半导体",
+      "sub_rank": 1
+    },
+    "MCHP": {
+      "en": "Microchip Technology",
+      "cn": "微芯科技",
+      "category": "Semiconductor Chain",
+      "description": "MCU全球领先 / 嵌入式控制+模拟",
+      "industry": "半导体链",
+      "sub_sector": "MCU",
+      "sub_rank": 1
+    },
+    "NXPI": {
+      "en": "NXP Semiconductors",
+      "cn": "恩智浦",
+      "category": "Semiconductor Chain",
+      "description": "汽车芯片全球第一 / 车载网络+雷达",
+      "industry": "半导体链",
+      "sub_sector": "汽车芯片",
+      "sub_rank": 1
+    },
+    "NRG": {
+      "en": "NRG Energy",
+      "cn": "NRG能源",
+      "category": "Energy",
+      "description": "美国独立发电商龙头 / 天然气+零售电力",
+      "industry": "能源",
+      "sub_sector": "独立发电",
+      "sub_rank": 1
+    }
   },
   "etfs": {
-    "SPY": {"en": "S&P 500", "cn": "标普500ETF", "category": "Broad Market"},
-    "QQQ": {"en": "Nasdaq 100", "cn": "纳指100ETF", "category": "Broad Market"},
-    "DIA": {"en": "Dow Jones", "cn": "道琼斯ETF", "category": "Broad Market"},
-    "IWM": {"en": "Russell 2000", "cn": "罗素2000ETF", "category": "Broad Market"},
-    "XLK": {"en": "Technology", "cn": "科技板块ETF", "category": "GICS Sectors"},
-    "XLF": {"en": "Financials", "cn": "金融板块ETF", "category": "GICS Sectors"},
-    "XLE": {"en": "Energy", "cn": "能源板块ETF", "category": "GICS Sectors"},
-    "XLV": {"en": "Health Care", "cn": "医疗保健ETF", "category": "GICS Sectors"},
-    "XLI": {"en": "Industrials", "cn": "工业板块ETF", "category": "GICS Sectors"},
-    "XLY": {"en": "Consumer Discretionary", "cn": "非必需消费ETF", "category": "GICS Sectors"},
-    "XLP": {"en": "Consumer Staples", "cn": "必需消费ETF", "category": "GICS Sectors"},
-    "XLC": {"en": "Communication Services", "cn": "通信服务ETF", "category": "GICS Sectors"},
-    "XLU": {"en": "Utilities", "cn": "公用事业ETF", "category": "GICS Sectors"},
-    "XLRE": {"en": "Real Estate", "cn": "房地产ETF", "category": "GICS Sectors"},
-    "XLB": {"en": "Materials", "cn": "原材料ETF", "category": "GICS Sectors"},
-    "SMH": {"en": "Semiconductors (VanEck)", "cn": "半导体ETF", "category": "Tech & AI"},
-    "SOXX": {"en": "Semiconductors (iShares)", "cn": "半导体ETF(iShares)", "category": "Tech & AI"},
-    "IGV": {"en": "Software", "cn": "软件ETF", "category": "Tech & AI"},
-    "CLOU": {"en": "Cloud Computing", "cn": "云计算ETF", "category": "Tech & AI"},
-    "WCLD": {"en": "Cloud SaaS", "cn": "云SaaS ETF", "category": "Tech & AI"},
-    "CIBR": {"en": "Cybersecurity", "cn": "网络安全ETF", "category": "Tech & AI"},
-    "HACK": {"en": "Cybersecurity (ETFMG)", "cn": "网络安全ETF(ETFMG)", "category": "Tech & AI"},
-    "BOTZ": {"en": "AI & Robotics", "cn": "AI机器人ETF", "category": "Tech & AI"},
-    "AIQ": {"en": "AI Powered Equity", "cn": "AI ETF", "category": "Tech & AI"},
-    "ARKK": {"en": "ARK Innovation", "cn": "ARK创新ETF", "category": "Tech & AI"},
-    "ARKW": {"en": "ARK Next Gen Internet", "cn": "ARK互联网ETF", "category": "Tech & AI"},
-    "KRE": {"en": "Regional Banks", "cn": "区域银行ETF", "category": "Finance & Fintech"},
-    "KBE": {"en": "Banking", "cn": "银行ETF", "category": "Finance & Fintech"},
-    "ARKF": {"en": "ARK Fintech", "cn": "ARK金融科技ETF", "category": "Finance & Fintech"},
-    "XHB": {"en": "Homebuilders (SPDR)", "cn": "住宅建筑ETF", "category": "Real Estate & Infrastructure"},
-    "ITB": {"en": "Homebuilders (iShares)", "cn": "住宅建筑ETF(iShares)", "category": "Real Estate & Infrastructure"},
-    "PAVE": {"en": "US Infrastructure", "cn": "基建ETF", "category": "Real Estate & Infrastructure"},
-    "IGF": {"en": "Global Infrastructure", "cn": "全球基建ETF", "category": "Real Estate & Infrastructure"},
-    "IBB": {"en": "Biotech (iShares)", "cn": "生物科技ETF", "category": "Healthcare & Biotech"},
-    "XBI": {"en": "Biotech Equal-Weight", "cn": "生物科技ETF(等权)", "category": "Healthcare & Biotech"},
-    "ARKG": {"en": "ARK Genomics", "cn": "ARK基因组ETF", "category": "Healthcare & Biotech"},
-    "XOP": {"en": "Oil & Gas Exploration", "cn": "油气勘探ETF", "category": "Energy & Materials"},
-    "OIH": {"en": "Oil Services", "cn": "油服ETF", "category": "Energy & Materials"},
-    "ICLN": {"en": "Clean Energy", "cn": "清洁能源ETF", "category": "Energy & Materials"},
-    "TAN": {"en": "Solar Energy", "cn": "太阳能ETF", "category": "Energy & Materials"},
-    "XME": {"en": "Metals & Mining", "cn": "金属矿业ETF", "category": "Energy & Materials"},
-    "GDX": {"en": "Gold Miners", "cn": "金矿ETF", "category": "Energy & Materials"},
-    "SLX": {"en": "Steel Producers", "cn": "钢铁ETF", "category": "Energy & Materials"},
-    "ITA": {"en": "Aerospace & Defense", "cn": "航空航天ETF", "category": "Defense & Industrial"},
-    "XRT": {"en": "Retail (Equal-Weight)", "cn": "零售ETF", "category": "Consumer & Retail"},
-    "KWEB": {"en": "China Internet", "cn": "中概互联ETF", "category": "China & Emerging Markets"},
-    "FXI": {"en": "China Large-Cap", "cn": "中国大盘ETF", "category": "China & Emerging Markets"},
-    "MCHI": {"en": "China Broad (iShares)", "cn": "中国ETF(iShares)", "category": "China & Emerging Markets"},
-    "EEM": {"en": "Emerging Markets", "cn": "新兴市场ETF", "category": "China & Emerging Markets"},
-    "BITO": {"en": "Bitcoin Futures", "cn": "比特币ETF", "category": "Crypto & Alternatives"}
+    "SPY": {
+      "en": "S&P 500",
+      "cn": "标普500ETF",
+      "category": "Broad Market"
+    },
+    "QQQ": {
+      "en": "Nasdaq 100",
+      "cn": "纳指100ETF",
+      "category": "Broad Market"
+    },
+    "DIA": {
+      "en": "Dow Jones",
+      "cn": "道琼斯ETF",
+      "category": "Broad Market"
+    },
+    "IWM": {
+      "en": "Russell 2000",
+      "cn": "罗素2000ETF",
+      "category": "Broad Market"
+    },
+    "XLK": {
+      "en": "Technology",
+      "cn": "科技板块ETF",
+      "category": "GICS Sectors"
+    },
+    "XLF": {
+      "en": "Financials",
+      "cn": "金融板块ETF",
+      "category": "GICS Sectors"
+    },
+    "XLE": {
+      "en": "Energy",
+      "cn": "能源板块ETF",
+      "category": "GICS Sectors"
+    },
+    "XLV": {
+      "en": "Health Care",
+      "cn": "医疗保健ETF",
+      "category": "GICS Sectors"
+    },
+    "XLI": {
+      "en": "Industrials",
+      "cn": "工业板块ETF",
+      "category": "GICS Sectors"
+    },
+    "XLY": {
+      "en": "Consumer Discretionary",
+      "cn": "非必需消费ETF",
+      "category": "GICS Sectors"
+    },
+    "XLP": {
+      "en": "Consumer Staples",
+      "cn": "必需消费ETF",
+      "category": "GICS Sectors"
+    },
+    "XLC": {
+      "en": "Communication Services",
+      "cn": "通信服务ETF",
+      "category": "GICS Sectors"
+    },
+    "XLU": {
+      "en": "Utilities",
+      "cn": "公用事业ETF",
+      "category": "GICS Sectors"
+    },
+    "XLRE": {
+      "en": "Real Estate",
+      "cn": "房地产ETF",
+      "category": "GICS Sectors"
+    },
+    "XLB": {
+      "en": "Materials",
+      "cn": "原材料ETF",
+      "category": "GICS Sectors"
+    },
+    "SMH": {
+      "en": "Semiconductors (VanEck)",
+      "cn": "半导体ETF",
+      "category": "Tech & AI"
+    },
+    "SOXX": {
+      "en": "Semiconductors (iShares)",
+      "cn": "半导体ETF(iShares)",
+      "category": "Tech & AI"
+    },
+    "IGV": {
+      "en": "Software",
+      "cn": "软件ETF",
+      "category": "Tech & AI"
+    },
+    "CLOU": {
+      "en": "Cloud Computing",
+      "cn": "云计算ETF",
+      "category": "Tech & AI"
+    },
+    "WCLD": {
+      "en": "Cloud SaaS",
+      "cn": "云SaaS ETF",
+      "category": "Tech & AI"
+    },
+    "CIBR": {
+      "en": "Cybersecurity",
+      "cn": "网络安全ETF",
+      "category": "Tech & AI"
+    },
+    "HACK": {
+      "en": "Cybersecurity (ETFMG)",
+      "cn": "网络安全ETF(ETFMG)",
+      "category": "Tech & AI"
+    },
+    "BOTZ": {
+      "en": "AI & Robotics",
+      "cn": "AI机器人ETF",
+      "category": "Tech & AI"
+    },
+    "AIQ": {
+      "en": "AI Powered Equity",
+      "cn": "AI ETF",
+      "category": "Tech & AI"
+    },
+    "ARKK": {
+      "en": "ARK Innovation",
+      "cn": "ARK创新ETF",
+      "category": "Tech & AI"
+    },
+    "ARKW": {
+      "en": "ARK Next Gen Internet",
+      "cn": "ARK互联网ETF",
+      "category": "Tech & AI"
+    },
+    "KRE": {
+      "en": "Regional Banks",
+      "cn": "区域银行ETF",
+      "category": "Finance & Fintech"
+    },
+    "KBE": {
+      "en": "Banking",
+      "cn": "银行ETF",
+      "category": "Finance & Fintech"
+    },
+    "ARKF": {
+      "en": "ARK Fintech",
+      "cn": "ARK金融科技ETF",
+      "category": "Finance & Fintech"
+    },
+    "XHB": {
+      "en": "Homebuilders (SPDR)",
+      "cn": "住宅建筑ETF",
+      "category": "Real Estate & Infrastructure"
+    },
+    "ITB": {
+      "en": "Homebuilders (iShares)",
+      "cn": "住宅建筑ETF(iShares)",
+      "category": "Real Estate & Infrastructure"
+    },
+    "PAVE": {
+      "en": "US Infrastructure",
+      "cn": "基建ETF",
+      "category": "Real Estate & Infrastructure"
+    },
+    "IGF": {
+      "en": "Global Infrastructure",
+      "cn": "全球基建ETF",
+      "category": "Real Estate & Infrastructure"
+    },
+    "IBB": {
+      "en": "Biotech (iShares)",
+      "cn": "生物科技ETF",
+      "category": "Healthcare & Biotech"
+    },
+    "XBI": {
+      "en": "Biotech Equal-Weight",
+      "cn": "生物科技ETF(等权)",
+      "category": "Healthcare & Biotech"
+    },
+    "ARKG": {
+      "en": "ARK Genomics",
+      "cn": "ARK基因组ETF",
+      "category": "Healthcare & Biotech"
+    },
+    "XOP": {
+      "en": "Oil & Gas Exploration",
+      "cn": "油气勘探ETF",
+      "category": "Energy & Materials"
+    },
+    "OIH": {
+      "en": "Oil Services",
+      "cn": "油服ETF",
+      "category": "Energy & Materials"
+    },
+    "ICLN": {
+      "en": "Clean Energy",
+      "cn": "清洁能源ETF",
+      "category": "Energy & Materials"
+    },
+    "TAN": {
+      "en": "Solar Energy",
+      "cn": "太阳能ETF",
+      "category": "Energy & Materials"
+    },
+    "XME": {
+      "en": "Metals & Mining",
+      "cn": "金属矿业ETF",
+      "category": "Energy & Materials"
+    },
+    "GDX": {
+      "en": "Gold Miners",
+      "cn": "金矿ETF",
+      "category": "Energy & Materials"
+    },
+    "SLX": {
+      "en": "Steel Producers",
+      "cn": "钢铁ETF",
+      "category": "Energy & Materials"
+    },
+    "ITA": {
+      "en": "Aerospace & Defense",
+      "cn": "航空航天ETF",
+      "category": "Defense & Industrial"
+    },
+    "XRT": {
+      "en": "Retail (Equal-Weight)",
+      "cn": "零售ETF",
+      "category": "Consumer & Retail"
+    },
+    "KWEB": {
+      "en": "China Internet",
+      "cn": "中概互联ETF",
+      "category": "China & Emerging Markets"
+    },
+    "FXI": {
+      "en": "China Large-Cap",
+      "cn": "中国大盘ETF",
+      "category": "China & Emerging Markets"
+    },
+    "MCHI": {
+      "en": "China Broad (iShares)",
+      "cn": "中国ETF(iShares)",
+      "category": "China & Emerging Markets"
+    },
+    "EEM": {
+      "en": "Emerging Markets",
+      "cn": "新兴市场ETF",
+      "category": "China & Emerging Markets"
+    },
+    "BITO": {
+      "en": "Bitcoin Futures",
+      "cn": "比特币ETF",
+      "category": "Crypto & Alternatives"
+    }
   }
 }

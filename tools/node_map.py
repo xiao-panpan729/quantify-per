@@ -90,10 +90,8 @@ def load_stock_names() -> dict[str, str]:
                 code6 = code[2:] if len(code) >= 8 and code[:2] in ("sh", "sz") else code
                 if len(code6) == 6:
                     names[code6] = name
-        except Exception:
-            pass
-
-    # 2. config NAME_MAP（补漏）
+        except (FileNotFoundError, KeyError) as e:
+            print(f"  ⚠ 加载股票名称缓存失败: {e}")
     try:
         sys.path.insert(0, str(PROJECT_ROOT))
         from config import NAME_MAP
@@ -101,8 +99,8 @@ def load_stock_names() -> dict[str, str]:
             code6 = full_code[2:] if len(full_code) > 2 else full_code
             if code6 not in names:
                 names[code6] = name
-    except Exception:
-        pass
+    except ImportError as e:
+        print(f"  ⚠ 无法导入 config.NAME_MAP: {e}")
 
     return names
 
