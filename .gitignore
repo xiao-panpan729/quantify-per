@@ -13,6 +13,10 @@ gbbq/
 # ===== 临时文件 =====
 __pycache__/
 *.pyc
+
+# ===== 生成数据（可重新运行脚本生成）=====
+training_data/*.csv
+training_data/*.pkl
 *.pyo
 *.log
 *.tmp
