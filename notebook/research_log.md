@@ -3602,3 +3602,145 @@ mode = "full" if args.force else ("incremental" if has_sections else "full")
 
 ### 关键词
 #知识库 #Obsidian #数据管道 #公众号 #快讯 #shock_detector #_fetch_articles #实验#43
+
+---
+
+## 实验 #44: 事件流框架设计 — 跨专家统一输出协议 (2026-06-29)
+
+### 发现
+
+用户现有三路深度分析产出，各自格式独立，无法被机器消费和回测：
+
+| 产出 | 格式 | 问题 |
+|------|------|------|
+| 信源日报 `reports/sources/` | .md | 话题分析+作者观点只给人看 |
+| 产业报告 `reports/industry_daily/` | .md | 行业事件→分析→个股只给人看 |
+| 叙事线 `narratives/timelines/` | .md | 演化时间线只给人看 |
+| signal_extractor `daily_signals/*.json` | ✅ JSON | 唯一结构化事件流(48天历史) |
+
+**核心矛盾**: 3路分析都产出"事件"，但格式不通 → 无法共振验证、无法回测、无法加权修正技术面信号。
+
+### 设计决策
+
+#### 决策 #1: 统一事件结构（最小协议）
+
+```python
+{
+  "id": "evt_20260629_001",           # 唯一ID
+  "source": "产业报告"|"信源日报"|"叙事线",  # 来源
+  "source_module": "功率半导体",         # 子模块
+  "topic": "芯联集成8寸MOS二次涨价15%",
+  "direction": "bullish",              # 偏多/偏空/中性
+  "confidence": 0.85,                   # 0~1
+  "modifier": +0.3,                     # 对技术面评分的修正权重(-1~+1)
+  "targets": {
+    "chains": ["功率半导体"],           # 板块/产业链级
+    "stocks": ["688469.SH", "300623.SZ"]  # 个股级
+  },
+  "horizon": "short_term",             # short_term/medium_term/long_term
+  "evidence": "订单排到4-5个月后，交期拉至30周",
+  "related_sources": ["sentiment_shock", "us_etf"],  # 关联signal_extractor来源
+  "first_seen": "20260629",
+  "status": "active"                   # active/decaying/expired/falsified
+}
+```
+
+**关键设计点**:
+- `direction` 不是买卖指令，是事件本身的方向（涨价→bullish，制裁→bearish）
+- `modifier` 是给下游消费的（技术面评分用的修正值）
+- `targets` 分两级（板块级给势能评分用，个股级给信号引擎用）
+- `chain` 关联到叙事链，方便跨模块共振检测
+- `status` 生命周期状态
+
+#### 决策 #2: 生命周期四状态
+
+机构做法不是靠猜半衰期，是回测IC曲线后算出来的。但设计上预留状态机：
+
+```
+新事件 → active（默认）
+            │
+    到期/无刷新 → decaying（modifier打折）
+            │
+    超期/无信号 → expired（不参与评分修正）
+            │
+  与走势相反 → falsified（反向扣分）
+```
+
+初始硬编码默认有效期（后续IC回测后修正）：
+
+| 事件类型 | 默认活跃期 | 例子 |
+|---------|-----------|------|
+| 快讯型（创历史新高） | 5天 | XBI创历史新高 |
+| 趋势型（涨价周期） | 20天 | MLCC涨价50%-150% |
+| 政策型（十年投资计划） | 30天 | 三星/SK 2000万亿韩元 |
+| 叙事型（产能出清） | 30天 | 光伏产能出清速度 |
+
+#### 决策 #3: 不逆向LLM全量，增量优先
+
+历史obsidian采用**关键词匹配（非LLM）**从后往前扫，直到不再出现新事件——预期覆盖2~3个月。从今天起管道增量输出结构化JSON。
+
+#### 决策 #4: 双通道设计（参考RavenPack架构）
+
+每个事件拆为两个分数：
+- **快信号**（General）: 当天有效，半衰期短 → 做短期修正
+- **慢信号**（Long-term EWMA）: 平滑版本 → 做趋势/配置
+
+统一用EWMA衰减：`today_score = new_event * 0.5 + yesterday_score * 0.5`
+
+#### 决策 #5: IC衰减回测的依赖关系
+
+```
+事件流JSON  +  通达信价格数据  +  技术面评分
+    │               │                │
+    └───────────────┴────────────────┘
+                    │
+              算IC衰减曲线
+                    │
+              定半衰期参数
+                    │
+              修正modifier强度
+```
+
+**顺序**: 先搭事件流输出 → 累积~60天数据 → 再调通达信价格算IC → 修正参数
+
+### 实施计划
+
+#### Phase 1（今天）：增量输出层
+
+- 在 `gen_daily_brief.py` 最后追加：输出今日信源事件流 JSON
+- 在 `afternoon_pipeline.py` 最后追加：输出今日产业事件流 JSON
+- 格式统一为上述事件结构
+- 存储：`signals/tracking/_events/daily/YYYYMMDD_events.json`
+
+#### Phase 2（本周内）：历史匹配
+
+- 用关键词（链名+事件类型）从最新产业报告倒着往前匹配
+- 预期覆盖2~3个月
+- 匹配到的事件写入同一格式，标记 `confidence` 略低（因为是反推）
+
+#### Phase 3（累积~60天事件后）：IC衰减
+
+- 读事件JSON + 通达信价格数据
+- 算每个事件的 (modifier, 未来N天涨跌幅) 的秩相关系数
+- 画IC衰减曲线
+- 根据曲线修正half-life和modifier强度
+
+### 与其他模块的关系
+
+| 已有模块 | 关系 |
+|---------|------|
+| signal_extractor | 事件流的一个来源（已结构化），通过 `related_sources` 关联 |
+| chain_summary | 事件流按叙事链聚合 → 补充现有chain_summary |
+| 技术面评分（ABCD/0-14） | 事件流的modifier最终反馈到这里 |
+| 板块势能X₁ | 事件流在板块级提供置信度修正 |
+| 战役引擎 | 事件累积 → 战役信号强度 |
+
+### 待解决问题
+
+1. modifier的绝对值怎么定？初始统一为±0.3，等IC回测后按IC强度缩放
+2. 同一事件被多源确认 → modifier叠加规则？初步：叠加但上限0.8
+3. 事件与板块势能方向冲突时（板块强但事件看空）→ 如何处理？初步：按置信度加权
+4. history matching时重复事件去重窗口期多长？初步：同一chain+同一topic在15天内不重复
+
+### 关键词
+#事件流 #统一输出协议 #跨专家融合 #IC衰减 #生命周期 #设计决策 #实验#44

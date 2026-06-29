@@ -47,6 +47,44 @@ US_SECTOR_TO_A_SHARE = {
     "China & Emerging Markets": ["中概", "港股", "恒生"],
 }
 
+# US 行业方向 → 中文名称映射（海外映射渲染用）
+_US_SECTOR_CN = {
+    "Healthcare & Biotech": "医疗健康",
+    "Semiconductors (VanEck)": "半导体",
+    "Broad Market": "大盘",
+    "Consumer & Retail": "消费零售",
+    "Energy & Materials": "能源材料",
+    "Defense & Industrial": "工业国防",
+    "Finance & Fintech": "金融",
+    "Real Estate & Infrastructure": "地产基建",
+    "China & Emerging Markets": "中概新兴市场",
+    # 以下是 ETF category 映射（us_sector_momentum.json 中的 category）
+    "Healthcare": "医疗健康",
+    "Semiconductors": "半导体",
+    "Technology": "科技",
+    "Consumer": "消费",
+    "Energy": "能源",
+    "Financial": "金融",
+    "Industrial": "工业",
+    "Utilities": "公用事业",
+    "Real Estate": "地产",
+    "Materials": "材料",
+    "Broad Market": "大盘",
+}
+
+# 美股明星股分类中文映射（对应 star_stocks.py US_STAR_STOCKS 的 key）
+_US_STOCK_CATEGORY_CN = {
+    "Magnificent 7": "科技七巨头",
+    "Semiconductor Chain": "半导体",
+    "AI & Software": "AI软件",
+    "Finance": "金融",
+    "Healthcare": "医疗健康",
+    "Energy": "能源",
+    "Consumer & Retail": "消费零售",
+    "Industrial & Defense": "工业国防",
+    "Crypto & Alts": "加密资产",
+}
+
 # 概念链名称 → A股板块关键词映射（与 US_SECTOR_TO_A_SHARE 互补，用于明星股映射）
 CONCEPT_CHAIN_TO_A_SHARE = {
     "半导体产业链": ["半导体", "芯片", "集成电路"],
@@ -555,9 +593,14 @@ def build_overseas_mapping(covered_topics: set) -> list:
             entry = _ensure_dir(d)
             # Avoid duplicate ETF
             if not any(es["symbol"] == sym for es in entry["us_etf_signals"]):
+                # 查中文名
+                etf_info = _get_us_ticker_info().get(sym, {})
+                cn_name = etf_info.get("cn", e.get("name", ""))
                 entry["us_etf_signals"].append({
                     "symbol": sym,
                     "name": e.get("name", ""),
+                    "cn_name": cn_name,
+                    "category": _US_SECTOR_CN.get(e.get("category", ""), e.get("category", "")),
                     "x1": e.get("x1", 0),
                     "daily_chg": e.get("daily_chg", 0),
                     "week_chg": e.get("week_chg", 0),
@@ -585,9 +628,15 @@ def build_overseas_mapping(covered_topics: set) -> list:
 
             entry = _ensure_dir(dir_name)
             if not any(ss["symbol"] == sym for ss in entry["us_star_signals"]):
+                # 查中文名+行业分类
+                stock_info = _get_us_ticker_info().get(sym, {})
+                cn_name = stock_info.get("cn", s.get("name", ""))
+                stock_category = _US_STOCK_CATEGORY_CN.get(s.get("category", ""), s.get("category", ""))
                 entry["us_star_signals"].append({
                     "symbol": sym,
                     "name": s.get("name", ""),
+                    "cn_name": cn_name,
+                    "category": stock_category,
                     "x1": s.get("x1", 0),
                     "daily_chg": s.get("daily_chg", 0),
                     "week_chg": s.get("week_chg", 0),
@@ -628,16 +677,55 @@ def build_overseas_mapping(covered_topics: set) -> list:
             if covered_topics and dir_keywords else False
         )
 
-    # 4. Sort by composite score descending
+    # 4. Collect ATH (创历史新高) data across all ETFs and stocks
+    ath_etfs = []
+    for e in etfs:
+        if e.get("ath"):
+            etf_info = _get_us_ticker_info().get(e["symbol"], {})
+            cn_cat = _US_SECTOR_CN.get(e.get("category", ""), e.get("category", ""))
+            ath_etfs.append({
+                "symbol": e["symbol"],
+                "name": e.get("name", ""),
+                "cn_name": etf_info.get("cn", ""),
+                "category": cn_cat,
+                "x1": e.get("x1", 0),
+                "ath_distance": e.get("ath_distance", 0),
+                "week_chg": e.get("week_chg", 0),
+                "month_chg": e.get("month_chg", 0),
+            })
+    ath_stocks = []
+    for s in stars:
+        if s.get("ath"):
+            cn_cat = _US_STOCK_CATEGORY_CN.get(s.get("category", ""), s.get("category", ""))
+            ath_stocks.append({
+                "symbol": s["symbol"],
+                "name": s.get("name", ""),
+                "cn_name": s.get("cn_name", ""),
+                "category": cn_cat,
+                "sub_sector": s.get("sub_sector", ""),
+                "sub_rank": s.get("sub_rank", 0),
+                "x1": s.get("x1", 0),
+                "ath_distance": s.get("ath_distance", 0),
+            })
+    ath_etfs.sort(key=lambda x: x["ath_distance"], reverse=True)
+    ath_stocks.sort(key=lambda x: x["ath_distance"], reverse=True)
+
+    # 5. Sort by composite score descending
     sorted_dirs = sorted(
         direction_signals.values(),
         key=lambda x: -x["composite_score"]
     )
 
-    # 5. Filter: only show directions with meaningful score
+    # 6. Filter: only show directions with meaningful score
     filtered = [d for d in sorted_dirs if d["composite_score"] > 1.0]
 
-    return filtered[:8]  # max 8 directions
+    result = filtered[:8]  # max 8 directions
+    # Attach ATH data to the list (backward compatible: callers use len()/iteration unchanged)
+    result.ath_data = {
+        "ath_etfs": ath_etfs,
+        "ath_stocks": ath_stocks,
+    }
+    return result
 
 
 def load_headlines() -> list:
@@ -1202,7 +1290,7 @@ def _render_topic(topic: dict) -> list:
 ENHANCED_MAPPING_HEADER = "## 🪝 海外映射"
 
 def render_enhanced_overseas_mapping(mapping_signals: list) -> str:
-    """生成增强版海外映射区块 — 综合评分表 + Top方向钻取"""
+    """生成增强版海外映射区块 — ATH新高榜 + 综合评分表 + Top方向钻取"""
     if not mapping_signals:
         return ""
     lines = ["\n---\n", f"{ENHANCED_MAPPING_HEADER}\n"]
@@ -1210,12 +1298,36 @@ def render_enhanced_overseas_mapping(mapping_signals: list) -> str:
         "以下将 US 市场板块异动 & 明星股动量通过概念链映射到 A 股方向，\n"
     )
 
-    # ── 综合评分表 ──
+    # ── ① 🏆 创历史新高（从附加的 ath_data 读取） ──
+    ath_data = getattr(mapping_signals, "ath_data", None)
+    if ath_data and (ath_data["ath_etfs"] or ath_data["ath_stocks"]):
+        lines.append("### 🏆 创历史新高\n")
+        if ath_data["ath_etfs"]:
+            etf_parts = []
+            for e in ath_data["ath_etfs"][:6]:
+                cn = e.get("cn_name", "")
+                name_part = f"{e['name']}({cn})" if cn else e["name"]
+                etf_parts.append(f"{name_part} ({e['symbol']}) {e.get('category','')} x₁={e['x1']:.1f}")
+            lines.append(f"**ETF新高**: {' | '.join(etf_parts)}")
+            lines.append("")
+        if ath_data["ath_stocks"]:
+            stock_parts = []
+            for s in ath_data["ath_stocks"][:8]:
+                cn = s.get("cn_name", "")
+                name_part = f"{cn}({s['name']})" if cn else s["name"]
+                sub = s.get("sub_sector", "")
+                sub_part = f" [{sub}]" if sub else ""
+                stock_parts.append(f"{name_part} ({s['symbol']}){sub_part} x₁={s['x1']:.1f}")
+            lines.append(f"**个股新高**: {' | '.join(stock_parts)}")
+            lines.append("")
+        lines.append("---\n")
+
+    # ── ② 综合评分表 ──
     lines.append("### 📊 US→A 股映射综合评分\n")
     lines.append("| A股方向 | 评分 | US驱动 | 覆盖状态 |")
     lines.append("|---------|------|--------|----------|")
     for s in mapping_signals[:6]:
-        dir_name = s["a_share_direction"]
+        dir_name = _US_SECTOR_CN.get(s["a_share_direction"], s["a_share_direction"])
         score = s["composite_score"]
         n_etf = len(s["us_etf_signals"])
         n_star = len(s["us_star_signals"])
@@ -1231,14 +1343,14 @@ def render_enhanced_overseas_mapping(mapping_signals: list) -> str:
 
     # ── Top 方向钻取 ──
     for s in mapping_signals[:4]:
-        dir_name = s["a_share_direction"]
+        dir_name = _US_SECTOR_CN.get(s["a_share_direction"], s["a_share_direction"])
         lines.append(f"**{dir_name}** (评分 {s['composite_score']:.1f})")
 
         # US ETF signals
         if s["us_etf_signals"]:
             sorted_etfs = sorted(s["us_etf_signals"], key=lambda x: -abs(x.get("x1", 0) or 0))
             etf_detail = "  ".join(
-                f"{e['name']}({e['symbol']}) x₁={e['x1']:.1f} 日{e.get('daily_chg',0):+.1f}%"
+                f"{e.get('cn_name', e['name'])} ({e['symbol']}) x₁={e['x1']:.1f} 日{e.get('daily_chg',0):+.1f}%"
                 for e in sorted_etfs[:4]
             )
             lines.append(f"  · US ETF: {etf_detail}")
@@ -1247,7 +1359,7 @@ def render_enhanced_overseas_mapping(mapping_signals: list) -> str:
         if s["us_star_signals"]:
             sorted_stars = sorted(s["us_star_signals"], key=lambda x: -abs(x.get("x1", 0) or 0))
             star_detail = "  ".join(
-                f"{e['symbol']} x₁={e['x1']:.1f}"
+                f"{e.get('cn_name', e['symbol'])} ({e['symbol']}) [{e.get('category', '?')}] x₁={e['x1']:.1f}"
                 for e in sorted_stars[:4]
             )
             lines.append(f"  · 明星股: {star_detail}")
@@ -1556,9 +1668,7 @@ def main():
     # ── 2. 检测模式 ──
     processed = load_processed_articles()
     # 判断 sources.md 是否已有话题分析区——有则午后增量，无则首次完整追加
-    has_sections = ("## 📰 热点事件分类" in report_content or
-                    "## 🔴" in report_content or
-                    "## 📰 公众号观点聚合" in report_content)
+    has_sections = ("## 📰 公众号观点聚合" in report_content)
     mode = "full" if args.force else ("incremental" if has_sections else "full")
     print(f"  模式: {'增量更新' if mode == 'incremental' else '完整追加'}（今日 {len(articles)} 篇）")
 
@@ -1591,6 +1701,16 @@ def main():
         for s in enhanced_mapping_signals[:5]:
             print(f"    {s['a_share_direction']} (评分{s['composite_score']:.1f}, "
                   f"{len(s['us_etf_signals'])}ETF + {len(s['us_star_signals'])}星)")
+        ath = getattr(enhanced_mapping_signals, "ath_data", None)
+        if ath:
+            if ath["ath_etfs"]:
+                print(f"    🏆 ETF创历史新高: {', '.join(e['symbol'] for e in ath['ath_etfs'][:5])}")
+            if ath["ath_stocks"]:
+                ath_stock_strs = []
+                for s2 in ath["ath_stocks"][:5]:
+                    cn = s2.get("cn_name", "")
+                    ath_stock_strs.append(f"{s2['symbol']}({cn})")
+                print(f"    🏆 个股创历史新高: {', '.join(ath_stock_strs)}")
 
     # ── 聚合新闻头条热度（话题发现源） ──
     headlines = load_headlines()
@@ -1721,6 +1841,19 @@ def main():
     if not args.force:
         save_processed_articles(articles)
     print(f"[gen_daily_brief] ✅ 聚合层已追加到 {sources_md.name}")
+
+    # ── 7. 事件流：从海外映射信号提取结构化事件 ──
+    if enhanced_mapping_signals:
+        try:
+            from tools.event_stream import EventStream, extract_mapping_events
+            events = extract_mapping_events(enhanced_mapping_signals, date)
+            if events:
+                es = EventStream()
+                es.add_events(events, date)
+                es.save_latest(date)
+                print(f"  [事件流] 海外映射 → {len(events)} 个事件")
+        except Exception as e:
+            print(f"  [事件流] ⚠ 提取失败（不影响主流程）: {e}")
 
     # ── 7. 打印摘要 ──
     print(f"\n  📊 本期覆盖: {len(articles)} 篇文章, {len(groups)} 个主题")

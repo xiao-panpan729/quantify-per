@@ -35,7 +35,7 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [2/17] 消息面突发事件检测（鼓掌WS + 东财 + 见闻）...
+echo [2/17] 消息面突发事件检测（华尔街见闻 + 东财 + 财联社 + 金十）...
 python tools/sentiment/shock_detector.py
 if %errorlevel% neq 0 (
     echo [警告] 消息面检测失败

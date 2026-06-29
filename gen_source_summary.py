@@ -117,6 +117,19 @@ def _load_us_names():
 # 预加载一次，后续引用
 _US_STOCK_CN, _US_ETF_CN = _load_us_names()
 
+# 美股分类中文映射（对应 star_stocks.py US_STAR_STOCKS 的 key）
+_US_CATEGORY_CN = {
+    "Magnificent 7": "科技七巨头",
+    "Semiconductor Chain": "半导体",
+    "AI & Software": "AI软件",
+    "Finance": "金融",
+    "Healthcare": "医疗健康",
+    "Energy": "能源",
+    "Consumer & Retail": "消费零售",
+    "Industrial & Defense": "工业国防",
+    "Crypto & Alts": "加密资产",
+}
+
 
 def _x1_trend_label(x1, x1_trend):
     """x₁ 势能趋势中文标签：持续走强 vs 走强滞涨 vs 走弱。空数据返回 -"""
@@ -315,17 +328,18 @@ if star_data:
             "x1": s.get("x1", 0), "x1_trend": s.get("x1_trend", ""),
             "daily_chg": s.get("daily_chg", 0), "week_chg": s.get("week_chg", 0),
             "month_chg": s.get("month_chg", 0),
+            "category": _US_CATEGORY_CN.get(s.get("category", ""), s.get("category", "")),
         })
     stars.sort(key=lambda x: x["x1"], reverse=True)
-    blocks.append("| 股票 | 中文 | x₁ | 趋势 | 日涨跌 | 周涨跌 | 月涨跌 |")
-    blocks.append("|------|------|-----|------|--------|--------|--------|")
+    blocks.append("| 股票 | 中文 | 行业 | x₁ | 趋势 | 日涨跌 | 周涨跌 | 月涨跌 |")
+    blocks.append("|------|------|------|-----|------|--------|--------|--------|")
     for it in stars[:8]:
         tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
-        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {tl} | {_pct_str(it['daily_chg'])} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} |")
-    blocks.append("| ... | | | | | | |")
+        blocks.append(f"| {it['name']} | {it['cn']} | {it['category']} | {it['x1']:.1f} | {tl} | {_pct_str(it['daily_chg'])} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} |")
+    blocks.append("| ... | | | | | | | |")
     for it in stars[-3:]:
         tl = _x1_trend_label(it["x1"], it.get("x1_trend", ""))
-        blocks.append(f"| {it['name']} | {it['cn']} | {it['x1']:.1f} | {tl} | {_pct_str(it['daily_chg'])} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} |")
+        blocks.append(f"| {it['name']} | {it['cn']} | {it['category']} | {it['x1']:.1f} | {tl} | {_pct_str(it['daily_chg'])} | {_pct_str(it['week_chg'])} | {_pct_str(it['month_chg'])} |")
     blocks.append("")
 else:
     blocks.append("**明星股**: （无数据）")
@@ -350,9 +364,27 @@ if liq:
     for k, v in liq.get("factors", {}).items():
         lbl = v.get("label", k)
         lat = v.get("latest", v.get("raw", "?"))
-        score = v.get("score", "?")
-        val = f"{lat:.2f}" if isinstance(lat, float) else str(lat)
-        left_rows.append(_macro_row("", lbl, val, f"score={score}"))
+        score = v.get("score", 0)
+        raw = v.get("raw", 0)
+        if k == "btc":
+            # BTC 显示价格 + 6月动量方向
+            price = f"${lat:.2f}" if isinstance(lat, (int, float)) else str(lat)
+            mom = f"{raw*100:+.1f}%" if isinstance(raw, (int, float)) else ""
+            arrow = "🟢" if (score or 0) >= 0 else "🔴"
+            left_rows.append(_macro_row("", lbl, price, f"{arrow} {mom}"))
+        elif k == "vix":
+            # VIX 显示数值 + 6月趋势（对比历史中位数20）
+            val = f"{lat:.1f}" if isinstance(lat, float) else str(lat)
+            if isinstance(raw, (int, float)):
+                mom = f"{raw*100:+.1f}%"
+            else:
+                mom = ""
+            # VXX下行=恐慌下降=利好流动性
+            arrow = "🟢" if (score or 0) >= 0 else "🔴"
+            left_rows.append(_macro_row("", lbl, val, f"{arrow} {mom}"))
+        else:
+            val = f"{lat:.2f}" if isinstance(lat, float) else str(lat)
+            left_rows.append(_macro_row("", lbl, val, f"score={score}"))
 else:
     left_rows.append(_macro_row("🌍 全球", "（无数据）", "-", "-"))
 

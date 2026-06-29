@@ -205,22 +205,6 @@ def fetch_web_articles(url, source_name, extract_fn=None):
         return []
 
 
-def extract_reuters_links(html, base_url):
-    """从 Reuters 中文网首页提取外资观点相关文章"""
-    articles = []
-    for m in re.finditer(r'<a[^>]*href="(https?://cn\.reuters\.com[^"]*)"[^>]*>([^<]+)</a>', html):
-        link, title = m.group(1), m.group(2).strip()
-        if any(kw in title for kw in FOREIGN_BANK_KEYWORDS):
-            articles.append({'title': title, 'link': link, 'source': 'reuters_cn'})
-    if not articles:
-        for m in re.finditer(r'<a[^>]*href="(/article/[^"]*)"[^>]*>([^<]+)</a>', html):
-            link = base_url.rstrip('/') + m.group(1)
-            title = m.group(2).strip()
-            if any(kw in title for kw in FOREIGN_BANK_KEYWORDS):
-                articles.append({'title': title, 'link': link, 'source': 'reuters_cn'})
-    return articles[:5]
-
-
 def extract_cls_links(html, base_url):
     """从财联社网站提取外资观点相关文章"""
     articles = []
@@ -261,7 +245,6 @@ def save_web_article(art):
 def fetch_all_web_sources():
     """并行抓取所有网页信源"""
     web_sources = [
-        ('Reuters中文网', 'https://cn.reuters.com/', extract_reuters_links),
         ('财联社', 'https://www.cls.cn/', extract_cls_links),
     ]
 
